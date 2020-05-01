@@ -13,6 +13,7 @@
 
 /*** SHT3x local macros ***/
 
+#define SHT3X_I2C_ADDRESS				0x44
 #define SHT3X_FULL_SCALE				65535 // Data are 16-bits length (2^(16)-1).
 #define SHT3X_TEMPERATURE_ERROR_VALUE	0x7F
 #define SHT3X_HUMIDITY_ERROR_VALUE		0xFF
@@ -44,15 +45,15 @@ void SHT3X_Init(void) {
  * @param:	None.
  * @return:	None.
  */
-void SHT3X_PerformMeasurements(unsigned char sht3x_i2c_address) {
+void SHT3X_PerformMeasurements(void) {
 	// Trigger high repeatability measurement with clock streching disabled.
 	unsigned char measurement_command[2] = {0x24, 0x00};
-	unsigned char i2c_access = I2C1_Write(sht3x_i2c_address, measurement_command, 2);
+	unsigned char i2c_access = I2C1_Write(SHT3X_I2C_ADDRESS, measurement_command, 2);
 	if (i2c_access == 0) return;
 	// Wait for conversion to complete (at least 15ms).
 	LPTIM1_DelayMilliseconds(20);
 	unsigned char measure_buf[6];
-	i2c_access = I2C1_Read(sht3x_i2c_address, measure_buf, 6);
+	i2c_access = I2C1_Read(SHT3X_I2C_ADDRESS, measure_buf, 6);
 	if (i2c_access == 0) return;
 	// Compute temperature (TBC: verify checksum).
 	unsigned int temperature_16bits = (measure_buf[0] << 8) + measure_buf[1];

@@ -28,6 +28,7 @@
 #include "tim.h"
 #include "usart.h"
 // Components.
+#include "mma8653fc.h"
 #include "neom8n.h"
 #include "s2lp.h"
 #include "sht3x.h"
@@ -93,6 +94,10 @@ int main (void) {
 	NEOM8N_Init();
 	SHT3X_Init();
 	S2LP_Init();
+	MMA8653FC_Init();
+	I2C1_PowerOn();
+	MMA8653FC_WriteConfig(&(mma8653_tkfx_config[0]), MMA8653FC_TKFX_CONFIG_SIZE);
+	I2C1_PowerOff();
 
 	/* CW test */
 	SPI1_Enable();

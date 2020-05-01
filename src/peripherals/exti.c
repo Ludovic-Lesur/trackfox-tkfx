@@ -20,7 +20,7 @@
  * @return:	None.
  */
 void EXTI0_1_IRQHandler(void) {
-	// TBD.
+	// Accelero IRQ (PA1).
 }
 
 /* EXTI LINES 2-3 INTERRUPT HANDLER.
@@ -28,7 +28,7 @@ void EXTI0_1_IRQHandler(void) {
  * @return:	None.
  */
 void EXTI2_3_IRQHandler(void) {
-	// TBD.
+	// Can be used for TP1 (PA4).
 }
 
 /* EXTI LINES 4-15 INTERRUPT HANDLER.
@@ -36,7 +36,7 @@ void EXTI2_3_IRQHandler(void) {
  * @return:	None.
  */
 void EXTI4_15_IRQHandler(void) {
-	// TBD.
+	// Can be used for S2LP GPIOs (PA10/PA11).
 }
 
 /*** EXTI functions ***/
@@ -59,7 +59,7 @@ void EXTI_Init(void) {
  * @edge_trigger:	Interrupt edge trigger (see EXTI_Trigger egpio_numeration in exti.h).
  * @return:			None.
  */
-void EXTI_ConfigureInterrupt(GPIO* gpio, EXTI_Trigger edge_trigger) {
+void EXTI_ConfigureInterrupt(const GPIO* gpio, EXTI_Trigger edge_trigger) {
 	// Select GPIO port.
 	SYSCFG -> EXTICR[((gpio -> gpio_num) / 4)] &= ~(0b1111 << (4 * ((gpio -> gpio_num) % 4)));
 	SYSCFG -> EXTICR[((gpio -> gpio_num) / 4)] |= ((gpio -> gpio_port_index) << (4 * ((gpio -> gpio_num) % 4)));

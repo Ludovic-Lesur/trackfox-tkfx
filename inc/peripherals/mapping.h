@@ -18,11 +18,11 @@ static const GPIO GPIO_ACCELERO_IRQ =			(GPIO) {GPIOA, 0, 1, 0};
 static const GPIO GPIO_LPUART1_TX =				(GPIO) {GPIOA, 0, 2, 6};
 static const GPIO GPIO_LPUART1_RX =				(GPIO) {GPIOA, 0, 3, 6};
 // GPS power control.
-static const GPIO GPIO_GPS_POWER_ENABLE =		(GPIO) {GPIOA, 0, 4, 0};
+static const GPIO GPIO_GPS_POWER_ENABLE =		(GPIO) {GPIOA, 0, 5, 0};
 // ADC inputs.
-static const GPIO GPIO_ADC1_IN5 =				(GPIO) {GPIOA, 0, 5, 0};
 static const GPIO GPIO_ADC1_IN6 =				(GPIO) {GPIOA, 0, 6, 0};
 static const GPIO GPIO_ADC1_IN7 =				(GPIO) {GPIOA, 0, 7, 0};
+static const GPIO GPIO_ADC1_IN8 =				(GPIO) {GPIOB, 1, 0, 0};
 // TCXO power control.
 static const GPIO GPIO_TCXO_POWER_ENABLE =		(GPIO) {GPIOA, 0, 8, 0};
 // USART2 (AT interface).
@@ -41,9 +41,9 @@ static const GPIO GPIO_SPI1_MOSI = 				(GPIO) {GPIOB, 1, 5, 0};
 //static const GPIO GPIO_S2LP_CS = 				(GPIO) {GPIOA, 0, 15, 0};
 static const GPIO GPIO_S2LP_CS = 				(GPIO) {GPIOB, 1, 1, 0}; // Test with Nucleo.
 // ADC power enable.
-static const GPIO GPIO_ADC_POWER_ENABLE =		(GPIO) {GPIOB, 1, 0, 0};
+static const GPIO GPIO_ADC_POWER_ENABLE =		(GPIO) {GPIOB, 1, 1, 0};
 // Test point.
-static const GPIO GPIO_TP2 =					(GPIO) {GPIOB, 1, 1, 0};
+static const GPIO GPIO_TP2 =					(GPIO) {GPIOA, 0, 4, 0};
 // RF power enable.
 //static const GPIO GPIO_RF_POWER_ENABLE =		(GPIO) {GPIOB, 1, 2, 0};
 static const GPIO GPIO_RF_POWER_ENABLE =		(GPIO) {GPIOA, 0, 11, 0}; // Test with Nucleo.

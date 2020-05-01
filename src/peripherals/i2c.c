@@ -81,7 +81,7 @@ void I2C1_PowerOn(void) {
 	// Enable GPIOs.
 	GPIO_Configure(&GPIO_I2C1_SCL, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_I2C1_SDA, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	// Switch SHT3x, DPS310 and SI1133 on.
+	// Turn SHT3x and pull-up resistors on.
 	GPIO_Write(&GPIO_SENSORS_POWER_ENABLE, 1);
 	LPTIM1_DelayMilliseconds(100);
 }
@@ -91,7 +91,7 @@ void I2C1_PowerOn(void) {
  * @return:	None.
  */
 void I2C1_PowerOff(void) {
-	// Switch SHT3x, DPS310 and SI1133 off.
+	// Turn SHT3x and pull-up resistors off.
 	GPIO_Write(&GPIO_SENSORS_POWER_ENABLE, 0);
 	// Disable I2C alternate function.
 	GPIO_Configure(&GPIO_I2C1_SCL, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);

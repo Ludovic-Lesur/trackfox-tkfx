@@ -21,7 +21,7 @@ typedef enum {
 /*** EXTI functions ***/
 
 void EXTI_Init(void);
-void EXTI_ConfigureInterrupt(GPIO* gpio, EXTI_Trigger edge_trigger);
+void EXTI_ConfigureInterrupt(const GPIO* gpio, EXTI_Trigger edge_trigger);
 void EXTI_ClearAllFlags(void);
 
 #endif /* EXTI_H_ */
