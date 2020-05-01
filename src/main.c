@@ -36,9 +36,84 @@
 #include "at.h"
 #include "dlk.h"
 #include "geoloc.h"
+#include "mode.h"
 #include "monitoring.h"
 #include "sigfox_api.h"
 
+#ifdef SSM
+/* MAIN FUNCTION FOR START/STOP MODE.
+ * @param: 	None.
+ * @return: 0.
+ */
+int main (void) {
+
+	/* Init memory */
+	NVIC_Init();
+	FLASH_Init();
+	//NVM_Enable();
+
+	/* Init GPIO (required for clock tree configuration) */
+	GPIO_Init();
+
+	/* Init clocks */
+	RCC_Init();
+	RCC_SwitchToHsi();
+	//RTC_Reset();
+	//RCC_EnableLsi();
+	// High speed oscillator.
+	//if (RCC_SwitchToHse() == 0) {
+		//RCC_SwitchToHsi();
+	//}
+
+	/* Init peripherals */
+	//unsigned int lsi_frequency_hz = RCC_GetLsiFrequency();
+	// Timers.
+	TIM21_Init();
+	TIM22_Init();
+	TIM21_Start();
+	TIM22_Start();
+	LPTIM1_Init(0);
+	// RTC.
+	//RTC_Init(0, lsi_frequency_hz);
+	// DMA.
+	DMA1_Init();
+	// Analog.
+	ADC1_Init();
+	// External interrupts.
+	EXTI_Init();
+	// Communication interfaces.
+	LPUART1_Init();
+	USART2_Init();
+	I2C1_Init();
+	SPI1_Init();
+	// Hardware AES.
+	AES_Init();
+
+	/* Init components */
+	NEOM8N_Init();
+	SHT3X_Init();
+	S2LP_Init();
+
+	/* CW test */
+	SPI1_Enable();
+	SPI1_PowerOn();
+	S2LP_ConfigureChargePump();
+	S2LP_SetModulation(S2LP_MODULATION_NONE);
+	S2LP_SetRfFrequency(867000000);
+	S2LP_SendCommand(S2LP_CMD_LOCKTX);
+	LPTIM1_DelayMilliseconds(1);
+	S2LP_SendCommand(S2LP_CMD_TX);
+
+	/* Main loop */
+	while (1) {
+
+	}
+
+	return 0;
+}
+#endif
+
+#ifdef ATM
 /* MAIN FUNCTION FOR AT MODE.
  * @param: 	None.
  * @return: 0.
@@ -102,3 +177,4 @@ int main (void) {
 
 	return 0;
 }
+#endif

@@ -113,10 +113,6 @@ void SPI1_PowerOff(void) {
  * @return:			1 in case of success, 0 in case of failure.
  */
 unsigned char SPI1_WriteByte(unsigned char tx_data) {
-#ifdef HW1_0
-	// Set data length to 8-bits.
-	SPI1 -> CR1 &= ~(0b1 << 11); // DFF='0'.
-#endif
 	// Send data.
 	*((volatile unsigned char*) &(SPI1 -> DR)) = tx_data;
 	// Wait for transmission to complete.
@@ -133,10 +129,6 @@ unsigned char SPI1_WriteByte(unsigned char tx_data) {
  * @return:			1 in case of success, 0 in case of failure.
  */
 unsigned char SPI1_ReadByte(unsigned char tx_data, unsigned char* rx_data) {
-#ifdef HW1_0
-	// Set data length to 8-bits.
-	SPI1 -> CR1 &= ~(0b1 << 11); // DFF='0'.
-#endif
 	// Dummy read to DR to clear RXNE flag.
 	(*rx_data) = *((volatile unsigned char*) &(SPI1 -> DR));
 	// Send dummy data on MOSI to generate clock.

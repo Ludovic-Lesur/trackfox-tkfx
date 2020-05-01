@@ -30,7 +30,7 @@ typedef enum {
 	S2LP_MODULATION_4FSK,
 	S2LP_MODULATION_2GFSK_BT1,
 	S2LP_MODULATION_4GFSK_BT1,
-	S2LP_MODULATION_ASK_OOK,
+	S2LP_MODULATION_ASK_OOK = 0x05,
 	S2LP_MODULATION_POLAR,
 	S2LP_MODULATION_NONE,
 	S2LP_MODULATION_2GFSK_BT05 = 0x0A,
@@ -87,23 +87,46 @@ typedef enum {
 	S2LP_GPIO_INPUT_FUNCTION_EXT_CLOCK,
 } S2LP_GPIO_InputFunction;
 
+// Generic structure for mantissa and exponent setting.
+typedef struct {
+	unsigned short mantissa;
+	unsigned char exponent;
+} S2LP_MantissaExponent;
+
+// FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
+static const S2LP_MantissaExponent S2LP_FDEV_600HZ = (S2LP_MantissaExponent) {97, 0};
+
+// Data rates.
+
+// RX bandwidths.
+static const S2LP_MantissaExponent S2LP_RXBW_1KHZ = (S2LP_MantissaExponent) {9, 9};
+
+// Preamble patterns.
+typedef enum {
+	S2LP_PREAMBLE_PATTERN_0101 = 0x00,
+	S2LP_PREAMBLE_PATTERN_1010,
+	S2LP_PREAMBLE_PATTERN_1100,
+	S2LP_PREAMBLE_PATTERN_0011
+} S2LP_PreamblePattern;
+
 /*** S2LP functions ***/
 
 void S2LP_Init(void);
 void S2LP_DisableGpio(void);
 void S2LP_SendCommand(S2LP_Command command);
+void S2LP_ConfigureChargePump(void);
 void S2LP_SetModulation(S2LP_Modulation modulation);
 void S2LP_SetRfFrequency(unsigned int rf_frequency_hz);
-void S2LP_SetFskDeviation(unsigned short fsk_deviation_hz);
-void S2LP_SetBitRate(unsigned int bit_rate_bps);
+void S2LP_SetFskDeviation(S2LP_MantissaExponent* fsk_deviation_setting);
+void S2LP_SetBitRate(S2LP_MantissaExponent* bit_rate_setting);
 void S2LP_ConfigureGpio(unsigned char gpio_number, S2LP_GPIO_Mode gpio_mode, unsigned char gpio_function);
-unsigned short S2LP_GetIrqFlags(void);
+unsigned int S2LP_GetIrqFlags(void);
 void S2LP_SetRfOutputPower(signed char rf_output_power_dbm);
-void S2LP_SetRxBandwidth(unsigned char rxbw_mantissa, unsigned char rxbw_exponent);
-void S2LP_SetPreambleDetector(unsigned char preamble_length_bytes, unsigned char preamble_polarity);
-void S2LP_SetSyncWord(unsigned char* sync_word, unsigned char sync_word_length_bytes);
-void S2LP_SetDataLength(unsigned char data_length_bytes);
-unsigned char S2LP_GetRssi(void);
+void S2LP_SetRxBandwidth(S2LP_MantissaExponent* rxbw_setting);
+void S2LP_SetPreambleDetector(unsigned char preamble_length_bytes, S2LP_PreamblePattern preamble_pattern);
+void S2LP_SetSyncWord(unsigned char* sync_word, unsigned char sync_word_length_bits);
+void S2LP_SetRxDataLength(unsigned char rx_data_length_bytes);
+signed char S2LP_GetRssi(void);
 void S2LP_ReadRxFifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
 
 #endif /* S2LP_H */

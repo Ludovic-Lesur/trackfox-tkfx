@@ -38,13 +38,15 @@ static const GPIO GPIO_SWCLK =					(GPIO) {GPIOA, 0, 14, 0};
 static const GPIO GPIO_SPI1_SCK = 				(GPIO) {GPIOB, 1, 3, 0};
 static const GPIO GPIO_SPI1_MISO = 				(GPIO) {GPIOB, 1, 4, 0};
 static const GPIO GPIO_SPI1_MOSI = 				(GPIO) {GPIOB, 1, 5, 0};
-static const GPIO GPIO_S2LP_CS = 				(GPIO) {GPIOA, 0, 15, 0};
+//static const GPIO GPIO_S2LP_CS = 				(GPIO) {GPIOA, 0, 15, 0};
+static const GPIO GPIO_S2LP_CS = 				(GPIO) {GPIOB, 1, 1, 0}; // Test with Nucleo.
 // ADC power enable.
 static const GPIO GPIO_ADC_POWER_ENABLE =		(GPIO) {GPIOB, 1, 0, 0};
 // Test point.
 static const GPIO GPIO_TP2 =					(GPIO) {GPIOB, 1, 1, 0};
 // RF power enable.
-static const GPIO GPIO_RF_POWER_ENABLE =		(GPIO) {GPIOB, 1, 2, 0};
+//static const GPIO GPIO_RF_POWER_ENABLE =		(GPIO) {GPIOB, 1, 2, 0};
+static const GPIO GPIO_RF_POWER_ENABLE =		(GPIO) {GPIOA, 0, 11, 0}; // Test with Nucleo.
 // I2C (sensors).
 static const GPIO GPIO_I2C1_SCL	=				(GPIO) {GPIOB, 1, 6, 1};
 static const GPIO GPIO_I2C1_SDA	=				(GPIO) {GPIOB, 1, 7, 1};

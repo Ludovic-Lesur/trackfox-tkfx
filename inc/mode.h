@@ -10,13 +10,13 @@
 
 /*** Tracker mode ***/
 
-#define ATM 		// AT command mode.
-//#define SSM 		// Start/stop mode.
+//#define ATM 		// AT command mode.
+#define SSM 		// Start/stop mode.
 //#define MS 		// Manual mode.
 
 /*** Debug mode ***/
 
-//#define DEBUG		// Use programming pins for debug purpose if defined.
+#define DEBUG		// Use programming pins for debug purpose if defined.
 
 /*** Error management ***/
 

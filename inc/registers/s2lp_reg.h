@@ -155,5 +155,6 @@ typedef enum {
 #define S2LP_REG_IRQ_STATUS2		0xFB
 #define S2LP_REG_IRQ_STATUS1		0xFC
 #define S2LP_REG_IRQ_STATUS0		0xFD
+#define S2LP_REG_FIFO				0xFF
 
 #endif /* REGISTERS_S2LP_REG_H_ */
