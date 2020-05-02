@@ -69,6 +69,9 @@ void DMA1_Init(void) {
 void DMA1_Disable(void) {
 	// Disable DMA1 channel 3.
 	NVIC_DisableInterrupt(IT_DMA1_Channel2_3);
+	// Clear all flags.
+	DMA1 -> IFCR |= 0x0FFFFFFF;
+	// Disable peripheral clock.
 	RCC -> AHBENR &= ~(0b1 << 0); // DMAEN='0'.
 }
 

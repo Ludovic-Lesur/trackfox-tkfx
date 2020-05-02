@@ -9,6 +9,7 @@
 
 #include "exti_reg.h"
 #include "mapping.h"
+#include "mma8653fc.h"
 #include "nvic.h"
 #include "rcc_reg.h"
 #include "syscfg_reg.h"
@@ -21,6 +22,12 @@
  */
 void EXTI0_1_IRQHandler(void) {
 	// Accelero IRQ (PA1).
+	if (((EXTI -> PR) & (0b1 << (GPIO_ACCELERO_IRQ.gpio_num))) != 0) {
+		// Clear flag.
+		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.gpio_num)); // PIFx='1' (writing '1' clears the bit).
+		// Set motion interrupt flag.
+		MMA8653FC_SetMotionInterruptFlag();
+	}
 }
 
 /* EXTI LINES 2-3 INTERRUPT HANDLER.
@@ -52,6 +59,8 @@ void EXTI_Init(void) {
 	NVIC_DisableInterrupt(IT_EXTI_0_1);
 	NVIC_DisableInterrupt(IT_EXTI_2_3);
 	NVIC_DisableInterrupt(IT_EXTI_4_15);
+	// Clear all flags.
+	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
 }
 
 /* CONFIGURE A GPIO AS EXTERNAL INTERRUPT SOURCE.

@@ -89,6 +89,9 @@ void LPTIM1_Disable(void) {
 	// Disable timer.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').
 	LPTIM1 -> CNT = 0;
+	// Clear all flags.
+	LPTIM1 -> ICR |= (0b1111111 << 0);
+	// Disable peripheral clock.
 	RCC -> APB1ENR &= ~(0b1 << 31); // LPTIM1EN='0'.
 }
 

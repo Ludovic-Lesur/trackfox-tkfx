@@ -15,12 +15,19 @@
 /*** ADC local macros ***/
 
 #define ADC_TIMEOUT_SECONDS		3
+#define ADC_CHANNEL_SOURCE		6
+#define ADC_CHANNEL_SUPERCAP	7
+#define ADC_CHANNEL_LM4040		8
+#define ADC_LM4040_VOLTAGE_MV	2048
+#define ADC_FULL_SCALE_12BITS	4095
 
 /*** ADC local structures ***/
 
 typedef struct {
-	unsigned int adc_mcu_supply_voltage_mv;
-	signed char adc_mcu_temperature_degrees;
+	unsigned int adc_lm4040_voltage_12bits;
+	unsigned int adc_source_voltage_mv;
+	unsigned int adc_supercap_voltage_mv;
+	unsigned int adc_mcu_voltage_mv;
 } ADC_Context;
 
 /*** ADC local global variables ***/
@@ -29,20 +36,14 @@ static ADC_Context adc_ctx;
 
 /*** ADC local functions ***/
 
-/* COMPUTE MCU SUPPLY VOLTAGE THANKS TO INTERNAL VOLTAGE REFERENCE.
+/* UPDATE EXTERNAL BANDGAP CONVERSION RESULT.
  * @param:	None.
  * @return:	None.
  */
-void ADC1_ComputeMcuSupplyVoltage(void) {
-	// Select ADC_IN17 input channel.
+void ADC1_UpdateLm4040Result(void) {
+	// Select input channel.
 	ADC1 -> CHSELR &= 0xFFF80000; // Reset all bits.
-	ADC1 -> CHSELR |= (0b1 << 17);
-	// Set sampling time (see p.89 of STM32L031x4/6 datasheet).
-	ADC1 -> SMPR &= ~(0b111 << 0); // Reset bits 0-2.
-	ADC1 -> SMPR |= (0b110 << 0); // Sampling time for internal voltage reference is 10us typical, 79.5*(1/ADCCLK) = 9.94us for ADCCLK = SYSCLK/2 = 8MHz;
-	// Wake-up internal voltage reference.
-	ADC1 -> CCR |= (0b1 << 22); // VREFEN='1'.
-	LPTIM1_DelayMilliseconds(10); // Wait al least 3ms (see p.55 of STM32L031x4/6 datasheet).
+	ADC1 -> CHSELR |= (0b1 << ADC_CHANNEL_LM4040);
 	// Read raw supply voltage.
 	ADC1 -> CR |= (0b1 << 2); // ADSTART='1'.
 	unsigned int loop_start_time = TIM22_GetSeconds();
@@ -50,41 +51,56 @@ void ADC1_ComputeMcuSupplyVoltage(void) {
 		// Wait end of conversion ('EOC='1') or timeout.
 		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
 	}
-	unsigned int raw_supply_voltage_12bits = (ADC1 -> DR);
-	// Compute temperature according to MCU factory calibration (see p.301 of RM0377 datasheet).
-	adc_ctx.adc_mcu_supply_voltage_mv = (VREFINT_VCC_CALIB_MV * VREFINT_CAL) / (raw_supply_voltage_12bits);
-	// Switch internal voltage reference off.
-	ADC1 -> CCR &= ~(0b1 << 22); // VREFEN='0'.
+	adc_ctx.adc_lm4040_voltage_12bits = (ADC1 -> DR);
 }
 
-/* COMPUTE MCU TEMPERATURE THANKS TO INTERNAL VOLTAGE REFERENCE.
+/* COMPUTE SOURCE VOLTAGE.
  * @param:	None.
  * @return:	None.
  */
-void ADC1_ComputeMcuTemperature(void) {
-	// Select ADC_IN18 input channel.
+void ADC1_ComputeSourceVoltage(void) {
+	// Select input channel.
 	ADC1 -> CHSELR &= 0xFFF80000; // Reset all bits.
-	ADC1 -> CHSELR |= (0b1 << 18);
-	// Set sampling time (see p.89 of STM32L031x4/6 datasheet).
-	ADC1 -> SMPR |= (0b111 << 0); // Sampling time for temperature sensor must be greater than 10us, 160.5*(1/ADCCLK) = 20us for ADCCLK = SYSCLK/2 = 8MHz;
-	// Wake-up temperature sensor.
-	ADC1 -> CCR |= (0b1 << 23); // TSEN='1'.
-	LPTIM1_DelayMilliseconds(1); // Wait al least 10µs (see p.89 of STM32L031x4/6 datasheet).
-	// Read raw temperature.
+	ADC1 -> CHSELR |= (0b1 << ADC_CHANNEL_SOURCE);
+	// Read raw supply voltage.
 	ADC1 -> CR |= (0b1 << 2); // ADSTART='1'.
 	unsigned int loop_start_time = TIM22_GetSeconds();
 	while (((ADC1 -> ISR) & (0b1 << 2)) == 0) {
 		// Wait end of conversion ('EOC='1') or timeout.
 		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
 	}
-	int raw_temp_sensor_12bits = (ADC1 -> DR);
-	// Compute temperature according to MCU factory calibration (see p.301 and p.847 of RM0377 datasheet).
-	int raw_temp_calib_mv = (raw_temp_sensor_12bits * adc_ctx.adc_mcu_supply_voltage_mv) / (TS_VCC_CALIB_MV) - TS_CAL1; // Equivalent raw measure for calibration power supply (VCC_CALIB).
-	int temp_calib_degrees = raw_temp_calib_mv * ((int)(TS_CAL2_TEMP-TS_CAL1_TEMP));
-	temp_calib_degrees = (temp_calib_degrees) / ((int)(TS_CAL2 - TS_CAL1));
-	adc_ctx.adc_mcu_temperature_degrees = temp_calib_degrees + TS_CAL1_TEMP;
-	// Switch temperature sensor off.
-	ADC1 -> CCR &= ~(0b1 << 23); // TSEN='0'.
+	unsigned int source_voltage_12bits = (ADC1 -> DR);
+	// Convert to mV using bandgap result.
+	adc_ctx.adc_source_voltage_mv = (ADC_LM4040_VOLTAGE_MV * source_voltage_12bits) / (adc_ctx.adc_lm4040_voltage_12bits);
+}
+
+/* COMPUTE SUPERCAP VOLTAGE.
+ * @param:	None.
+ * @return:	None.
+ */
+void ADC1_ComputeSupercapVoltage(void) {
+	// Select input channel.
+	ADC1 -> CHSELR &= 0xFFF80000; // Reset all bits.
+	ADC1 -> CHSELR |= (0b1 << ADC_CHANNEL_SUPERCAP);
+	// Read raw supply voltage.
+	ADC1 -> CR |= (0b1 << 2); // ADSTART='1'.
+	unsigned int loop_start_time = TIM22_GetSeconds();
+	while (((ADC1 -> ISR) & (0b1 << 2)) == 0) {
+		// Wait end of conversion ('EOC='1') or timeout.
+		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
+	}
+	unsigned int supercap_voltage_12bits = (ADC1 -> DR);
+	// Convert to mV using bandgap result.
+	adc_ctx.adc_supercap_voltage_mv = (ADC_LM4040_VOLTAGE_MV * supercap_voltage_12bits) / (adc_ctx.adc_lm4040_voltage_12bits);
+}
+
+/* COMPUTE MCU SUPPLY VOLTAGE.
+ * @param:	None.
+ * @return:	None.
+ */
+void ADC1_ComputeMcuVoltage(void) {
+	// Retrieve supply voltage from bandgap result.
+	adc_ctx.adc_mcu_voltage_mv = (ADC_LM4040_VOLTAGE_MV * ADC_FULL_SCALE_12BITS) / (adc_ctx.adc_lm4040_voltage_12bits);
 }
 
 /*** ADC functions ***/
@@ -95,8 +111,10 @@ void ADC1_ComputeMcuTemperature(void) {
  */
 void ADC1_Init(void) {
 	// Init context */
-	adc_ctx.adc_mcu_supply_voltage_mv = 0;
-	adc_ctx.adc_mcu_temperature_degrees = 0;
+	adc_ctx.adc_lm4040_voltage_12bits = 0;
+	adc_ctx.adc_source_voltage_mv = 0;
+	adc_ctx.adc_supercap_voltage_mv = 0;
+	adc_ctx.adc_mcu_voltage_mv = 0;
 	// Enable peripheral clock.
 	RCC -> APB2ENR |= (0b1 << 9); // ADCEN='1'.
 	// Ensure ADC is disabled.
@@ -112,6 +130,7 @@ void ADC1_Init(void) {
 	ADC1 -> CFGR1 &= (0b1 << 13); // Single conversion mode.
 	ADC1 -> CFGR1 &= ~(0b11 << 0); // Data resolution = 12 bits (RES='00').
 	ADC1 -> CCR &= 0xFC03FFFF; // No prescaler.
+	ADC1 -> SMPR |= (0b111 << 0); // Maximum sampling time.
 	// ADC calibration.
 	ADC1 -> CR |= (0b1 << 31); // ADCAL='1'.
 	unsigned int loop_start_time = TIM22_GetSeconds();
@@ -132,6 +151,9 @@ void ADC1_Disable(void) {
 	if (((ADC1 -> CR) & (0b1 << 0)) != 0) {
 		ADC1 -> CR |= (0b1 << 1); // ADDIS='1'.
 	}
+	// Clear all flags.
+	ADC1 -> ISR |= 0x0000089F;
+	// Disable peripheral clock.
 	RCC -> APB2ENR &= ~(0b1 << 9); // ADCEN='0'.
 }
 
@@ -148,8 +170,10 @@ void ADC1_PerformMeasurements(void) {
 		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
 	}
 	// Perform measurements.
-	ADC1_ComputeMcuSupplyVoltage();
-	ADC1_ComputeMcuTemperature();
+	ADC1_UpdateLm4040Result();
+	ADC1_ComputeSourceVoltage();
+	ADC1_ComputeSupercapVoltage();
+	ADC1_ComputeMcuVoltage();
 	// Clear all flags.
 	ADC1 -> ISR |= 0x0000089F; // Clear all flags.
 	// Disable ADC peripheral.
@@ -158,18 +182,26 @@ void ADC1_PerformMeasurements(void) {
 	}
 }
 
+/* GET SOURCE VOLTAGE.
+ * @param source_voltage_mv:	Pointer to value that will contain source voltage in mV.
+ * @return:						None.
+ */
+void ADC1_GetSourceVoltage(unsigned int* source_voltage_mv) {
+	(*source_voltage_mv) = adc_ctx.adc_source_voltage_mv;
+}
+
+/* GET SUPERCAO VOLTAGE.
+ * @param supercap_voltage_mv:	Pointer to value that will contain supercap voltage in mV.
+ * @return:						None.
+ */
+void ADC1_GetSupercapVoltage(unsigned int* supercap_voltage_mv) {
+	(*supercap_voltage_mv) = adc_ctx.adc_supercap_voltage_mv;
+}
+
 /* GET MCU SUPPLY VOLTAGE.
  * @param supply_voltage_mv:	Pointer to value that will contain MCU supply voltage in mV.
  * @return:						None.
  */
-void ADC1_GetMcuSupplyVoltage(unsigned int* supply_voltage_mv) {
-	(*supply_voltage_mv) = adc_ctx.adc_mcu_supply_voltage_mv;
-}
-
-/* GET MCU INTERNAL TEMPERATURE.
- * @param mcu_temp_degrees:	Pointer to value that will contain MCU temperature in °C.
- * @return:					None.
- */
-void ADC1_GetMcuTemperature(signed char* temperature_degrees) {
-	(*temperature_degrees) = adc_ctx.adc_mcu_temperature_degrees;
+void ADC1_GetMcuVoltage(unsigned int* mcu_voltage_mv) {
+	(*mcu_voltage_mv) = adc_ctx.adc_mcu_voltage_mv;
 }

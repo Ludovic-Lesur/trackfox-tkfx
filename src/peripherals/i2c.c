@@ -66,11 +66,15 @@ void I2C1_Init(void) {
  * @return:	None.
  */
 void I2C1_Disable(void) {
-	// Disable I2C1 peripheral.
-	I2C1 -> CR1 &= ~(0b1 << 0);
-	RCC -> APB1ENR &= ~(0b1 << 21); // I2C1EN='0'.
 	// Disable power control pin.
 	GPIO_Configure(&GPIO_SENSORS_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	// Disable I2C1 peripheral.
+	I2C1 -> CR1 &= ~(0b1 << 0);
+	// Clear all flags.
+	I2C1 -> ICR |= 0x00003F38;
+	// Disable peripheral clock.
+	RCC -> APB1ENR &= ~(0b1 << 21); // I2C1EN='0'.
+
 }
 
 /* SWITCH ALL I2C1 SLAVES ON.

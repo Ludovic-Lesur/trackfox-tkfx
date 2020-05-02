@@ -14,10 +14,8 @@
 /*** RTC functions ***/
 
 void RTC_Reset(void);
-void RTC_Init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz);
+void RTC_Init(unsigned char* rtc_use_lse);
 volatile unsigned char RTC_GetAlarmAFlag(void);
-volatile unsigned char RTC_GetAlarmBFlag(void);
 void RTC_ClearAlarmAFlag(void);
-void RTC_ClearAlarmBFlag(void);
 
 #endif /* RTC_H */

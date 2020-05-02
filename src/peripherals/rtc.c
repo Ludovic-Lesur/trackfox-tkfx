@@ -13,16 +13,14 @@
 #include "nvic.h"
 #include "rcc_reg.h"
 #include "rtc_reg.h"
-#include "tim.h"
 
 /*** RTC local macros ***/
 
-#define RTC_INIT_TIMEOUT_SECONDS	5
+#define RTC_INIT_TIMEOUT_COUNT		1000
 
 /*** RTC local global variables ***/
 
 volatile unsigned char rtc_alra_flag;
-volatile unsigned char rtc_alrb_flag;
 
 /*** RTC local functions ***/
 
@@ -40,8 +38,6 @@ void RTC_IRQHandler(void) {
 	}
 	// Alarm B interrupt.
 	if (((RTC -> ISR) & (0b1 << 9)) != 0) {
-		// Update flag
-		rtc_alrb_flag = 1;
 		// Clear flag.
 		RTC -> ISR &= ~(0b1 << 9); // ALRNF='0'.
 	}
@@ -60,13 +56,14 @@ unsigned char RTC_EnterInitializationMode(void) {
 	RTC -> WPR = 0xCA;
 	RTC -> WPR = 0x53;
 	RTC -> ISR |= (0b1 << 7); // INIT='1'.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((RTC -> ISR) & (0b1 << 6)) == 0) {
 		// Wait for INITF='1' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + RTC_INIT_TIMEOUT_SECONDS)) {
+		if (loop_count + RTC_INIT_TIMEOUT_COUNT) {
 			rtc_initf_success = 0;
 			break;
 		}
+		loop_count++;
 	}
 	return rtc_initf_success;
 }
@@ -101,10 +98,9 @@ void RTC_Reset(void) {
 
 /* INIT HARDWARE RTC PERIPHERAL.
  * @param rtc_use_lse:	RTC will be clocked on LSI if 0, on LSE otherwise.
- * @PARAM lsi_freq_hz:	Effective LSI oscillator frequency used to compute the accurate prescaler value (only if LSI is used as source).
  * @return:				None.
  */
-void RTC_Init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz) {
+void RTC_Init(unsigned char* rtc_use_lse) {
 	// Manage RTC clock source.
 	if ((*rtc_use_lse) != 0) {
 		// Use LSE.
@@ -132,22 +128,19 @@ void RTC_Init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz) {
 	}
 	else {
 		// Compute prescaler according to measured LSI frequency.
-		RTC -> PRER = (127 << 16) | (((lsi_freq_hz / 128) - 1) << 0); // PREDIV_A=127 and PREDIV_S=((lsi_freq_hz/128)-1).
+		RTC -> PRER = (127 << 16) | (296 << 0); // PREDIV_A=127 and PREDIV_S=296 (128*295 = 38000).
 	}
 	// Bypass shadow registers.
 	RTC -> CR |= (0b1 << 5); // BYPSHAD='1'.
-	// Configure alarm A to wake-up MCU every hour.
+	// Configure alarm A to wake-up MCU every second.
 	RTC -> ALRMAR = 0; // Reset all bits.
-	RTC -> ALRMAR |= (0b1 << 31) | (0b1 << 23); // Mask day and hour (only check minutes and seconds).
-	//RTC -> ALRMAR |= (0b1 << 15); // Mask minutes (to wake-up every minute for debug).
+	RTC -> ALRMAR |= (0b1 << 31) | (0b1 << 23) | (0b1 << 15) | (0b1 << 7); // Mask all fields.
 	RTC -> CR |= (0b1 << 8); // Enable Alarm A.
 	RTC -> CR |= (0b1 << 12); // Enable interrupt (ALRAIE='1').
 	RTC -> ISR &= ~(0b1 << 8); // Clear flag.
-	// Configure alarm B to wake-up every seconds (watchdog reload).
-	RTC -> ALRMBR = 0;
-	RTC -> ALRMBR |= (0b1 << 31) | (0b1 << 23) | (0b1 << 15) | (0b1 << 7); // Mask all fields.
-	RTC -> CR |= (0b1 << 9); // Enable Alarm B.
-	RTC -> CR |= (0b1 << 13); // Enable interrupt (ALRBIE='1').
+	// Disable alarm B.
+	RTC -> CR &= ~(0b1 << 9); // Disable Alarm B.
+	RTC -> CR &= ~(0b1 << 13); // Disable interrupt (ALRBIE='1').
 	RTC -> ISR &= ~(0b1 << 9); // Clear flag.
 	// Exit initialization mode.
 	RTC_ExitInitializationMode();
@@ -166,14 +159,6 @@ volatile unsigned char RTC_GetAlarmAFlag(void) {
 	return rtc_alra_flag;
 }
 
-/* RETURN THE CURRENT ALARM INTERRUPT STATUS.
- * @param:	None.
- * @return:	1 if the RTC interrupt occured, 0 otherwise.
- */
-volatile unsigned char RTC_GetAlarmBFlag(void) {
-	return rtc_alrb_flag;
-}
-
 /* CLEAR ALARM A INTERRUPT FLAG.
  * @param:	None.
  * @return:	None.
@@ -183,16 +168,4 @@ void RTC_ClearAlarmAFlag(void) {
 	RTC -> ISR &= ~(0b1 << 8); // Clear flags.
 	EXTI -> PR |= (0b1 << 17);
 	rtc_alra_flag = 0;
-}
-
-/* CLEAR ALARM A INTERRUPT FLAG.
- * @param:	None.
- * @return:	None.
- */
-void RTC_ClearAlarmBFlag(void) {
-	// Clear ALARM and EXTI flags.
-	RTC -> ISR &= ~(0b1 << 9); // Clear flags.
-	EXTI -> PR |= (0b1 << 17);
-	rtc_alrb_flag = 0;
-
 }

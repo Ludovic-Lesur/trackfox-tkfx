@@ -30,8 +30,9 @@ void AES_Init(void) {
  * @return:	None.
  */
 void AES_Disable(void) {
-
-	/* Disable AES peripheral */
+	// Clear all flags.
+	AES -> CR |= 0x00000180;
+	// Disable peripheral clock.
 	RCC -> AHBENR &= ~(0b1 << 24); // CRYPTOEN='0'.
 }
 

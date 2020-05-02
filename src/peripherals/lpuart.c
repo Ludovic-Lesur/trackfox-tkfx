@@ -131,13 +131,16 @@ void LPUART1_EnableRx(void) {
  * @return:	None.
  */
 void LPUART1_Disable(void) {
+	// Disable power control pin.
+	GPIO_Configure(&GPIO_GPS_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Disable LPUART1 peripheral.
 	NVIC_DisableInterrupt(IT_LPUART1);
 	LPUART1 -> CR1 &= ~(0b1 << 2); // Disable transmitter and receiver (TE='0' adnd RE='0').
 	LPUART1 -> CR1 &= ~(0b1 << 0);
+	// Clear all flags.
+	LPUART1 -> ICR |= 0x0012025F;
+	// Disable peripheral clock.
 	RCC -> APB1ENR &= ~(0b1 << 18); // LPUARTEN='0'.
-	// Disable power control pin.
-	GPIO_Configure(&GPIO_GPS_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 }
 
 /* POWER LPUART1 SLAVE ON.

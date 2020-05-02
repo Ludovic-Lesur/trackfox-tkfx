@@ -65,6 +65,9 @@ void TIM21_Disable(void) {
 	// Disable TIM21 peripheral.
 	TIM21 -> CR1 &= ~(0b1 << 0); // CEN='0'.
 	TIM21 -> CNT = 0;
+	// Clear all flags.
+	TIM21 -> SR &= 0xFFFFF9B8;
+	// Disable peripheral clock.
 	RCC -> APB2ENR &= ~(0b1 << 2); // TIM21EN='0'.
 }
 
@@ -114,6 +117,9 @@ void TIM22_Disable(void) {
 	// Disable TIM22 peripheral.
 	TIM22 -> CR1 &= ~(0b1 << 0); // CEN='0'.
 	TIM22 -> CNT = 0;
+	// Clear all flags.
+	TIM22 -> SR &= 0xFFFFF9B8;
+	// Disable peripheral clock.
 	RCC -> APB2ENR &= ~(0b1 << 5); // TIM22EN='0'.
 }
 

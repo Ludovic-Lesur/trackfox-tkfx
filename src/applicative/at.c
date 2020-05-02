@@ -44,7 +44,6 @@
 // Input commands without parameter.
 #define AT_IN_COMMAND_TEST								"AT"
 #define AT_IN_COMMAND_ADC								"AT$ADC?"
-#define AT_IN_COMMAND_MCU								"AT$MCU?"
 #define AT_IN_COMMAND_THS								"AT$THS?"
 #define AT_IN_COMMAND_ID								"AT$ID?"
 #define AT_IN_COMMAND_KEY								"AT$KEY?"
@@ -602,35 +601,13 @@ void AT_DecodeRxBuffer(void) {
 			// Print results.
 			AT_PrintAdcResults();
 		}
-		// MCU command AT$MCU?<CR> */
-		else if (AT_CompareCommand(AT_IN_COMMAND_MCU) == AT_NO_ERROR) {
-			unsigned int mcu_supply_voltage_mv = 0;
-			signed char mcu_temperature_degrees = 0;
-			// Trigger internal ADC conversions.
-			ADC1_PerformMeasurements();
-			ADC1_GetMcuTemperature(&mcu_temperature_degrees);
-			ADC1_GetMcuSupplyVoltage(&mcu_supply_voltage_mv);
-			// Print results.
-			USART2_SendString("Vcc=");
-			USART2_SendValue(mcu_supply_voltage_mv, USART_FORMAT_DECIMAL, 0);
-			USART2_SendString("mV T=");
-			if (mcu_temperature_degrees < 0) {
-				unsigned char mcu_temperature_abs_degrees = (-1) * mcu_temperature_degrees;
-				USART2_SendString("-");
-				USART2_SendValue(mcu_temperature_abs_degrees, USART_FORMAT_DECIMAL, 0);
-			}
-			else {
-				USART2_SendValue(mcu_temperature_degrees, USART_FORMAT_DECIMAL, 0);
-			}
-			USART2_SendString("°C\n");
-		}
 		// Temperature and humidity sensor command AT$THS?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_THS) == AT_NO_ERROR) {
 			signed char sht3x_temperature_degrees = 0;
 			unsigned char sht3x_humidity_percent = 0;
 			// Perform measurements.
 			I2C1_PowerOn();
-			SHT3X_PerformMeasurements(SHT3X_I2C_ADDRESS);
+			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
 			SHT3X_GetTemperature(&sht3x_temperature_degrees);
 			SHT3X_GetHumidity(&sht3x_humidity_percent);

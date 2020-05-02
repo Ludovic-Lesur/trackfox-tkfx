@@ -18,7 +18,6 @@ unsigned char RCC_SwitchToMsi(void);
 unsigned char RCC_SwitchToHsi(void);
 unsigned char RCC_SwitchToHse(void);
 unsigned char RCC_EnableLsi(void);
-unsigned int RCC_GetLsiFrequency(void);
 unsigned char RCC_EnableLse(void);
 
 #endif /* RCC_H */

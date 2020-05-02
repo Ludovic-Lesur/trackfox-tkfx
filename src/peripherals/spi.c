@@ -70,13 +70,16 @@ void SPI1_Enable(void) {
  * @return:	None.
  */
 void SPI1_Disable(void) {
-	// Disable SPI1 peripheral.
-	SPI1 -> CR1 &= ~(0b1 << 6);
-	RCC -> APB2ENR &= ~(0b1 << 12); // SPI1EN='0'.
 	// Disable power control pin.
 	GPIO_Configure(&GPIO_RF_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Disable CS pin.
 	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	// Disable SPI1 peripheral.
+	SPI1 -> CR1 &= ~(0b1 << 6);
+	// Clear all flags.
+	SPI1 -> SR &= 0xFFFFFEEF;
+	// Disable peripheral clock.
+	RCC -> APB2ENR &= ~(0b1 << 12); // SPI1EN='0'.
 }
 
 /* SWITCH ALL SPI1 SLAVES ON.

@@ -23,7 +23,7 @@
 #define RCC_MSI_RESET_FREQUENCY_KHZ		2100
 #define RCC_MSI_FREQUENCY_KHZ			65
 #define RCC_HSI_FREQUENCY_KHZ			16000
-#define RCC_TCXO_FREQUENCY_KHZ			25000
+#define RCC_TCXO_FREQUENCY_KHZ			26000
 #define RCC_TIMEOUT_COUNT				10
 
 /*** RCC local global variables ***/
@@ -180,7 +180,7 @@ unsigned char RCC_SwitchToMsi(void) {
  * @return sysclk_on_hse:	'1' if SYSCLK source was successfully switched to HSE (TCXO), 0 otherwise.
  */
 unsigned char RCC_SwitchToHse(void) {
-	// Enable 16MHz TCXO */
+	// Enable 26MHz TCXO */
 	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 1);
 	// Init HSE.
 	RCC -> CR |= (0b1 << 18); // Bypass oscillator (HSEBYP='1').
@@ -243,35 +243,9 @@ unsigned char RCC_EnableLsi(void) {
 	return lsi_available;
 }
 
-/* COMPUTE EFFECTIVE LSI OSCILLATOR FREQUENCY.
- * @param:				None.
- * @return lsi_freq_hz:	LSI oscillator frequency in Hz.
- */
-unsigned int RCC_GetLsiFrequency(void) {
-	// Local variables.
-	unsigned int lsi_freq_hz = 0;
-	// Init and start timers.
-	LPTIM1_Init(1);
-	TIM21_Init();
-	LPTIM1_Start();
-	TIM21_Start();
-	// Wait 1 second.
-	while (((TIM21 -> SR) & (0b1 << 0)) == 0); // Wait for first overflow.
-	TIM21 -> SR &= ~(0b1 << 0); // Clear flag (UIF='0').
-	// Get LSI frequency and stop timers.
-	lsi_freq_hz = (LPTIM1 -> CNT);
-	LPTIM1_Stop();
-	TIM21_Stop();
-	// Check value.
-	if (lsi_freq_hz == 0) {
-		lsi_freq_hz = 38000;
-	}
-	return lsi_freq_hz;
-}
-
-/* CONFIGURE AND USE LSE AS LOW SPEED OSCILLATOR (32kHz EXTERNAL QUARTZ).
+/* ENABLE LSE OSCILLATOR (32kHz EXTERNAL QUARTZ).
  * @param:					None.
- * @return lsi_available:	'1' if LSE was successfully started, 0 otherwise.
+ * @return lse_available:	'1' if LSE was successfully started, 0 otherwise.
  */
 unsigned char RCC_EnableLse(void) {
 	// Configure drive level.
