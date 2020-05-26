@@ -24,6 +24,9 @@
 #define S2LP_RF_OUTPUT_POWER_MIN		-30
 #define S2LP_RF_OUTPUT_POWER_MAX		14
 
+static unsigned char s2lp_s15_s8 = 0;
+static unsigned char s2lp_s7_s0 = 0;
+
 /*** S2LP local functions ***/
 
 /* S2LP REGISTER WRITE FUNCTION.
@@ -35,8 +38,8 @@ void S2LP_WriteRegister(unsigned char addr, unsigned char value) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
-	SPI1_WriteByte(S2LP_HEADER_BYTE_WRITE); // A/C='0' and W/R='0'.
-	SPI1_WriteByte(addr);
+	SPI1_ReadByte(S2LP_HEADER_BYTE_WRITE, &s2lp_s15_s8); // A/C='0' and W/R='0'.
+	SPI1_ReadByte(addr, &s2lp_s7_s0);
 	SPI1_WriteByte(value);
 	// Set CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
@@ -51,8 +54,8 @@ void S2LP_ReadRegister(unsigned char addr, unsigned char* value) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Read sequence.
-	SPI1_WriteByte(S2LP_HEADER_BYTE_READ); // A/C='0' and W/R='1'.
-	SPI1_WriteByte(addr);
+	SPI1_ReadByte(S2LP_HEADER_BYTE_READ, &s2lp_s15_s8); // A/C='0' and W/R='1'.
+	SPI1_ReadByte(addr, &s2lp_s7_s0);
 	SPI1_ReadByte(0xFF, value);
 	// Set CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
@@ -88,10 +91,33 @@ void S2LP_SendCommand(S2LP_Command command) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
-	SPI1_WriteByte(S2LP_HEADER_BYTE_COMMAND); // A/C='1' and W/R='0'.
-	SPI1_WriteByte(command);
+	SPI1_ReadByte(S2LP_HEADER_BYTE_COMMAND, &s2lp_s15_s8); // A/C='1' and W/R='0'.
+	SPI1_ReadByte(command, &s2lp_s7_s0);
 	// Set CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
+}
+
+/* CONFIGURE S2LP OSCILLATOR.
+ * @param:	None.
+ * @return:	None.
+ */
+void S2LP_ConfigureXo(void) {
+	// Set RFDIV to 0 and enable RCO automatic calibration.
+	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF0, 0x31);
+}
+
+/* ENABLE INTERNAL DC-DC REGULATOR (SMPS).
+ * @param:	None.
+ * @return:	None.
+ */
+void S2LP_ConfigureSmps(void) {
+	// Enable internal SMPS.
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_PM_CONF4, &reg_value);
+	reg_value &= 0xDF;
+	S2LP_WriteRegister(S2LP_REG_PM_CONF4, reg_value);
+	// Configure divider and switching frequency.
+	// TBD.
 }
 
 /* CONFIGURE PLL CHARGE-PUMP.
@@ -99,14 +125,20 @@ void S2LP_SendCommand(S2LP_Command command) {
  * @return:	None.
  */
 void S2LP_ConfigureChargePump(void) {
-	// PLL_CP_ISEL is '010' by default.
-	// For 26MHz oscillator, current pulses must be increased (PLL_PFD_SPLIT_EN='1').
-	unsigned char synth_config2_reg_value = 0;
-	S2LP_ReadRegister(S2LP_REG_SYNTH_CONFIG2, &synth_config2_reg_value);
-	// Set bit.
-	synth_config2_reg_value |= (1 << 2);
+	// Set PLL_CP_ISEL to '010'.
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_SYNT3, &reg_value);
+	// Set bits.
+	reg_value &= 0x1F;
+	reg_value |= (0b010 << 5);
 	// Write register.
-	S2LP_WriteRegister(S2LP_REG_SYNTH_CONFIG2, synth_config2_reg_value);
+	S2LP_WriteRegister(S2LP_REG_SYNT3, reg_value);
+	// For 26MHz oscillator, current pulses must be increased (PLL_PFD_SPLIT_EN='1').
+	S2LP_ReadRegister(S2LP_REG_SYNTH_CONFIG2, &reg_value);
+	// Set bit.
+	reg_value |= (0b1 << 2);
+	// Write register.
+	S2LP_WriteRegister(S2LP_REG_SYNTH_CONFIG2, reg_value);
 }
 
 /* SET S2LP MODULATION SCHEME.
@@ -130,14 +162,18 @@ void S2LP_SetModulation(S2LP_Modulation modulation) {
  */
 void S2LP_SetRfFrequency(unsigned int rf_frequency_hz) {
 	// See equation p.27 of S2LP datasheet.
-	// BS (band select), CHNUM and REFDIV are 0 by default (high band, D=1).
-	// B=4 for 868MHz (high band).
+	// Set CHNUM to 0.
+	S2LP_WriteRegister(S2LP_REG_CHNUM, 0x00);
+	// B=4 for 868MHz (high band, BS=0). REFDIV was set to 0 in XO configuration function.
 	// SYNT = (fRF * 2^20 * B/2 * D) / (fXO) = (fRF * 2^21) / (fXO).
 	unsigned long long synt_value = 0b1 << 21;
 	synt_value *= rf_frequency_hz;
 	synt_value /= S2LP_XO_FREQUENCY_HZ;
 	// Write registers.
-	unsigned char synt_reg_value = ((synt_value >> 24) & 0x0F) | 0x40;
+	unsigned char synt_reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_SYNT3, &synt_reg_value);
+	synt_reg_value &= 0xE0; // BS=0 to select high band.
+	synt_reg_value |= ((synt_value >> 24) & 0x0F);
 	S2LP_WriteRegister(S2LP_REG_SYNT3, synt_reg_value);
 	synt_reg_value = (synt_value >> 16) & 0xFF;
 	S2LP_WriteRegister(S2LP_REG_SYNT2, synt_reg_value);
@@ -228,11 +264,12 @@ void S2LP_SetRfOutputPower(signed char rf_output_power_dbm) {
 		local_rf_output_power_dbm = S2LP_RF_OUTPUT_POWER_MAX;
 	}
 	// Program register.
-	unsigned char pa_power_reg_value = 0;
-	S2LP_ReadRegister(S2LP_REG_PA_POWER1, &pa_power_reg_value);
-	pa_power_reg_value &= 0x80;
-	pa_power_reg_value |= (2 * (local_rf_output_power_dbm - (S2LP_RF_OUTPUT_POWER_MIN))) & 0x3F;
-	S2LP_WriteRegister(S2LP_REG_PA_POWER1, pa_power_reg_value);
+//	unsigned char pa_power_reg_value = 0;
+//	S2LP_ReadRegister(S2LP_REG_PA_POWER1, &pa_power_reg_value);
+//	pa_power_reg_value &= 0x80;
+//	pa_power_reg_value |= (2 * (local_rf_output_power_dbm - (S2LP_RF_OUTPUT_POWER_MIN))) & 0x3F;
+//	S2LP_WriteRegister(S2LP_REG_PA_POWER1, pa_power_reg_value);
+	S2LP_WriteRegister(S2LP_REG_PA_POWER8, 0x02);
 }
 
 /* SET RX FILTER BANDWIDTH.

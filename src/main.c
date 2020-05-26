@@ -370,16 +370,6 @@ int main (void) {
 			break;
 		}
 	}
-	// CW test.
-	SPI1_Enable();
-	SPI1_PowerOn();
-	S2LP_ConfigureChargePump();
-	S2LP_SetModulation(S2LP_MODULATION_NONE);
-	S2LP_SetRfFrequency(867000000);
-	S2LP_SendCommand(S2LP_CMD_LOCKTX);
-	LPTIM1_DelayMilliseconds(1);
-	S2LP_SendCommand(S2LP_CMD_TX);
-	while (1);
 	return 0;
 }
 #endif
@@ -426,10 +416,25 @@ int main (void) {
 	SHT3X_Init();
 	S2LP_Init();
 	// Applicative layers.
-	AT_Init();
+	//AT_Init();
+	// CW test.
+	SPI1_Enable();
+	SPI1_PowerOn();
+	S2LP_ConfigureXo();
+	S2LP_ConfigureSmps();
+	S2LP_ConfigureChargePump();
+	S2LP_SetModulation(S2LP_MODULATION_NONE);
+	S2LP_SetRfFrequency(867000000);
+	S2LP_SetRfOutputPower(14);
+	S2LP_SendCommand(S2LP_CMD_LOCKTX);
+	LPTIM1_DelayMilliseconds(1);
+	S2LP_SendCommand(S2LP_CMD_TX);
 	// Main loop.
 	while (1) {
-		AT_Task();
+		unsigned int flags = S2LP_GetIrqFlags();
+		if (flags == 0) {
+			GPIO_Write(&GPIO_ACCELERO_IRQ, 1);
+		}
 	}
 	return 0;
 }

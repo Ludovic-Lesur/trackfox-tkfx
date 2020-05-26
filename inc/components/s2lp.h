@@ -114,6 +114,8 @@ typedef enum {
 void S2LP_Init(void);
 void S2LP_DisableGpio(void);
 void S2LP_SendCommand(S2LP_Command command);
+void S2LP_ConfigureXo(void);
+void S2LP_ConfigureSmps(void);
 void S2LP_ConfigureChargePump(void);
 void S2LP_SetModulation(S2LP_Modulation modulation);
 void S2LP_SetRfFrequency(unsigned int rf_frequency_hz);
