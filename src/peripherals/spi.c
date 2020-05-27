@@ -40,11 +40,12 @@ void SPI1_Init(void) {
 	// Configure peripheral.
 	SPI1 -> CR1 &= 0xFFFF0000; // Disable peripheral before configuration (SPE='0').
 	SPI1 -> CR1 |= (0b1 << 2); // Master mode (MSTR='1').
-	SPI1 -> CR1 |= (0b011 << 3); // Baud rate = PCLK2/16 = SYSCLK/16 = 1MHz.
+	SPI1 -> CR1 &= ~(0b111 << 3); // Baud rate = PCLK2/2 = SYSCLK/16 = 8MHz.
 	SPI1 -> CR1 &= ~(0b1 << 11); // 8-bits format (DFF='0') by default.
 	SPI1 -> CR1 &= ~(0b11 << 0); // CPOL='0' and CPHA='0'.
 	SPI1 -> CR2 &= 0xFFFFFF08;
 	SPI1 -> CR2 |= (0b1 << 2); // Enable output (SSOE='1').
+	SPI1 -> CR2 |= (0b1 << 1); // Enable TX DMA requests.
 	// Enable peripheral.
 	SPI1 -> CR1 |= (0b1 << 6); // SPE='1'.
 }

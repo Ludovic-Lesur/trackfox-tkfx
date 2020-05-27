@@ -7,6 +7,8 @@
 
 #include "s2lp.h"
 
+#include "dma.h"
+#include "exti.h"
 #include "gpio.h"
 #include "mapping.h"
 #include "s2lp_reg.h"
@@ -14,18 +16,19 @@
 
 /*** S2LP local macros ***/
 
-#define S2LP_HEADER_BYTE_WRITE			0x00
-#define S2LP_HEADER_BYTE_READ			0x01
-#define S2LP_HEADER_BYTE_COMMAND		0x80
-#define S2LP_XO_FREQUENCY_HZ			26000000
-#define S2LP_SYNC_WORD_LENGTH_BITS_MAX	32
-#define S2LP_RSSI_OFFSET_DB				146
-#define S2LP_FIFO_SIZE_BYTES			128
-#define S2LP_RF_OUTPUT_POWER_MIN		-30
-#define S2LP_RF_OUTPUT_POWER_MAX		14
+#define S2LP_HEADER_BYTE_WRITE				0x00
+#define S2LP_HEADER_BYTE_READ				0x01
+#define S2LP_HEADER_BYTE_COMMAND			0x80
 
-static unsigned char s2lp_s15_s8 = 0;
-static unsigned char s2lp_s7_s0 = 0;
+#define S2LP_XO_FREQUENCY_HZ				50000000
+#define S2LP_XO_HIGH_RANGE_THRESHOLD_HZ		48000000
+
+#define S2LP_SYNC_WORD_LENGTH_BITS_MAX		32
+#define S2LP_RSSI_OFFSET_DB					146
+#define S2LP_RF_OUTPUT_POWER_MIN			-30
+#define S2LP_RF_OUTPUT_POWER_MAX			14
+
+#define S2LP_TX_FIFO_USE_DMA // Use DMA to fill TX FIFO, standard SPI access otherwise.
 
 /*** S2LP local functions ***/
 
@@ -38,8 +41,8 @@ void S2LP_WriteRegister(unsigned char addr, unsigned char value) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
-	SPI1_ReadByte(S2LP_HEADER_BYTE_WRITE, &s2lp_s15_s8); // A/C='0' and W/R='0'.
-	SPI1_ReadByte(addr, &s2lp_s7_s0);
+	SPI1_WriteByte(S2LP_HEADER_BYTE_WRITE); // A/C='0' and W/R='0'.
+	SPI1_WriteByte(addr);
 	SPI1_WriteByte(value);
 	// Set CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
@@ -54,8 +57,8 @@ void S2LP_ReadRegister(unsigned char addr, unsigned char* value) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Read sequence.
-	SPI1_ReadByte(S2LP_HEADER_BYTE_READ, &s2lp_s15_s8); // A/C='0' and W/R='1'.
-	SPI1_ReadByte(addr, &s2lp_s7_s0);
+	SPI1_WriteByte(S2LP_HEADER_BYTE_READ); // A/C='0' and W/R='1'.
+	SPI1_WriteByte(addr);
 	SPI1_ReadByte(0xFF, value);
 	// Set CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
@@ -69,8 +72,9 @@ void S2LP_ReadRegister(unsigned char addr, unsigned char* value) {
  */
 void S2LP_Init(void) {
 	// Configure GPIOs.
-	GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_S2LP_GPIO3, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	EXTI_ConfigureInterrupt(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
+	//GPIO_Configure(&GPIO_S2LP_GPIO3, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 }
 
 /* DISABLE S2LP GPIOs.
@@ -91,19 +95,36 @@ void S2LP_SendCommand(S2LP_Command command) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
-	SPI1_ReadByte(S2LP_HEADER_BYTE_COMMAND, &s2lp_s15_s8); // A/C='1' and W/R='0'.
-	SPI1_ReadByte(command, &s2lp_s7_s0);
+	SPI1_WriteByte(S2LP_HEADER_BYTE_COMMAND); // A/C='1' and W/R='0'.
+	SPI1_WriteByte(command);
 	// Set CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
 }
 
 /* CONFIGURE S2LP OSCILLATOR.
- * @param:	None.
- * @return:	None.
+ * @param s2lp_oscillator:	S2LP oscillator type (use enumeration defined in s2lp.h).
+ * @return:					None.
  */
-void S2LP_ConfigureXo(void) {
-	// Set RFDIV to 0 and enable RCO automatic calibration.
+void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator) {
+	// Read register.
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF0, &reg_value);
+	// Set RFDIV to 0, disable external RCO, set EXT_REF bit and enable RCO automatic calibration.
+	reg_value &= 0x76;
+	reg_value |= (0b1 << 0);
+	reg_value |= (s2lp_oscillator & 0x01) << 7;
+	// Write register.
 	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF0, 0x31);
+	// Set digital clock divider according to crytal frequency.
+	S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF1, &reg_value);
+	if (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
+		reg_value &= 0xE0;
+	}
+	else {
+		reg_value |= 0x10;
+	}
+	// Write register.
+	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF1, reg_value);
 }
 
 /* ENABLE INTERNAL DC-DC REGULATOR (SMPS).
@@ -133,10 +154,14 @@ void S2LP_ConfigureChargePump(void) {
 	reg_value |= (0b010 << 5);
 	// Write register.
 	S2LP_WriteRegister(S2LP_REG_SYNT3, reg_value);
-	// For 26MHz oscillator, current pulses must be increased (PLL_PFD_SPLIT_EN='1').
+	// Set PLL_PFD_SPLIT_EN bit according to crystal frequency.
 	S2LP_ReadRegister(S2LP_REG_SYNTH_CONFIG2, &reg_value);
-	// Set bit.
-	reg_value |= (0b1 << 2);
+	if (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
+		reg_value &= 0xFB;
+	}
+	else {
+		reg_value |= 0x04;
+	}
 	// Write register.
 	S2LP_WriteRegister(S2LP_REG_SYNTH_CONFIG2, reg_value);
 }
@@ -187,13 +212,13 @@ void S2LP_SetRfFrequency(unsigned int rf_frequency_hz) {
  * @param fsk_deviation_setting:	FSK deviation mantissa and exponent setting.
  * @return:							None.
  */
-void S2LP_SetFskDeviation(S2LP_MantissaExponent* fsk_deviation_setting) {
+void S2LP_SetFskDeviation(S2LP_MantissaExponent fsk_deviation_setting) {
 	// Write registers.
-	S2LP_WriteRegister(S2LP_REG_MOD0, (fsk_deviation_setting -> mantissa));
+	S2LP_WriteRegister(S2LP_REG_MOD0, fsk_deviation_setting.mantissa);
 	unsigned char mod1_reg_value = 0;
 	S2LP_ReadRegister(S2LP_REG_MOD1, &mod1_reg_value);
 	mod1_reg_value &= 0xF0;
-	mod1_reg_value |= (fsk_deviation_setting -> exponent);
+	mod1_reg_value |= fsk_deviation_setting.exponent;
 	S2LP_WriteRegister(S2LP_REG_MOD1, mod1_reg_value);
 }
 
@@ -201,53 +226,49 @@ void S2LP_SetFskDeviation(S2LP_MantissaExponent* fsk_deviation_setting) {
  * @param bit_rate_setting:	Bit rate FSK deviation mantissa and exponent setting.
  * @return:					None.
  */
-void S2LP_SetBitRate(S2LP_MantissaExponent* bit_rate_setting) {
+void S2LP_SetBitRate(S2LP_MantissaExponent bit_rate_setting) {
 	// Write registers.
-	S2LP_WriteRegister(S2LP_REG_MOD4, ((bit_rate_setting -> mantissa) >> 8) & 0x00FF);
-	S2LP_WriteRegister(S2LP_REG_MOD3, ((bit_rate_setting -> mantissa) >> 0) & 0x00FF);
+	S2LP_WriteRegister(S2LP_REG_MOD4, (bit_rate_setting.mantissa >> 8) & 0x00FF);
+	S2LP_WriteRegister(S2LP_REG_MOD3, (bit_rate_setting.mantissa >> 0) & 0x00FF);
 	unsigned char mod2_reg_value = 0;
 	S2LP_ReadRegister(S2LP_REG_MOD2, &mod2_reg_value);
 	mod2_reg_value &= 0xF0;
-	mod2_reg_value |= (bit_rate_setting -> exponent);
+	mod2_reg_value |= (bit_rate_setting.exponent);
 	S2LP_WriteRegister(S2LP_REG_MOD2, mod2_reg_value);
 }
 
 /* CONFIGURE S2LP GPIOs.
- * @param gpio_number:		GPIO to configure (0 to 3).
- * @param gpio_mode:		GPIO mode (use enum defined in s2lp.h).
- * @param gpio_function:	GPIO function (use enum defined in s2lp.h).
- * @return:					None.
+ * @param gpio_number:			GPIO to configure (0 to 3).
+ * @param gpio_mode:			GPIO mode (use enum defined in s2lp.h).
+ * @param gpio_function:		GPIO function (use enum defined in s2lp.h).
+ * @param fifo_flag_direction:	'1' to select RX FIFO flags, '0' to select TX FIFO flags.
+ * @return:						None.
  */
-void S2LP_ConfigureGpio(unsigned char gpio_number, S2LP_GPIO_Mode gpio_mode, unsigned char gpio_function) {
+void S2LP_ConfigureGpio(unsigned char gpio_number, S2LP_GPIO_Mode gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction) {
 	// Read corresponding register.
-	unsigned char gpiox_conf_reg_value = 0;
-	S2LP_ReadRegister((S2LP_REG_GPIO0_CONF + gpio_number), &gpiox_conf_reg_value);
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister((S2LP_REG_GPIO0_CONF + gpio_number), &reg_value);
 	// Set required bits.
-	gpiox_conf_reg_value &= 0x04; // Bit 2 is reserved.
-	gpiox_conf_reg_value |= ((gpio_mode & 0x02) << 0);
-	gpiox_conf_reg_value |= ((gpio_function & 0x1F) << 3);
+	reg_value &= 0x04; // Bit 2 is reserved.
+	reg_value |= ((gpio_mode & 0x02) << 0);
+	reg_value |= ((gpio_function & 0x1F) << 3);
 	// Write register.
-	S2LP_WriteRegister((S2LP_REG_GPIO0_CONF + gpio_number), gpiox_conf_reg_value);
+	S2LP_WriteRegister((S2LP_REG_GPIO0_CONF + gpio_number), reg_value);
+	// Select FIFO flags.
+	S2LP_ReadRegister(S2LP_REG_PROTOCOL2, &reg_value);
+	reg_value &= 0xFB;
+	reg_value |= fifo_flag_direction;
+	S2LP_WriteRegister(S2LP_REG_PROTOCOL2, reg_value);
 }
 
-/* GET S2LP IRQ FLAGS.
- * @param:	None.
- * @return:	TBD.
+/* SET FIFO THRESHOLDS.
+ * @param fifo_threshold:	FIFO threshold to set (use enumeration defined in s2lp.h).
+ * @param threshold_value:	Threshold value (number of bytes).
+ * @return:					None.
  */
-unsigned int S2LP_GetIrqFlags(void) {
-	unsigned int irq_flags = 0;
-	unsigned char irq_statusx_reg_value = 0;
-	// Read interrupt registers.
-	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS3, &irq_statusx_reg_value);
-	irq_flags |= (irq_statusx_reg_value << 24);
-	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS2, &irq_statusx_reg_value);
-	irq_flags |= (irq_statusx_reg_value << 16);
-	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS1, &irq_statusx_reg_value);
-	irq_flags |= (irq_statusx_reg_value << 8);
-	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS0, &irq_statusx_reg_value);
-	irq_flags |= (irq_statusx_reg_value << 0);
-	// Return status vector.
-	return irq_flags;
+void S2LP_SetFifoThreshold(S2LP_FifoThreshold fifo_threshold, unsigned char threshold_value) {
+	// Write register.
+	S2LP_WriteRegister(fifo_threshold, threshold_value);
 }
 
 /* SET TX RF OUTPUT POER.
@@ -263,22 +284,70 @@ void S2LP_SetRfOutputPower(signed char rf_output_power_dbm) {
 	if (local_rf_output_power_dbm > S2LP_RF_OUTPUT_POWER_MAX) {
 		local_rf_output_power_dbm = S2LP_RF_OUTPUT_POWER_MAX;
 	}
-	// Program register.
-//	unsigned char pa_power_reg_value = 0;
-//	S2LP_ReadRegister(S2LP_REG_PA_POWER1, &pa_power_reg_value);
-//	pa_power_reg_value &= 0x80;
-//	pa_power_reg_value |= (2 * (local_rf_output_power_dbm - (S2LP_RF_OUTPUT_POWER_MIN))) & 0x3F;
-//	S2LP_WriteRegister(S2LP_REG_PA_POWER1, pa_power_reg_value);
+	// Program registers.
+	S2LP_WriteRegister(S2LP_REG_PA_POWER0, 0x07); // Disable PA power ramping.
 	S2LP_WriteRegister(S2LP_REG_PA_POWER8, 0x02);
+}
+
+/* SET S2LP TX DATA SOURCE.
+ * @param tx_source:	TX data source (use enumeration defined in s2lp.h).
+ * @return:				None.
+ */
+void S2LP_SetTxSource(S2LP_TxSource tx_source) {
+	// Read register.
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_PCKTCTRL1, &reg_value);
+	// Set bits.
+	reg_value &= 0xF3;
+	reg_value |= (tx_source << 2);
+	// Write register.
+	S2LP_WriteRegister(S2LP_REG_PCKTCTRL1, reg_value);
+}
+
+/* INITIATE FIFO WRITING OPERATION.
+ * @param:	None.
+ * @return:	None.
+ */
+void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes) {
+#ifdef S2LP_TX_FIFO_USE_DMA
+	// Set buffer address.
+	DMA1_SetChannel3SourceAddr((unsigned int) tx_data, tx_data_length_bytes);
+#endif
+	// Falling edge on CS pin.
+	GPIO_Write(&GPIO_S2LP_CS, 0);
+	// Access FIFO.
+	SPI1_WriteByte(S2LP_HEADER_BYTE_WRITE); // A/C='1' and W/R='0'.
+	SPI1_WriteByte(S2LP_REG_FIFO);
+#ifdef S2LP_TX_FIFO_USE_DMA
+	// Transfer buffer with DMA.
+	DMA1_StartChannel3();
+	while (DMA1_GetChannel3Status() == 0);
+	DMA1_StopChannel3();
+#else
+	unsigned char byte_idx = 0;
+	for (byte_idx=0 ; byte_idx<tx_data_length_bytes ; byte_idx++) {
+		SPI1_WriteByte(tx_data[byte_idx]);
+	}
+#endif
+	// Rising edge on CS pin.
+	GPIO_Write(&GPIO_S2LP_CS, 1);
+
+
+	// DEBUG
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_TX_FIFO_STATUS, &reg_value);
+	if (reg_value > 0) {
+		GPIO_Write(&GPIO_ACCELERO_IRQ, 1);
+	}
 }
 
 /* SET RX FILTER BANDWIDTH.
  * @param bit_rate_setting:	RX bandwidth mantissa and exponent setting.
  * @return:					None.
  */
-void S2LP_SetRxBandwidth(S2LP_MantissaExponent* rxbw_setting) {
+void S2LP_SetRxBandwidth(S2LP_MantissaExponent rxbw_setting) {
 	// Write register.
-	unsigned char chflt_reg_value = (((rxbw_setting -> mantissa) << 4) & 0xF0) + ((rxbw_setting -> exponent) & 0x0F);
+	unsigned char chflt_reg_value = ((rxbw_setting.mantissa << 4) & 0xF0) + (rxbw_setting.exponent & 0x0F);
 	S2LP_WriteRegister(S2LP_REG_CHFLT, chflt_reg_value);
 }
 

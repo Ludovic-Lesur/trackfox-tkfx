@@ -552,7 +552,7 @@ void AT_DecodeRxBuffer(void) {
 	sfx_u8 sfx_uplink_data[12] = {0x00};
 	sfx_u8 sfx_downlink_data[8] = {0x00};
 	sfx_error_t sfx_error = 0;
-	sfx_rc_t rc1 = SPSWS_SIGFOX_RC;
+	sfx_rc_t rc1 = TKFX_SIGFOX_RC;
 	// Empty or too short command.
 	if (at_ctx.at_rx_buf_idx < AT_COMMAND_MIN_SIZE) {
 		// Reply error.

@@ -46,8 +46,8 @@ void PWR_EnterLowPowerSleepMode(void) {
 void PWR_EnterStopMode(void) {
 	// Enable power interface clock.
 	RCC -> APB1ENR |= (0b1 << 28); // PWREN='1'.
-	// Use MSI clock when waking-up from stop mode.
-	RCC -> CFGR &= ~(0b1 << 15);
+	// Use HSI clock when waking-up from stop mode.
+	RCC -> CFGR |= (0b1 << 15);
 	// Clear WUF flag.
 	PWR -> CR |= (0b1 << 2); // CWUF='1'.
 	// Switch internal voltage reference off in low power mode.
@@ -59,7 +59,7 @@ void PWR_EnterStopMode(void) {
 	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
 	RTC -> ISR &= 0xFFFF005F; // Reset alarms, wake-up, tamper and timestamp flags.
 	NVIC -> ICPR = 0xFFFFFFFF; // CLEARPENDx='1'.
-	// Enter standby mode.
+	// Enter stop mode.
 	SCB -> SCR &= ~(0b1 << 1); // Do not return in stop mode after wake-up (SLEEPONEXIT='0').
 	SCB -> SCR |= (0b1 << 2); // SLEEPDEEP='1'.
 	__asm volatile ("wfi"); // Wait For Interrupt core instruction.

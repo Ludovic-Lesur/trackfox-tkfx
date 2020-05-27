@@ -43,7 +43,11 @@ void EXTI2_3_IRQHandler(void) {
  * @return:	None.
  */
 void EXTI4_15_IRQHandler(void) {
-	// Can be used for S2LP GPIOs (PA10/PA11).
+	// S2LP GPIOs (PA10/PA11).
+	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.gpio_num))) != 0) {
+		// Clear flag.
+		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.gpio_num)); // PIFx='1' (writing '1' clears the bit).
+	}
 }
 
 /*** EXTI functions ***/

@@ -10,6 +10,10 @@
 
 #include "s2lp_reg.h"
 
+/*** S2LP macros ***/
+
+#define S2LP_FIFO_SIZE_BYTES	128
+
 /*** S2LP structures ***/
 
 // Chip state.
@@ -23,6 +27,12 @@ typedef enum {
 	S2LP_STATE_SYNTH_SETUP = 0x50,
 	S2LP_STATE_TX = 0x5C
 } S2LP_State;
+
+// oscillator.
+typedef enum {
+	S2LP_OSCILLATOR_QUARTZ = 0x00,
+	S2LP_OSCILLATOR_TCXO
+} S2LP_Oscillator;
 
 // Modulations.
 typedef enum {
@@ -87,6 +97,20 @@ typedef enum {
 	S2LP_GPIO_INPUT_FUNCTION_EXT_CLOCK,
 } S2LP_GPIO_InputFunction;
 
+typedef enum {
+	S2LP_FIFO_THRESHOLD_RX_FULL = 0x3C,
+	S2LP_FIFO_THRESHOLD_RX_EMPTY,
+	S2LP_FIFO_THRESHOLD_TX_FULL,
+	S2LP_FIFO_THRESHOLD_TX_EMPTY,
+} S2LP_FifoThreshold;
+
+typedef enum {
+	S2LP_TX_SOURCE_NORMAL = 0x00,
+	S2LP_TX_SOURCE_FIFO,
+	S2LP_TX_SOURCE_GPIO,
+	S2LP_TX_SOURCE_PN9
+} S2LP_TxSource;
+
 // Generic structure for mantissa and exponent setting.
 typedef struct {
 	unsigned short mantissa;
@@ -94,12 +118,13 @@ typedef struct {
 } S2LP_MantissaExponent;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
-static const S2LP_MantissaExponent S2LP_FDEV_600HZ = (S2LP_MantissaExponent) {97, 0};
+#define S2LP_FDEV_600HZ			((S2LP_MantissaExponent) {97, 0})
 
 // Data rates.
+#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {20363, 1}) // Setting for uplink 100bps and fXO=50MHz.
 
 // RX bandwidths.
-static const S2LP_MantissaExponent S2LP_RXBW_1KHZ = (S2LP_MantissaExponent) {9, 9};
+#define S2LP_RXBW_1KHZ			((S2LP_MantissaExponent) {9, 9})
 
 // Preamble patterns.
 typedef enum {
@@ -111,24 +136,32 @@ typedef enum {
 
 /*** S2LP functions ***/
 
+// Common functions.
 void S2LP_Init(void);
 void S2LP_DisableGpio(void);
 void S2LP_SendCommand(S2LP_Command command);
-void S2LP_ConfigureXo(void);
+void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator);
 void S2LP_ConfigureSmps(void);
 void S2LP_ConfigureChargePump(void);
 void S2LP_SetModulation(S2LP_Modulation modulation);
 void S2LP_SetRfFrequency(unsigned int rf_frequency_hz);
-void S2LP_SetFskDeviation(S2LP_MantissaExponent* fsk_deviation_setting);
-void S2LP_SetBitRate(S2LP_MantissaExponent* bit_rate_setting);
-void S2LP_ConfigureGpio(unsigned char gpio_number, S2LP_GPIO_Mode gpio_mode, unsigned char gpio_function);
+void S2LP_SetFskDeviation(S2LP_MantissaExponent fsk_deviation_setting);
+void S2LP_SetBitRate(S2LP_MantissaExponent bit_rate_setting);
+void S2LP_ConfigureGpio(unsigned char gpio_number, S2LP_GPIO_Mode gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction);
+void S2LP_SetFifoThreshold(S2LP_FifoThreshold fifo_threshold, unsigned char threshold_value);
 unsigned int S2LP_GetIrqFlags(void);
+
+// TX functions.
 void S2LP_SetRfOutputPower(signed char rf_output_power_dbm);
-void S2LP_SetRxBandwidth(S2LP_MantissaExponent* rxbw_setting);
+void S2LP_SetTxSource(S2LP_TxSource tx_source);
+void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
+
+// RX functions.
+void S2LP_SetRxBandwidth(S2LP_MantissaExponent rxbw_setting);
 void S2LP_SetPreambleDetector(unsigned char preamble_length_bytes, S2LP_PreamblePattern preamble_pattern);
 void S2LP_SetSyncWord(unsigned char* sync_word, unsigned char sync_word_length_bits);
 void S2LP_SetRxDataLength(unsigned char rx_data_length_bytes);
 signed char S2LP_GetRssi(void);
-void S2LP_ReadRxFifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
+void S2LP_ReadFifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
 
 #endif /* S2LP_H */

@@ -29,8 +29,8 @@ static const GPIO GPIO_TCXO_POWER_ENABLE =		(GPIO) {GPIOA, 0, 8, 0};
 static const GPIO GPIO_USART2_TX =				(GPIO) {GPIOA, 0, 9, 4};
 static const GPIO GPIO_USART2_RX =				(GPIO) {GPIOA, 0, 10, 4};
 // S2LP.
-static const GPIO GPIO_S2LP_GPIO3 =				(GPIO) {GPIOA, 0, 11, 4};
-static const GPIO GPIO_S2LP_GPIO0 =				(GPIO) {GPIOA, 0, 12, 4};
+static const GPIO GPIO_S2LP_GPIO3 =				(GPIO) {GPIOA, 0, 11, 0};
+static const GPIO GPIO_S2LP_GPIO0 =				(GPIO) {GPIOA, 0, 12, 0};
 // Programming.
 static const GPIO GPIO_SWDIO =					(GPIO) {GPIOA, 0, 13, 0};
 static const GPIO GPIO_SWCLK =					(GPIO) {GPIOA, 0, 14, 0};

@@ -441,11 +441,11 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeo
 	// Select GGA message to get complete position.
 	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
 	// Start DMA.
-	DMA1_Stop();
-	DMA1_SetDestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
+	DMA1_StopChannel6();
+	DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
 	neom8n_ctx.nmea_rx_fill_buf1 = 1;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
-	DMA1_Start();
+	DMA1_StartChannel6();
 	LPUART1_EnableRx();
 	// Save fix start time.
 	unsigned int fix_start_time = TIM22_GetSeconds();
@@ -512,7 +512,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeo
 		IWDG_Reload();
 	}
 	// Stop DMA.
-	DMA1_Stop();
+	DMA1_StopChannel6();
 	// Return result.
 	return return_code;
 }
@@ -523,18 +523,18 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeo
  */
 void NEOM8N_SwitchDmaBuffer(unsigned char lf_flag) {
 	// Stop and start DMA transfer to switch buffer.
-	DMA1_Stop();
+	DMA1_StopChannel6();
 	// Switch buffer.
 	if (neom8n_ctx.nmea_rx_fill_buf1 == 1) {
-		DMA1_SetDestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf2), NMEA_RX_BUFFER_SIZE); // Switch to buffer 2.
+		DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf2), NMEA_RX_BUFFER_SIZE); // Switch to buffer 2.
 		neom8n_ctx.nmea_rx_fill_buf1 = 0;
 	}
 	else {
-		DMA1_SetDestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Switch to buffer 1.
+		DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Switch to buffer 1.
 		neom8n_ctx.nmea_rx_fill_buf1 = 1;
 	}
 	// Update LF flag to start decoding or not.
 	neom8n_ctx.nmea_rx_lf_flag = lf_flag;
 	// Restart DMA transfer.
-	DMA1_Start();
+	DMA1_StartChannel6();
 }

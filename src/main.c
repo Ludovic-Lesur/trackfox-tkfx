@@ -180,7 +180,8 @@ int main (void) {
 			TIM22_Start();
 			LPTIM1_Init(0);
 			// DMA.
-			DMA1_Init();
+			DMA1_InitChannel3();
+			DMA1_InitChannel6();
 			// Analog.
 			ADC1_Init();
 			// Communication interfaces.
@@ -388,10 +389,7 @@ int main (void) {
 	GPIO_Init();
 	// Init clocks.
 	RCC_Init();
-	// High speed oscillator.
-	if (RCC_SwitchToHse() == 0) {
-		RCC_SwitchToHsi();
-	}
+	RCC_SwitchToHsi();
 	// Timers.
 	TIM21_Init();
 	TIM22_Init();
@@ -399,7 +397,8 @@ int main (void) {
 	TIM22_Start();
 	LPTIM1_Init(0);
 	// DMA.
-	DMA1_Init();
+	DMA1_InitChannel3();
+	DMA1_InitChannel6();
 	// Analog.
 	ADC1_Init();
 	// External interrupts.
@@ -415,26 +414,16 @@ int main (void) {
 	NEOM8N_Init();
 	SHT3X_Init();
 	S2LP_Init();
+	// Sigfox test
+	sfx_rc_t rc1 = TKFX_SIGFOX_RC;
+	SIGFOX_API_open(&rc1);
+	SIGFOX_API_send_outofband(SFX_OOB_SERVICE);
+	SIGFOX_API_close();
 	// Applicative layers.
 	//AT_Init();
-	// CW test.
-	SPI1_Enable();
-	SPI1_PowerOn();
-	S2LP_ConfigureXo();
-	S2LP_ConfigureSmps();
-	S2LP_ConfigureChargePump();
-	S2LP_SetModulation(S2LP_MODULATION_NONE);
-	S2LP_SetRfFrequency(867000000);
-	S2LP_SetRfOutputPower(14);
-	S2LP_SendCommand(S2LP_CMD_LOCKTX);
-	LPTIM1_DelayMilliseconds(1);
-	S2LP_SendCommand(S2LP_CMD_TX);
 	// Main loop.
 	while (1) {
-		unsigned int flags = S2LP_GetIrqFlags();
-		if (flags == 0) {
-			GPIO_Write(&GPIO_ACCELERO_IRQ, 1);
-		}
+		//AT_Task();
 	}
 	return 0;
 }
