@@ -118,7 +118,8 @@ typedef struct {
 } S2LP_MantissaExponent;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
-#define S2LP_FDEV_600HZ			((S2LP_MantissaExponent) {97, 0})
+#define S2LP_FDEV_600HZ			((S2LP_MantissaExponent) {97, 0}) // For fXO=26MHz.
+#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {168, 0}) // For fXO=50MHz.
 
 // Data rates.
 #define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {20363, 1}) // Setting for uplink 100bps and fXO=50MHz.
@@ -152,7 +153,7 @@ void S2LP_SetFifoThreshold(S2LP_FifoThreshold fifo_threshold, unsigned char thre
 unsigned int S2LP_GetIrqFlags(void);
 
 // TX functions.
-void S2LP_SetRfOutputPower(signed char rf_output_power_dbm);
+void S2LP_ConfigurePa(void);
 void S2LP_SetTxSource(S2LP_TxSource tx_source);
 void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
 

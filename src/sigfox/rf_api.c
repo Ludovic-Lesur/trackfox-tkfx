@@ -30,12 +30,13 @@
 #define RF_API_SYMBOL_PROFILE_LENGTH_BYTES		40
 #define RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES	(2 * RF_API_SYMBOL_PROFILE_LENGTH_BYTES) // Size is twice to store PA and FDEV values.
 
-#define RF_API_S2LP_FDEV_NEGATIVE				0x7F
-#define RF_API_S2LP_FDEV_POSITIVE				0x81
+#define RF_API_S2LP_FDEV_NEGATIVE				0x7F // fdev * (+1)
+#define RF_API_S2LP_FDEV_POSITIVE				0x81 // fdev * (-1)
 #define RF_API_S2LP_FIFO_BUFFER_FDEV_IDX		(RF_API_SYMBOL_PROFILE_LENGTH_BYTES / 2) // Index where deviation is performed to invert phase.
 
 #define RF_API_ETSI_UPLINK_OUTPUT_POWER_DBM		14
 #define RF_API_ESTI_UPLINK_DATARATE				S2LP_DATARATE_500BPS // 500*8 = 4kHz / 40 samples = 100bps.
+#define RF_API_ETSI_UPLINK_DEVIATION			S2LP_FDEV_2KHZ // 1 / (2 * Delta_f) = 1 / 4kHz.
 
 // Ramp profile table is written for ramp-down direction (reverse table for ramp up).
 static const unsigned char rf_api_etsi_ramp_amplitude_profile[RF_API_SYMBOL_PROFILE_LENGTH_BYTES] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 20, 22, 24, 27, 30, 34, 39, 45, 54, 80, 120, 220};
@@ -79,9 +80,10 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	switch (rf_mode) {
 	case SFX_RF_MODE_TX:
 		// Uplink.
+		S2LP_ConfigurePa();
 		S2LP_SetModulation(S2LP_MODULATION_POLAR);
 		S2LP_SetTxSource(S2LP_TX_SOURCE_FIFO);
-		S2LP_SetRfOutputPower(RF_API_ETSI_UPLINK_OUTPUT_POWER_DBM);
+		S2LP_SetFskDeviation(RF_API_ETSI_UPLINK_DEVIATION);
 		S2LP_SetBitRate(RF_API_ESTI_UPLINK_DATARATE);
 		S2LP_SetFifoThreshold(S2LP_FIFO_THRESHOLD_TX_EMPTY, (S2LP_FIFO_SIZE_BYTES - RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES));
 		S2LP_ConfigureGpio(0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_FIFO_EMPTY, 0);
@@ -156,8 +158,8 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 		for (stream_bit_idx=0 ; stream_bit_idx<8 ; stream_bit_idx++) {
 			if ((stream[stream_byte_idx] & (0b1 << (7-stream_bit_idx))) == 0) {
 				// Phase shift and amplitude shaping required.
+				s2lp_fdev = (s2lp_fdev == RF_API_S2LP_FDEV_NEGATIVE) ? RF_API_S2LP_FDEV_POSITIVE : RF_API_S2LP_FDEV_NEGATIVE; // Toggle deviation.
 				for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
-					s2lp_fdev = (s2lp_fdev == RF_API_S2LP_FDEV_NEGATIVE) ? RF_API_S2LP_FDEV_POSITIVE : RF_API_S2LP_FDEV_NEGATIVE; // Toggle deviation.
 					rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = (s2lp_fifo_sample_idx == RF_API_S2LP_FIFO_BUFFER_FDEV_IDX) ? s2lp_fdev : 0; // Deviation.
 					rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_bit0_amplitude_profile[s2lp_fifo_sample_idx]; // PA output power.
 				}
@@ -228,7 +230,7 @@ sfx_u8 RF_API_stop_continuous_transmission (void) {
  *******************************************************************/
 sfx_u8 RF_API_change_frequency(sfx_u32 frequency) {
 	// Set frequency.
-	S2LP_SetRfFrequency(867010000);
+	S2LP_SetRfFrequency(frequency);
 	return SFX_ERR_NONE;
 }
 

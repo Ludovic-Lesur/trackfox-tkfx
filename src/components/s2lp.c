@@ -271,22 +271,18 @@ void S2LP_SetFifoThreshold(S2LP_FifoThreshold fifo_threshold, unsigned char thre
 	S2LP_WriteRegister(fifo_threshold, threshold_value);
 }
 
-/* SET TX RF OUTPUT POER.
- * @param rf_output_power_dbm:	RF output power in dBm.
- * @return:						None.
+/* CONFIGURE TX POWER AMPLIFIER.
+ * @param:	None.
+ * @return:	None.
  */
-void S2LP_SetRfOutputPower(signed char rf_output_power_dbm) {
-	// Clamp value if needed.
-	signed char local_rf_output_power_dbm = rf_output_power_dbm;
-	if (local_rf_output_power_dbm < S2LP_RF_OUTPUT_POWER_MIN) {
-		local_rf_output_power_dbm = S2LP_RF_OUTPUT_POWER_MIN;
-	}
-	if (local_rf_output_power_dbm > S2LP_RF_OUTPUT_POWER_MAX) {
-		local_rf_output_power_dbm = S2LP_RF_OUTPUT_POWER_MAX;
-	}
-	// Program registers.
-	S2LP_WriteRegister(S2LP_REG_PA_POWER0, 0x07); // Disable PA power ramping.
-	S2LP_WriteRegister(S2LP_REG_PA_POWER8, 0x02);
+void S2LP_ConfigurePa(void) {
+	// Disable PA power ramping.
+	unsigned char reg_value = 0;
+	S2LP_WriteRegister(S2LP_REG_PA_POWER0, 0x07);
+	// Disable FIR.
+	S2LP_ReadRegister(S2LP_REG_PA_CONFIG1,  &reg_value);
+	reg_value &= 0xFD;
+	S2LP_WriteRegister(S2LP_REG_PA_CONFIG1, reg_value);
 }
 
 /* SET S2LP TX DATA SOURCE.
@@ -331,14 +327,6 @@ void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes) 
 #endif
 	// Rising edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 1);
-
-
-	// DEBUG
-	unsigned char reg_value = 0;
-	S2LP_ReadRegister(S2LP_REG_TX_FIFO_STATUS, &reg_value);
-	if (reg_value > 0) {
-		GPIO_Write(&GPIO_ACCELERO_IRQ, 1);
-	}
 }
 
 /* SET RX FILTER BANDWIDTH.
