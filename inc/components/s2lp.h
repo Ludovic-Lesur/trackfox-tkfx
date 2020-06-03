@@ -118,14 +118,15 @@ typedef struct {
 } S2LP_MantissaExponent;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
-#define S2LP_FDEV_600HZ			((S2LP_MantissaExponent) {97, 0}) // For fXO=26MHz.
-#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {168, 0}) // For fXO=50MHz.
+#define S2LP_FDEV_800HZ			((S2LP_MantissaExponent) {129, 0}) // For fXO=26MHz.
+#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {323, 0}) // For fXO=26MHz.
 
 // Data rates.
-#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {20363, 1}) // Setting for uplink 100bps and fXO=50MHz.
+#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {17059, 1}) // Setting for uplink 100bps and fXO=26MHz.
+#define S2LP_DATARATE_600BPS	((S2LP_MantissaExponent) {33579, 1}) // For fXO=26MHz.
 
 // RX bandwidths.
-#define S2LP_RXBW_1KHZ			((S2LP_MantissaExponent) {9, 9})
+#define S2LP_RXBW_1KHZ			((S2LP_MantissaExponent) {8, 9})
 
 // Preamble patterns.
 typedef enum {
@@ -140,6 +141,7 @@ typedef enum {
 // Common functions.
 void S2LP_Init(void);
 void S2LP_DisableGpio(void);
+void S2LP_Tcxo(unsigned char tcxo_power_enable);
 void S2LP_SendCommand(S2LP_Command command);
 void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator);
 void S2LP_ConfigureSmps(void);

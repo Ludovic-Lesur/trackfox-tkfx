@@ -8,18 +8,22 @@
 #include "adc.h"
 
 #include "adc_reg.h"
+#include "gpio.h"
 #include "lptim.h"
+#include "mapping.h"
 #include "rcc_reg.h"
 #include "tim.h"
 
 /*** ADC local macros ***/
 
-#define ADC_TIMEOUT_SECONDS		3
-#define ADC_CHANNEL_SOURCE		6
-#define ADC_CHANNEL_SUPERCAP	7
-#define ADC_CHANNEL_LM4040		8
-#define ADC_LM4040_VOLTAGE_MV	2048
-#define ADC_FULL_SCALE_12BITS	4095
+#define ADC_TIMEOUT_SECONDS					3
+#define ADC_CHANNEL_SOURCE					6
+#define ADC_CHANNEL_SUPERCAP				7
+#define ADC_CHANNEL_LM4040					8
+#define ADC_LM4040_VOLTAGE_MV				2048
+#define ADC_FULL_SCALE_12BITS				4095
+#define ADC_SOURCE_VOLTAGE_DIVIDER_R_UP		470
+#define ADC_SOURCE_VOLTAGE_DIVIDER_R_DOWN	68
 
 /*** ADC local structures ***/
 
@@ -72,6 +76,8 @@ void ADC1_ComputeSourceVoltage(void) {
 	unsigned int source_voltage_12bits = (ADC1 -> DR);
 	// Convert to mV using bandgap result.
 	adc_ctx.adc_source_voltage_mv = (ADC_LM4040_VOLTAGE_MV * source_voltage_12bits) / (adc_ctx.adc_lm4040_voltage_12bits);
+	// Compensate voltage divider ratio.
+	adc_ctx.adc_source_voltage_mv = (adc_ctx.adc_source_voltage_mv * (ADC_SOURCE_VOLTAGE_DIVIDER_R_UP + ADC_SOURCE_VOLTAGE_DIVIDER_R_DOWN)) / (ADC_SOURCE_VOLTAGE_DIVIDER_R_DOWN);
 }
 
 /* COMPUTE SUPERCAP VOLTAGE.
@@ -110,7 +116,12 @@ void ADC1_ComputeMcuVoltage(void) {
  * @return:	None.
  */
 void ADC1_Init(void) {
-	// Init context */
+	// Init GPIOs.
+	GPIO_Configure(&GPIO_ADC_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_ADC1_IN6, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_ADC1_IN7, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_ADC1_IN8, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	// Init context.
 	adc_ctx.adc_lm4040_voltage_12bits = 0;
 	adc_ctx.adc_source_voltage_mv = 0;
 	adc_ctx.adc_supercap_voltage_mv = 0;
@@ -147,6 +158,8 @@ void ADC1_Init(void) {
  * @return:	None.
  */
 void ADC1_Disable(void) {
+	// Disable power control pin (other inputs are allready in analog mode).
+	GPIO_Configure(&GPIO_ADC_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Disable peripheral.
 	if (((ADC1 -> CR) & (0b1 << 0)) != 0) {
 		ADC1 -> CR |= (0b1 << 1); // ADDIS='1'.
@@ -155,6 +168,25 @@ void ADC1_Disable(void) {
 	ADC1 -> ISR |= 0x0000089F;
 	// Disable peripheral clock.
 	RCC -> APB2ENR &= ~(0b1 << 9); // ADCEN='0'.
+}
+
+/* ENABLE EXTERNAL ANALOG BLOCKS SUPPLY.
+ * @param:	None.
+ * @return:	None.
+ */
+void ADC1_PowerOn(void) {
+	// Turn analog blocks on.
+	GPIO_Write(&GPIO_ADC_POWER_ENABLE, 1);
+	LPTIM1_DelayMilliseconds(100);
+}
+
+/* DISABLE EXTERNAL ANALOG BLOCKS SUPPLY.
+ * @param:	None.
+ * @return:	None.
+ */
+void ADC1_PowerOff(void) {
+	// Turn analog blocks on.
+	GPIO_Write(&GPIO_ADC_POWER_ENABLE, 0);
 }
 
 /* PERFORM INTERNAL ADC MEASUREMENTS.

@@ -10,6 +10,7 @@
 #include "dma.h"
 #include "exti.h"
 #include "gpio.h"
+#include "lptim.h"
 #include "mapping.h"
 #include "s2lp_reg.h"
 #include "spi.h"
@@ -20,7 +21,7 @@
 #define S2LP_HEADER_BYTE_READ				0x01
 #define S2LP_HEADER_BYTE_COMMAND			0x80
 
-#define S2LP_XO_FREQUENCY_HZ				50000000
+#define S2LP_XO_FREQUENCY_HZ				26000000
 #define S2LP_XO_HIGH_RANGE_THRESHOLD_HZ		48000000
 
 #define S2LP_SYNC_WORD_LENGTH_BITS_MAX		32
@@ -74,7 +75,9 @@ void S2LP_Init(void) {
 	// Configure GPIOs.
 	GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
 	EXTI_ConfigureInterrupt(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
-	//GPIO_Configure(&GPIO_S2LP_GPIO3, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_S2LP_GPIO3, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	// Init TCXO control pin.
+	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 }
 
 /* DISABLE S2LP GPIOs.
@@ -85,6 +88,23 @@ void S2LP_DisableGpio(void) {
 	// Configure GPIOs as analog inputs.
 	GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_S2LP_GPIO3, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+}
+
+/* TURN ON OR OFF RADIO TCXO.
+ * @param tcxo_power_enable:	Turn off if '0', turn on otherwise.
+ * @return:						None.
+ */
+void S2LP_Tcxo(unsigned char tcxo_power_enable) {
+	if (tcxo_power_enable == 0) {
+		// Turn TCXO off.
+		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
+	}
+	else {
+		// Turn TCXO on.
+		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 1);
+		LPTIM1_DelayMilliseconds(100);
+	}
 }
 
 /* SEND COMMAND TO S2LP.
@@ -114,7 +134,7 @@ void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator) {
 	reg_value |= (0b1 << 0);
 	reg_value |= (s2lp_oscillator & 0x01) << 7;
 	// Write register.
-	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF0, 0x31);
+	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF0, reg_value);
 	// Set digital clock divider according to crytal frequency.
 	S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF1, &reg_value);
 	if (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
@@ -189,7 +209,7 @@ void S2LP_SetRfFrequency(unsigned int rf_frequency_hz) {
 	// See equation p.27 of S2LP datasheet.
 	// Set CHNUM to 0.
 	S2LP_WriteRegister(S2LP_REG_CHNUM, 0x00);
-	// B=4 for 868MHz (high band, BS=0). REFDIV was set to 0 in XO configuration function.
+	// B=4 for 868MHz (high band, BS=0). REFDIV was set to 0 in oscillator configuration function.
 	// SYNT = (fRF * 2^20 * B/2 * D) / (fXO) = (fRF * 2^21) / (fXO).
 	unsigned long long synt_value = 0b1 << 21;
 	synt_value *= rf_frequency_hz;

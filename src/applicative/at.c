@@ -488,14 +488,6 @@ void AT_ReplyError(AT_ErrorSource error_source, unsigned short error_code) {
 	USART2_SendValue(AT_CR_CHAR, USART_FORMAT_ASCII, 0);
 }
 
-/* PRINT ADC RESULTS.
- * @param:	None.
- * @return:	None.
- */
-void AT_PrintAdcResults(void) {
-	// TBD.
-}
-
 /* PRINT GPS POSITION ON USART.
  * @param gps_position:	Pointer to GPS position to print.
  * @return:				None.
@@ -549,10 +541,12 @@ void AT_DecodeRxBuffer(void) {
 	unsigned short get_param_result = 0;
 	unsigned char byte_idx = 0;
 	unsigned char extracted_length = 0;
+#ifdef AT_COMMANDS_SIGFOX
 	sfx_u8 sfx_uplink_data[12] = {0x00};
 	sfx_u8 sfx_downlink_data[8] = {0x00};
 	sfx_error_t sfx_error = 0;
 	sfx_rc_t rc1 = TKFX_SIGFOX_RC;
+#endif
 	// Empty or too short command.
 	if (at_ctx.at_rx_buf_idx < AT_COMMAND_MIN_SIZE) {
 		// Reply error.
@@ -596,10 +590,24 @@ void AT_DecodeRxBuffer(void) {
 #ifdef AT_COMMANDS_SENSORS
 		// ADC command AT$ADC?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_ADC) == AT_NO_ERROR) {
+			unsigned int source_voltage_mv = 0;
+			unsigned int supercap_voltage_mv = 0;
+			unsigned int mcu_supply_voltage_mv = 0;
 			// Perform ADC convertions.
-			// TBD.
+			ADC1_PowerOn();
+			ADC1_PerformMeasurements();
+			ADC1_PowerOff();
+			ADC1_GetSourceVoltage(&source_voltage_mv);
+			ADC1_GetSupercapVoltage(&supercap_voltage_mv);
+			ADC1_GetMcuVoltage(&mcu_supply_voltage_mv);
 			// Print results.
-			AT_PrintAdcResults();
+			USART2_SendString("Vsrc=");
+			USART2_SendValue(source_voltage_mv, USART_FORMAT_DECIMAL, 0);
+			USART2_SendString("mV Vcap=");
+			USART2_SendValue(supercap_voltage_mv, USART_FORMAT_DECIMAL, 0);
+			USART2_SendString("mV Vmcu=");
+			USART2_SendValue(mcu_supply_voltage_mv, USART_FORMAT_DECIMAL, 0);
+			USART2_SendString("mV\n");
 		}
 		// Temperature and humidity sensor command AT$THS?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_THS) == AT_NO_ERROR) {

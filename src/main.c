@@ -231,7 +231,9 @@ int main (void) {
 			I2C1_PowerOff();
 			SHT3X_GetTemperature(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_temperature_degrees));
 			// Get voltages measurements.
+			ADC1_PowerOn();
 			ADC1_PerformMeasurements();
+			ADC1_PowerOff();
 			ADC1_GetSupercapVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_supercap_voltage_mv));
 			ADC1_GetSourceVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_source_voltage_mv));
 			ADC1_GetMcuVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_mcu_voltage_mv));
@@ -414,16 +416,11 @@ int main (void) {
 	NEOM8N_Init();
 	SHT3X_Init();
 	S2LP_Init();
-	// Sigfox test
-	sfx_rc_t rc1 = TKFX_SIGFOX_RC;
-	SIGFOX_API_open(&rc1);
-	SIGFOX_API_send_outofband(SFX_OOB_SERVICE);
-	SIGFOX_API_close();
 	// Applicative layers.
-	//AT_Init();
+	AT_Init();
 	// Main loop.
 	while (1) {
-		//AT_Task();
+		AT_Task();
 	}
 	return 0;
 }

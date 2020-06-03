@@ -46,6 +46,8 @@ static const unsigned char rf_api_etsi_bit0_amplitude_profile[RF_API_SYMBOL_PROF
 // Downlink parameters.
 #define RF_API_DOWNLINK_FRAME_LENGTH_BYTES		15
 #define RF_API_DOWNLINK_TIMEOUT_SECONDS			25
+#define RF_API_ESTI_DOWNLINK_DATARATE			S2LP_DATARATE_600BPS
+#define RF_API_ETSI_DOWNLINK_DEVIATION			S2LP_FDEV_800HZ
 
 /*** RF API local global variables ***/
 
@@ -70,10 +72,11 @@ static unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTE
  * \retval RF_ERR_API_INIT:          Init Radio link error
  *******************************************************************/
 sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
-	// Turn transceiver on.
+	// Turn TCXO and transceiver on.
+	S2LP_Tcxo(1);
 	SPI1_PowerOn();
 	// TX/RX common init.
-	S2LP_SetOscillator(S2LP_OSCILLATOR_QUARTZ);
+	S2LP_SetOscillator(S2LP_OSCILLATOR_TCXO);
 	S2LP_ConfigureSmps();
 	S2LP_ConfigureChargePump();
 	// Dedicated configurations.
@@ -90,6 +93,9 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		break;
 	case SFX_RF_MODE_RX:
 		// Downlink.
+		S2LP_SetModulation(S2LP_MODULATION_2GFSK_BT1);
+		S2LP_SetFskDeviation(RF_API_ETSI_DOWNLINK_DEVIATION);
+		S2LP_SetBitRate(RF_API_ESTI_DOWNLINK_DATARATE);
 		break;
 	default:
 		// Unknwon mode.
@@ -109,9 +115,10 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
  * \retval RF_ERR_API_STOP:           Close Radio link error
  *******************************************************************/
 sfx_u8 RF_API_stop(void) {
-	// Turn transceiver off.
+	// Turn transceiver and TCXO off.
 	S2LP_SendCommand(S2LP_CMD_STANDBY);
 	SPI1_PowerOff();
+	S2LP_Tcxo(0);
 	return SFX_ERR_NONE;
 }
 
@@ -146,7 +153,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Enable external GPIO interrupt.
 	EXTI_ClearAllFlags();
 	NVIC_EnableInterrupt(IT_EXTI_4_15);
-	// Transfer buffer to S2LP FIFO and enter stop mode.
+	// Transfer ramp-up buffer to S2LP FIFO.
 	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Start radio.
 	S2LP_SendCommand(S2LP_CMD_LOCKTX);
@@ -184,7 +191,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Enter stop and wait for S2LP interrupt to transfer ramp-down buffer.
 	PWR_EnterStopMode();
 	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
-	// Last wake-up. Stop radio.
+	// Stop radio.
 	S2LP_SendCommand(S2LP_CMD_READY);
 	NVIC_DisableInterrupt(IT_EXTI_4_15);
 	// Return.
@@ -202,7 +209,13 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
  * \retval RF_ERR_API_START_CONTINUOUS_TRANSMISSION:     Continuous Transmission Start error
  *******************************************************************/
 sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
-	// TBD.
+	// Disable modulation.
+	S2LP_SetModulation(S2LP_MODULATION_NONE);
+	// Start radio.
+	S2LP_SendCommand(S2LP_CMD_LOCKTX);
+	LPTIM1_DelayMilliseconds(1);
+	S2LP_SendCommand(S2LP_CMD_TX);
+	// Return.
 	return SFX_ERR_NONE;
 }
 
@@ -214,7 +227,9 @@ sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
  * \retval RF_ERR_API_STOP_CONTINUOUS_TRANSMISSION:      Continuous Transmission Stop error
  *******************************************************************/
 sfx_u8 RF_API_stop_continuous_transmission (void) {
-	// TBD.
+	// Stop radio.
+	S2LP_SendCommand(S2LP_CMD_READY);
+	// Return.
 	return SFX_ERR_NONE;
 }
 
