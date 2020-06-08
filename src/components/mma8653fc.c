@@ -40,15 +40,21 @@ void MMA8653FC_Init(void) {
  * @return:							None.
  */
 void MMA8653FC_WriteConfig(const MMA8653FC_RegisterSetting* mma8653fc_config, unsigned char mma8653fc_config_size) {
+	unsigned char local_addr = MMA8653FC_REG_WHO_AM_I;
+	unsigned char who_am_i = 0xFF;
+	unsigned char i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, &local_addr, 1);
+	i2c_access = I2C1_Read(MMA8653FC_I2C_ADDRESS, &who_am_i, 1);
 	// Registers write loop.
-	unsigned char reg_idx = 0;
-	unsigned char i2c_tx_data[2];
-	unsigned char i2c_access = 0;
-	for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
-		i2c_tx_data[0] = (mma8653fc_config -> mma8653fc_reg_addr);
-		i2c_tx_data[1] = (mma8653fc_config -> mma8653fc_reg_value);
-		i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2);
-		if (i2c_access == 0) break;
+	if ((who_am_i != 0) && (i2c_access != 0)) {
+		unsigned char reg_idx = 0;
+		unsigned char i2c_tx_data[2];
+		unsigned char i2c_access = 0;
+		for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
+			i2c_tx_data[0] = (mma8653fc_config -> mma8653fc_reg_addr);
+			i2c_tx_data[1] = (mma8653fc_config -> mma8653fc_reg_value);
+			i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2);
+			if (i2c_access == 0) break;
+		}
 	}
 }
 

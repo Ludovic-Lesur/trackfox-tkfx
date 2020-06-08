@@ -10,7 +10,6 @@
 #include "exti.h"
 #include "gpio.h"
 #include "iwdg.h"
-#include "lptim.h"
 #include "mapping.h"
 #include "mode.h"
 #include "nvic.h"
@@ -23,6 +22,7 @@
 #include "usart.h"
 
 #include "exti_reg.h"
+#include "s2lp_reg.h"
 
 /*** RF API local macros ***/
 
@@ -76,6 +76,8 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	S2LP_Tcxo(1);
 	SPI1_PowerOn();
 	// TX/RX common init.
+	S2LP_SendCommand(S2LP_CMD_STANDBY);
+	S2LP_WaitForStateSwitch(S2LP_STATE_STANDBY);
 	S2LP_SetOscillator(S2LP_OSCILLATOR_TCXO);
 	S2LP_ConfigureSmps();
 	S2LP_ConfigureChargePump();
@@ -116,7 +118,6 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
  *******************************************************************/
 sfx_u8 RF_API_stop(void) {
 	// Turn transceiver and TCXO off.
-	S2LP_SendCommand(S2LP_CMD_STANDBY);
 	SPI1_PowerOff();
 	S2LP_Tcxo(0);
 	return SFX_ERR_NONE;
@@ -156,9 +157,13 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Transfer ramp-up buffer to S2LP FIFO.
 	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Start radio.
+	S2LP_SendCommand(S2LP_CMD_READY);
+	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
+	S2LP_WaitForXo();
 	S2LP_SendCommand(S2LP_CMD_LOCKTX);
-	LPTIM1_DelayMilliseconds(1);
+	S2LP_WaitForStateSwitch(S2LP_STATE_LOCK);
 	S2LP_SendCommand(S2LP_CMD_TX);
+	S2LP_WaitForStateSwitch(S2LP_STATE_TX);
 	// Byte loop.
 	for (stream_byte_idx=0 ; stream_byte_idx<size ; stream_byte_idx++) {
 		// Bit loop.
@@ -179,6 +184,12 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 				}
 			}
 			// Enter stop and wait for S2LP interrupt to transfer next bit buffer.
+			unsigned char mc_state0 = 0;
+			unsigned char mc_state1 = 0;
+			while (GPIO_Read(&GPIO_S2LP_GPIO0) == 0) {
+				S2LP_ReadRegister(S2LP_REG_MC_STATE0, &mc_state0);
+				S2LP_ReadRegister(S2LP_REG_MC_STATE1, &mc_state1);
+			}
 			PWR_EnterStopMode();
 			S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 		}
@@ -191,9 +202,22 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Enter stop and wait for S2LP interrupt to transfer ramp-down buffer.
 	PWR_EnterStopMode();
 	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
-	// Stop radio.
-	S2LP_SendCommand(S2LP_CMD_READY);
+	// Padding bit to ensure ramp-down is completely transmitted.
+	for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
+		rf_api_s2lp_fifo_buffer[s2lp_fifo_sample_idx] = 0;
+	}
+	// Enter stop and wait for S2LP interrupt to transfer padding buffer.
+	PWR_EnterStopMode();
+	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
+	// Enter stop and wait for S2LP interrupt.
+	PWR_EnterStopMode();
+	// Disable external GPIO interrupt.
 	NVIC_DisableInterrupt(IT_EXTI_4_15);
+	// Stop radio.
+	S2LP_SendCommand(S2LP_CMD_SABORT);
+	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
+	S2LP_SendCommand(S2LP_CMD_STANDBY);
+	S2LP_WaitForStateSwitch(S2LP_STATE_STANDBY);
 	// Return.
 	return SFX_ERR_NONE;
 }
@@ -212,9 +236,13 @@ sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
 	// Disable modulation.
 	S2LP_SetModulation(S2LP_MODULATION_NONE);
 	// Start radio.
+	S2LP_SendCommand(S2LP_CMD_READY);
+	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
+	S2LP_WaitForXo();
 	S2LP_SendCommand(S2LP_CMD_LOCKTX);
-	LPTIM1_DelayMilliseconds(1);
+	S2LP_WaitForStateSwitch(S2LP_STATE_LOCK);
 	S2LP_SendCommand(S2LP_CMD_TX);
+	S2LP_WaitForStateSwitch(S2LP_STATE_TX);
 	// Return.
 	return SFX_ERR_NONE;
 }
@@ -228,7 +256,8 @@ sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
  *******************************************************************/
 sfx_u8 RF_API_stop_continuous_transmission (void) {
 	// Stop radio.
-	S2LP_SendCommand(S2LP_CMD_READY);
+	S2LP_SendCommand(S2LP_CMD_SABORT);
+	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
 	// Return.
 	return SFX_ERR_NONE;
 }

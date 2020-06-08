@@ -121,28 +121,50 @@ void S2LP_SendCommand(S2LP_Command command) {
 	GPIO_Write(&GPIO_S2LP_CS, 1);
 }
 
+/* WAIT FOR S2LP TO ENTER A GIVEN STATE.
+ * @param new_state:	State to reach.
+ * @return:				None.
+ */
+void S2LP_WaitForStateSwitch(S2LP_State new_state) {
+	unsigned char state = 0;
+	unsigned char reg_value = 0;
+	// Poll MC_STATE until state is reached.
+	do {
+		S2LP_ReadRegister(S2LP_REG_MC_STATE0, &reg_value);
+		state = (reg_value >> 1) & 0x7F;
+	}
+	while (state != new_state);
+}
+
+/* WAIT FOR S2LP OSCILLATOR TO BE RUNNING.
+ * @param:	None.
+ * @return:	None.
+ */
+void S2LP_WaitForXo(void) {
+	unsigned char xo_conf0 = 0;
+	unsigned char xo_conf1 = 0;
+	unsigned char xo_on = 0;
+	unsigned char reg_value = 0;
+	// Poll MC_STATE until state is reached.
+	do {
+		S2LP_ReadRegister(S2LP_REG_MC_STATE0, &reg_value);
+		xo_on = (reg_value & 0x01);
+		S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF0, &xo_conf0);
+		S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF1, &xo_conf1);
+	}
+	while (xo_on == 0);
+}
+
 /* CONFIGURE S2LP OSCILLATOR.
  * @param s2lp_oscillator:	S2LP oscillator type (use enumeration defined in s2lp.h).
  * @return:					None.
  */
 void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator) {
-	// Read register.
-	unsigned char reg_value = 0;
-	S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF0, &reg_value);
-	// Set RFDIV to 0, disable external RCO, set EXT_REF bit and enable RCO automatic calibration.
-	reg_value &= 0x76;
-	reg_value |= (0b1 << 0);
-	reg_value |= (s2lp_oscillator & 0x01) << 7;
-	// Write register.
+	// Set RFDIV to 0, disable external RCO, configure EXT_REF bit.
+	unsigned char reg_value = (s2lp_oscillator == S2LP_OSCILLATOR_TCXO) ? 0xB0 : 0x30;
 	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF0, reg_value);
 	// Set digital clock divider according to crytal frequency.
-	S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF1, &reg_value);
-	if (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
-		reg_value &= 0xE0;
-	}
-	else {
-		reg_value |= 0x10;
-	}
+	reg_value = (S2LP_XO_FREQUENCY_HZ < S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) ? 0x3E : 0x2E;
 	// Write register.
 	S2LP_WriteRegister(S2LP_REG_XO_RCO_CONF1, reg_value);
 }
@@ -158,7 +180,8 @@ void S2LP_ConfigureSmps(void) {
 	reg_value &= 0xDF;
 	S2LP_WriteRegister(S2LP_REG_PM_CONF4, reg_value);
 	// Configure divider and switching frequency.
-	// TBD.
+	S2LP_WriteRegister(S2LP_REG_PM_CONF3, 0x9A);
+	S2LP_WriteRegister(S2LP_REG_PM_CONF3, 0xE1);
 }
 
 /* CONFIGURE PLL CHARGE-PUMP.
@@ -206,6 +229,10 @@ void S2LP_SetModulation(S2LP_Modulation modulation) {
  * @return:					None.
  */
 void S2LP_SetRfFrequency(unsigned int rf_frequency_hz) {
+	// Set IF to 300kHz.
+	if (S2LP_XO_FREQUENCY_HZ < S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
+		S2LP_WriteRegister(S2LP_REG_IF_OFFSET_ANA, 0xB8);
+	}
 	// See equation p.27 of S2LP datasheet.
 	// Set CHNUM to 0.
 	S2LP_WriteRegister(S2LP_REG_CHNUM, 0x00);
@@ -290,6 +317,21 @@ void S2LP_SetFifoThreshold(S2LP_FifoThreshold fifo_threshold, unsigned char thre
 	// Write register.
 	S2LP_WriteRegister(fifo_threshold, threshold_value);
 }
+
+unsigned int S2LP_GetIrqFlags(void) {
+	unsigned int irq_flags = 0;
+	unsigned char reg_value = 0;
+	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS0,  &reg_value);
+	irq_flags |= (reg_value << 0);
+	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS1,  &reg_value);
+	irq_flags |= (reg_value << 8);
+	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS2,  &reg_value);
+	irq_flags |= (reg_value << 16);
+	S2LP_ReadRegister(S2LP_REG_IRQ_STATUS3,  &reg_value);
+	irq_flags |= (reg_value << 24);
+	return irq_flags;
+}
+
 
 /* CONFIGURE TX POWER AMPLIFIER.
  * @param:	None.

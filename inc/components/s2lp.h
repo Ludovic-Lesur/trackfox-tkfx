@@ -143,6 +143,8 @@ void S2LP_Init(void);
 void S2LP_DisableGpio(void);
 void S2LP_Tcxo(unsigned char tcxo_power_enable);
 void S2LP_SendCommand(S2LP_Command command);
+void S2LP_WaitForStateSwitch(S2LP_State new_state);
+void S2LP_WaitForXo(void);
 void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator);
 void S2LP_ConfigureSmps(void);
 void S2LP_ConfigureChargePump(void);
@@ -166,5 +168,7 @@ void S2LP_SetSyncWord(unsigned char* sync_word, unsigned char sync_word_length_b
 void S2LP_SetRxDataLength(unsigned char rx_data_length_bytes);
 signed char S2LP_GetRssi(void);
 void S2LP_ReadFifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
+
+void S2LP_ReadRegister(unsigned char addr, unsigned char* value);
 
 #endif /* S2LP_H */

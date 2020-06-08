@@ -416,11 +416,24 @@ int main (void) {
 	NEOM8N_Init();
 	SHT3X_Init();
 	S2LP_Init();
+	MMA8653FC_Init();
+	// Configure accelerometer.
+	I2C1_PowerOn();
+	MMA8653FC_WriteConfig(&(mma8653_tkfx_config[0]), MMA8653FC_TKFX_CONFIG_SIZE);
+	I2C1_PowerOff();
 	// Applicative layers.
-	AT_Init();
+	sfx_error_t sfx_error = 0;
+	sfx_rc_t rc1 = TKFX_SIGFOX_RC;
+	sfx_u8 sfx_downlink_data[8] = {0x00};
+	sfx_error = SIGFOX_API_open(&rc1);
+	if (sfx_error == SFX_ERR_NONE) {
+		sfx_error = SIGFOX_API_send_bit(0, sfx_downlink_data, 2, 0);
+	}
+	SIGFOX_API_close();
+	//AT_Init();
 	// Main loop.
 	while (1) {
-		AT_Task();
+		//AT_Task();
 	}
 	return 0;
 }

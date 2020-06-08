@@ -88,14 +88,15 @@ void SPI1_Disable(void) {
  * @return:	None.
  */
 void SPI1_PowerOn(void) {
+	// Turn S2LP on.
+	GPIO_Write(&GPIO_RF_POWER_ENABLE, 1);
+	GPIO_Write(&GPIO_S2LP_CS, 1); // CS high (idle state).
 	// Enable GPIOs.
 	GPIO_Configure(&GPIO_SPI1_SCK, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_SPI1_MOSI, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_SPI1_MISO, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
-	// Turn S2LP on.
-	GPIO_Write(&GPIO_RF_POWER_ENABLE, 1);
-	GPIO_Write(&GPIO_S2LP_CS, 1); // CS high (idle state).
-	LPTIM1_DelayMilliseconds(100);
+	// Wait for power-on.
+	LPTIM1_DelayMilliseconds(1000);
 }
 
 /* SWITCH ALL SPI1 SLAVES OFF.
