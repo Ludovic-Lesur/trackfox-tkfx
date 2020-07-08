@@ -146,24 +146,21 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	unsigned char stream_bit_idx = 0;
 	unsigned char s2lp_fifo_sample_idx = 0;
 	unsigned char s2lp_fdev = RF_API_S2LP_FDEV_NEGATIVE; // Effective deviation.
+	// Go to ready state.
+	S2LP_SendCommand(S2LP_CMD_READY);
+	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
 	// First ramp-up.
 	for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
 		rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // No deviation.
 		rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_ramp_amplitude_profile[RF_API_SYMBOL_PROFILE_LENGTH_BYTES - s2lp_fifo_sample_idx - 1]; // PA output power for ramp-up.
 	}
+	// Transfer ramp-up buffer to S2LP FIFO.
+	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Enable external GPIO interrupt.
 	EXTI_ClearAllFlags();
 	NVIC_EnableInterrupt(IT_EXTI_4_15);
-	// Transfer ramp-up buffer to S2LP FIFO.
-	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
-	// Start radio.
-	S2LP_SendCommand(S2LP_CMD_READY);
-	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
-	S2LP_WaitForXo();
-	S2LP_SendCommand(S2LP_CMD_LOCKTX);
-	S2LP_WaitForStateSwitch(S2LP_STATE_LOCK);
+	// Start radio
 	S2LP_SendCommand(S2LP_CMD_TX);
-	S2LP_WaitForStateSwitch(S2LP_STATE_TX);
 	// Byte loop.
 	for (stream_byte_idx=0 ; stream_byte_idx<size ; stream_byte_idx++) {
 		// Bit loop.
@@ -184,12 +181,6 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 				}
 			}
 			// Enter stop and wait for S2LP interrupt to transfer next bit buffer.
-			unsigned char mc_state0 = 0;
-			unsigned char mc_state1 = 0;
-			while (GPIO_Read(&GPIO_S2LP_GPIO0) == 0) {
-				S2LP_ReadRegister(S2LP_REG_MC_STATE0, &mc_state0);
-				S2LP_ReadRegister(S2LP_REG_MC_STATE1, &mc_state1);
-			}
 			PWR_EnterStopMode();
 			S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 		}
@@ -238,11 +229,7 @@ sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
 	// Start radio.
 	S2LP_SendCommand(S2LP_CMD_READY);
 	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
-	S2LP_WaitForXo();
-	S2LP_SendCommand(S2LP_CMD_LOCKTX);
-	S2LP_WaitForStateSwitch(S2LP_STATE_LOCK);
 	S2LP_SendCommand(S2LP_CMD_TX);
-	S2LP_WaitForStateSwitch(S2LP_STATE_TX);
 	// Return.
 	return SFX_ERR_NONE;
 }

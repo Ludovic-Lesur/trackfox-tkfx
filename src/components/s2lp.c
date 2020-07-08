@@ -21,7 +21,7 @@
 #define S2LP_HEADER_BYTE_READ				0x01
 #define S2LP_HEADER_BYTE_COMMAND			0x80
 
-#define S2LP_XO_FREQUENCY_HZ				26000000
+#define S2LP_XO_FREQUENCY_HZ				49152000
 #define S2LP_XO_HIGH_RANGE_THRESHOLD_HZ		48000000
 
 #define S2LP_SYNC_WORD_LENGTH_BITS_MAX		32
@@ -181,7 +181,7 @@ void S2LP_ConfigureSmps(void) {
 	S2LP_WriteRegister(S2LP_REG_PM_CONF4, reg_value);
 	// Configure divider and switching frequency.
 	S2LP_WriteRegister(S2LP_REG_PM_CONF3, 0x9A);
-	S2LP_WriteRegister(S2LP_REG_PM_CONF3, 0xE1);
+	S2LP_WriteRegister(S2LP_REG_PM_CONF2, 0xE1);
 }
 
 /* CONFIGURE PLL CHARGE-PUMP.

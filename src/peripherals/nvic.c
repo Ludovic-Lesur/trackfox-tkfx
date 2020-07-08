@@ -10,6 +10,10 @@
 #include "nvic_reg.h"
 #include "scb_reg.h"
 
+/*** NVIC local global variables ***/
+
+extern unsigned int __Vectors;
+
 /*** NVIC functions ***/
 
 /* INIT VECTOR TABLE ADDRESS.
@@ -17,7 +21,7 @@
  * @return:	None.
  */
 void NVIC_Init(void) {
-	SCB -> VTOR = 0x08000000;
+	SCB -> VTOR = (unsigned int) &__Vectors;
 }
 
 /* ENABLE AN INTERRUPT LINE.

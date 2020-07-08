@@ -18,6 +18,8 @@
 #include "tim.h"
 #include "usart_reg.h"
 
+#include "lpuart.h"
+
 #ifdef ATM
 /*** USART local macros ***/
 
@@ -71,6 +73,8 @@ void USART2_IRQHandler(void) {
 	if (((USART2 -> ISR) & (0b1 << 5)) != 0) {
 		// Transmit incoming byte to AT command manager.
 		AT_FillRxBuffer(USART2 -> RDR);
+		// Clear RXNE flag.
+		USART2 -> RQR |= (0b1 << 3);
 	}
 	// Overrun error interrupt.
 	if (((USART2 -> ISR) & (0b1 << 3)) != 0) {
@@ -158,7 +162,6 @@ void USART2_Init(void) {
 	USART2 -> CR1 |= (0b1 << 5); // RXNEIE='1'.
 	// Enable peripheral.
 	USART2 -> CR1 |= (0b1 << 0);
-	NVIC_EnableInterrupt(IT_USART2);
 #else
 	// Configure TX and RX GPIOs.
 	GPIO_Configure(&GPIO_USART2_TX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);

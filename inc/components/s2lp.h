@@ -118,12 +118,16 @@ typedef struct {
 } S2LP_MantissaExponent;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
-#define S2LP_FDEV_800HZ			((S2LP_MantissaExponent) {129, 0}) // For fXO=26MHz.
-#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {323, 0}) // For fXO=26MHz.
+//#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {323, 0}) // Setting for uplink 100bps and fXO=26MHz.
+#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {171, 0}) // Setting for uplink 100bps and fXO=49.152MHz.
+
+#define S2LP_FDEV_800HZ			((S2LP_MantissaExponent) {129, 0}) // Setting for downlink 600bps and fXO=26MHz.
 
 // Data rates.
-#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {17059, 1}) // Setting for uplink 100bps and fXO=26MHz.
-#define S2LP_DATARATE_600BPS	((S2LP_MantissaExponent) {33579, 1}) // For fXO=26MHz.
+//#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {17059, 1}) // Setting for uplink 100bps and fXO=26MHz
+#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {21845, 1}) // Setting for uplink 100bps and fXO=49.152MHz
+
+#define S2LP_DATARATE_600BPS	((S2LP_MantissaExponent) {33579, 1}) // Setting for downlink 600bps and fXO=26MHz.
 
 // RX bandwidths.
 #define S2LP_RXBW_1KHZ			((S2LP_MantissaExponent) {8, 9})

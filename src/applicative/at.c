@@ -497,7 +497,7 @@ void AT_PrintPosition(Position* gps_position) {
 	// Latitude.
 	USART2_SendString("Lat=");
 	USART2_SendValue((gps_position -> lat_degrees), USART_FORMAT_DECIMAL, 0);
-	USART2_SendString("°");
+	USART2_SendString("ï¿½");
 	USART2_SendValue((gps_position -> lat_minutes), USART_FORMAT_DECIMAL, 0);
 	USART2_SendString("'");
 	USART2_SendValue((gps_position -> lat_seconds), USART_FORMAT_DECIMAL, 0);
@@ -506,7 +506,7 @@ void AT_PrintPosition(Position* gps_position) {
 	// Longitude.
 	USART2_SendString(" Long=");
 	USART2_SendValue((gps_position -> long_degrees), USART_FORMAT_DECIMAL, 0);
-	USART2_SendString("°");
+	USART2_SendString("ï¿½");
 	USART2_SendValue((gps_position -> long_minutes), USART_FORMAT_DECIMAL, 0);
 	USART2_SendString("'");
 	USART2_SendValue((gps_position -> long_seconds), USART_FORMAT_DECIMAL, 0);
@@ -629,7 +629,7 @@ void AT_DecodeRxBuffer(void) {
 			else {
 				USART2_SendValue(sht3x_temperature_degrees, USART_FORMAT_DECIMAL, 0);
 			}
-			USART2_SendString("°C H=");
+			USART2_SendString("ï¿½C H=");
 			USART2_SendValue(sht3x_humidity_percent, USART_FORMAT_DECIMAL, 0);
 			USART2_SendString("%\n");
 		}
@@ -1046,6 +1046,8 @@ void AT_Init(void) {
 	at_ctx.start_idx = 0;
 	at_ctx.end_idx = 0;
 	at_ctx.separator_idx = 0;
+	// Enable USART interrupt.
+	NVIC_EnableInterrupt(IT_USART2);
 }
 
 /* MAIN TASK OF AT COMMAND MANAGER.

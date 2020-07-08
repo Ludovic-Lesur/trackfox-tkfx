@@ -43,10 +43,15 @@ void EXTI2_3_IRQHandler(void) {
  * @return:	None.
  */
 void EXTI4_15_IRQHandler(void) {
-	// S2LP GPIOs (PA10/PA11).
+	// S2LP GPIO0
 	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.gpio_num))) != 0) {
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.gpio_num)); // PIFx='1' (writing '1' clears the bit).
+	}
+	// S2LP GPIO3
+	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO3.gpio_num))) != 0) {
+		// Clear flag.
+		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO3.gpio_num)); // PIFx='1' (writing '1' clears the bit).
 	}
 }
 
