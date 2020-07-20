@@ -40,21 +40,22 @@ void MMA8653FC_Init(void) {
  * @return:							None.
  */
 void MMA8653FC_WriteConfig(const MMA8653FC_RegisterSetting* mma8653fc_config, unsigned char mma8653fc_config_size) {
-	unsigned char local_addr = MMA8653FC_REG_WHO_AM_I;
-	unsigned char who_am_i = 0xFF;
-	unsigned char i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, &local_addr, 1);
-	i2c_access = I2C1_Read(MMA8653FC_I2C_ADDRESS, &who_am_i, 1);
-	// Registers write loop.
-	if ((who_am_i != 0) && (i2c_access != 0)) {
-		unsigned char reg_idx = 0;
-		unsigned char i2c_tx_data[2];
-		unsigned char i2c_access = 0;
-		for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
-			i2c_tx_data[0] = (mma8653fc_config -> mma8653fc_reg_addr);
-			i2c_tx_data[1] = (mma8653fc_config -> mma8653fc_reg_value);
-			i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2);
-			if (i2c_access == 0) break;
-		}
+	unsigned char i2c_access = 0;
+	unsigned char i2c_tx_data[2];
+	unsigned char reg_idx = 0;
+//	unsigned char local_addr = 0;
+//	unsigned char rx_data = 0;
+	for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
+		i2c_tx_data[0] = (mma8653fc_config[reg_idx].mma8653fc_reg_addr);
+		i2c_tx_data[1] = (mma8653fc_config[reg_idx].mma8653fc_reg_value);
+		i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2, 1);
+		if (i2c_access == 0) break;
+//		local_addr = (mma8653fc_config[reg_idx].mma8653fc_reg_addr);
+//		i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+//		i2c_access = I2C1_Read(MMA8653FC_I2C_ADDRESS, &rx_data, 1);
+//		if (rx_data == 0xFF) {
+//			EXTI_ConfigureInterrupt(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_FALLING_EDGE);
+//		}
 	}
 }
 
@@ -76,7 +77,7 @@ void MMA8653FC_ClearMotionInterruptFlag(void) {
 
 /* GET MOTION INTERRUPT STATUS.
  * @param:									None.
- * @return mma8653fc_motion_interrupt_flag:	'1' if the motion interrupt occured (EXTI line), '0' otherwise.
+ * @return mma8653fc_motion_interrupt_flag:	'1' if the motion interrupt occurred (EXTI line), '0' otherwise.
  */
 unsigned char MMA8653FC_GetMotionInterruptFlag(void) {
 	return mma8653fc_motion_interrupt_flag;

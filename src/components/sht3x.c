@@ -48,7 +48,7 @@ void SHT3X_Init(void) {
 void SHT3X_PerformMeasurements(void) {
 	// Trigger high repeatability measurement with clock streching disabled.
 	unsigned char measurement_command[2] = {0x24, 0x00};
-	unsigned char i2c_access = I2C1_Write(SHT3X_I2C_ADDRESS, measurement_command, 2);
+	unsigned char i2c_access = I2C1_Write(SHT3X_I2C_ADDRESS, measurement_command, 2, 1);
 	if (i2c_access == 0) return;
 	// Wait for conversion to complete (at least 15ms).
 	LPTIM1_DelayMilliseconds(20);
@@ -64,7 +64,7 @@ void SHT3X_PerformMeasurements(void) {
 }
 
 /* READ TEMPERATURE FROM SHT3X SENSOR.
- * @param temperature_degrees:	Pointer to byte that will contain temperature result (°C).
+ * @param temperature_degrees:	Pointer to byte that will contain temperature result (ï¿½C).
  * @return:						None.
  */
 void SHT3X_GetTemperature(signed char* temperature_degrees) {

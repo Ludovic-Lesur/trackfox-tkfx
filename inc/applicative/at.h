@@ -16,7 +16,7 @@
 
 // Enabled commands.
 //#define AT_COMMANDS_GPS
-//#define AT_COMMANDS_SENSORS
+#define AT_COMMANDS_SENSORS
 #define AT_COMMANDS_NVM
 #define AT_COMMANDS_SIGFOX
 #define AT_COMMANDS_CW_RSSI

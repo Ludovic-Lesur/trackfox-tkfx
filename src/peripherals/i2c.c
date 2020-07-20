@@ -53,10 +53,11 @@ void I2C1_Init(void) {
 	I2C1 -> CR1 &= ~(0b1 << 0); // Disable peripheral before configuration (PE='0').
 	I2C1 -> CR1 &= ~(0b11111 << 8); // Analog filter enabled (ANFOFF='0') and digital filter disabled (DNF='0000').
 	I2C1 -> TIMINGR = 0; // Reset all bits.
-	I2C1 -> TIMINGR |= (7 << 28); // I2CCLK = PCLK1/(PRESC+1) = SYSCLK/(PRESC+1) = 16/(7+1) = 2MHz. (PRESC='1000').
-	I2C1 -> TIMINGR |= (99 << 8) + 99; // Set SCL frequency to 10kHz (see p.641 of RM0377 datasheet).
+	I2C1 -> TIMINGR |= (7 << 28); // I2CCLK = PCLK1/(PRESC+1) = SYSCLK/(PRESC+1) = 2MHz (HSI) or 3.25MHz (HSE) (PRESC='1000').
+	I2C1 -> TIMINGR |= (99 << 8) + 99; // Set SCL frequency to 10kHz (HSI) or 16kHz (HSE). See p.641 of RM0377 datasheet.
 	I2C1 -> CR1 &= ~(0b1 << 17); // Must be kept cleared in master mode (NOSTRETCH='0').
 	I2C1 -> CR2 &= ~(0b1 << 11); // 7-bits addressing mode (ADD10='0').
+	I2C1 -> CR2 &= ~(0b11 << 24); // AUTOEND='0' and RELOAD='0'.
 	// Enable peripheral.
 	I2C1 -> CR1 |= (0b1 << 0); // PE='1'.
 }
@@ -108,9 +109,10 @@ void I2C1_PowerOff(void) {
  * @param slave_address:	Slave address on 7 bits.
  * @param tx_buf:			Array containing the byte(s) to send.
  * @param tx_buf_length:	Number of bytes to send (length of 'tx_buf').
+ * @param stop_flag:		Generate stop condition at the end of the transfer if non zero.
  * @return:					1 in case of success, 0 in case of failure.
  */
-unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, unsigned char tx_buf_length) {
+unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, unsigned char tx_buf_length, unsigned char stop_flag) {
 	// Clear peripheral.
 	I2C_Clear();
 	// Wait for I2C bus to be ready.
@@ -133,7 +135,7 @@ unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, uns
 		// Wait for START bit to be cleared by hardware or timeout.
 		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
 	}
-	// Send bytes/
+	// Send bytes.
 	unsigned char byte_idx = 0;
 	loop_start_time = TIM22_GetSeconds();
 	while ((byte_idx < tx_buf_length) && (((I2C1 -> ISR) & (0b1 << 4)) == 0)) {
@@ -152,15 +154,17 @@ unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, uns
 		// Wait for TC='1' or timeout.
 		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
 	}
-	// Generate stop condition.
-	I2C1 -> CR2 |= (0b1 << 14);
-	loop_start_time = TIM22_GetSeconds();
-	while (((I2C1 -> ISR) & (0b1 << 5)) == 0) {
-		// Wait for STOPF='1' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+	if (stop_flag != 0) {
+		// Generate stop condition.
+		I2C1 -> CR2 |= (0b1 << 14);
+		loop_start_time = TIM22_GetSeconds();
+		while (((I2C1 -> ISR) & (0b1 << 5)) == 0) {
+			// Wait for STOPF='1' or timeout.
+			if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		}
+		// Clear flag.
+		I2C1 -> ICR |= (0b1 << 5); // STOPCF='1'.
 	}
-	// Clear flag.
-	I2C1 -> ICR |= (0b1 << 5); // STOPCF='1'.
 	return 1;
 }
 
