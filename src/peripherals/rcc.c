@@ -22,7 +22,6 @@
 
 #define RCC_MSI_RESET_FREQUENCY_KHZ		2100
 #define RCC_MSI_FREQUENCY_KHZ			65
-#define RCC_HSI_FREQUENCY_KHZ			16000
 #define RCC_TCXO_FREQUENCY_KHZ			26000
 #define RCC_TIMEOUT_COUNT				10
 
@@ -55,6 +54,9 @@ void RCC_Delay(void) {
  * @return:	None.
  */
 void RCC_Init(void) {
+	// Configure TCXO power control pin.
+	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 	// Prescalers (HCLK, PCLK1 and PCLK2 must not exceed 32MHz).
 	RCC -> CFGR &= ~(0b1111 << 4); // HCLK = SYSCLK = 16MHz (HPRE='0000').
 	RCC -> CFGR &= ~(0b111 << 8); // PCLK1 = HCLK = 16MHz (PPRE1='000').
@@ -68,17 +70,22 @@ void RCC_Init(void) {
 	rcc_sysclk_khz = RCC_MSI_RESET_FREQUENCY_KHZ;
 }
 
-/* ENABLE RCC GPIO.
+/* CONTROL EXTERNAL TCXO.
  * @param:	None.
  * @return:	None.
  */
-void RCC_EnableGpio(void) {
-	// Configure TCXO power enable pin as output.
-	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
+void RCC_Tcxo(unsigned char tcxo_enable) {
+	// Turn TCXO on or off.
+	if (tcxo_enable != 0) {
+		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 1);
+		RCC_Delay();
+	}
+	else {
+		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
+	}
 }
 
-/* DISABLE RCC GPIO.
+/* DISABLE TCXO CONTROL PIN.
  * @param:	None.
  * @return:	None.
  */
@@ -125,8 +132,6 @@ unsigned char RCC_SwitchToHsi(void) {
 			// Disable MSI and HSE.
 			RCC -> CR &= ~(0b1 << 8); // Disable MSI (MSION='0').
 			RCC -> CR &= ~(0b1 << 16); // Disable HSE (HSEON='0').
-			// Disable 16MHz TCXO power supply.
-			GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 			// Update flag and frequency.
 			sysclk_on_hsi = 1;
 			rcc_sysclk_khz = RCC_HSI_FREQUENCY_KHZ;
@@ -165,8 +170,6 @@ unsigned char RCC_SwitchToMsi(void) {
 			// Disable HSI and HSE.
 			RCC -> CR &= ~(0b1 << 0); // Disable HSI (HSI16ON='0').
 			RCC -> CR &= ~(0b1 << 16); // Disable HSE (HSEON='0').
-			// Disable 16MHz TCXO power supply.
-			GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 			// Update flag and frequency.
 			sysclk_on_msi = 1;
 			rcc_sysclk_khz = RCC_MSI_FREQUENCY_KHZ;
@@ -180,8 +183,6 @@ unsigned char RCC_SwitchToMsi(void) {
  * @return sysclk_on_hse:	'1' if SYSCLK source was successfully switched to HSE (TCXO), 0 otherwise.
  */
 unsigned char RCC_SwitchToHse(void) {
-	// Enable 26MHz TCXO */
-	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 1);
 	// Init HSE.
 	RCC -> CR |= (0b1 << 18); // Bypass oscillator (HSEBYP='1').
 	RCC -> CR |= (0b1 << 16); // Enable HSE (HSEON='1').
@@ -213,9 +214,8 @@ unsigned char RCC_SwitchToHse(void) {
 			rcc_sysclk_khz = RCC_TCXO_FREQUENCY_KHZ;
 		}
 	}
-	// Switch TCXO and HSE off if any failure occured.
+	// Turn HSE off if any failure occurred.
 	if (sysclk_on_hse == 0) {
-		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 		RCC -> CR &= ~(0b1 << 16); // Disable HSE (HSEON='0').
 	}
 	return sysclk_on_hse;

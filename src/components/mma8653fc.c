@@ -34,6 +34,18 @@ void MMA8653FC_Init(void) {
 	EXTI_ConfigureInterrupt(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_RISING_EDGE);
 }
 
+/* READ SENSOR ID.
+ * @param:	None.
+ * @return:	None.
+ */
+unsigned char MMA8653FC_GetId(void) {
+	unsigned char who_am_i = 0;
+	unsigned char local_addr = MMA8653FC_REG_WHO_AM_I;
+	unsigned char i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c_access = I2C1_Read(MMA8653FC_I2C_ADDRESS, &who_am_i, 1);
+	return who_am_i;
+}
+
 /* CONFIGURE THE ACCELEROMETER.
  * @param mma8653fc_config:			Registers setting array.
  * @param mma8653fc_config_size:	Length of the config array.
@@ -43,19 +55,11 @@ void MMA8653FC_WriteConfig(const MMA8653FC_RegisterSetting* mma8653fc_config, un
 	unsigned char i2c_access = 0;
 	unsigned char i2c_tx_data[2];
 	unsigned char reg_idx = 0;
-//	unsigned char local_addr = 0;
-//	unsigned char rx_data = 0;
 	for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
 		i2c_tx_data[0] = (mma8653fc_config[reg_idx].mma8653fc_reg_addr);
 		i2c_tx_data[1] = (mma8653fc_config[reg_idx].mma8653fc_reg_value);
 		i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2, 1);
 		if (i2c_access == 0) break;
-//		local_addr = (mma8653fc_config[reg_idx].mma8653fc_reg_addr);
-//		i2c_access = I2C1_Write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
-//		i2c_access = I2C1_Read(MMA8653FC_I2C_ADDRESS, &rx_data, 1);
-//		if (rx_data == 0xFF) {
-//			EXTI_ConfigureInterrupt(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_FALLING_EDGE);
-//		}
 	}
 }
 

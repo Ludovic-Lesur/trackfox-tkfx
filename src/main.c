@@ -393,7 +393,11 @@ int main (void) {
 	GPIO_Init();
 	// Init clocks.
 	RCC_Init();
-	RCC_SwitchToHsi();
+	RCC_Tcxo(1);
+	unsigned char hse_success = RCC_SwitchToHse();
+	if (hse_success == 0) {
+		RCC_SwitchToHsi();
+	}
 	// Timers.
 	TIM21_Init();
 	TIM22_Init();

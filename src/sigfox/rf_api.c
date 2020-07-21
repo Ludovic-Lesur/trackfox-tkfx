@@ -14,6 +14,7 @@
 #include "mode.h"
 #include "nvic.h"
 #include "pwr.h"
+#include "rcc.h"
 #include "s2lp.h"
 #include "sigfox_api.h"
 #include "sigfox_types.h"
@@ -73,7 +74,7 @@ static unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTE
  *******************************************************************/
 sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	// Turn TCXO and transceiver on.
-	S2LP_Tcxo(1);
+	RCC_Tcxo(1);
 	SPI1_PowerOn();
 	// TX/RX common init.
 	S2LP_SendCommand(S2LP_CMD_STANDBY);
@@ -117,9 +118,8 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
  * \retval RF_ERR_API_STOP:           Close Radio link error
  *******************************************************************/
 sfx_u8 RF_API_stop(void) {
-	// Turn transceiver and TCXO off.
+	// Turn transceiver off.
 	SPI1_PowerOff();
-	S2LP_Tcxo(0);
 	return SFX_ERR_NONE;
 }
 

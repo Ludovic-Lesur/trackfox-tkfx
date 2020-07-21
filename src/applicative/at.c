@@ -15,6 +15,7 @@
 #include "lpuart.h"
 #include "lptim.h"
 #include "mapping.h"
+#include "mma8653fc.h"
 #include "mode.h"
 #include "neom8n.h"
 #include "nvic.h"
@@ -45,6 +46,7 @@
 #define AT_IN_COMMAND_TEST								"AT"
 #define AT_IN_COMMAND_ADC								"AT$ADC?"
 #define AT_IN_COMMAND_THS								"AT$THS?"
+#define AT_IN_COMMAND_ACC								"AT$ACC?"
 #define AT_IN_COMMAND_ID								"AT$ID?"
 #define AT_IN_COMMAND_KEY								"AT$KEY?"
 #define AT_IN_COMMAND_NVMR								"AT$NVMR"
@@ -467,6 +469,7 @@ unsigned short AT_GetByteArray(unsigned char last_param, unsigned char* byte_arr
 void AT_ReplyOk(void) {
 	USART2_SendString(AT_OUT_COMMAND_OK);
 	USART2_SendValue(AT_CR_CHAR, USART_FORMAT_ASCII, 0);
+	USART2_SendValue(AT_LF_CHAR, USART_FORMAT_ASCII, 0);
 }
 
 /* PRINT AN ERROR THROUGH AT INTERFACE.
@@ -497,7 +500,7 @@ void AT_PrintPosition(Position* gps_position) {
 	// Latitude.
 	USART2_SendString("Lat=");
 	USART2_SendValue((gps_position -> lat_degrees), USART_FORMAT_DECIMAL, 0);
-	USART2_SendString("�");
+	USART2_SendString("d");
 	USART2_SendValue((gps_position -> lat_minutes), USART_FORMAT_DECIMAL, 0);
 	USART2_SendString("'");
 	USART2_SendValue((gps_position -> lat_seconds), USART_FORMAT_DECIMAL, 0);
@@ -506,7 +509,7 @@ void AT_PrintPosition(Position* gps_position) {
 	// Longitude.
 	USART2_SendString(" Long=");
 	USART2_SendValue((gps_position -> long_degrees), USART_FORMAT_DECIMAL, 0);
-	USART2_SendString("�");
+	USART2_SendString("d");
 	USART2_SendValue((gps_position -> long_minutes), USART_FORMAT_DECIMAL, 0);
 	USART2_SendString("'");
 	USART2_SendValue((gps_position -> long_seconds), USART_FORMAT_DECIMAL, 0);
@@ -629,9 +632,20 @@ void AT_DecodeRxBuffer(void) {
 			else {
 				USART2_SendValue(sht3x_temperature_degrees, USART_FORMAT_DECIMAL, 0);
 			}
-			USART2_SendString("�C H=");
+			USART2_SendString("dC H=");
 			USART2_SendValue(sht3x_humidity_percent, USART_FORMAT_DECIMAL, 0);
 			USART2_SendString("%\n");
+		}
+		// Accelerometer check command AT$ACC?<CR>.
+		else if (AT_CompareCommand(AT_IN_COMMAND_ACC) == AT_NO_ERROR) {
+			// Get sensor ID.
+			I2C1_PowerOn();
+			unsigned char mma8653fc_who_am_i = MMA8653FC_GetId();
+			I2C1_PowerOff();
+			// Print results.
+			USART2_SendString("WhoAmI=");
+			USART2_SendValue(mma8653fc_who_am_i, USART_FORMAT_HEXADECIMAL, 0);
+			USART2_SendString("\n");
 		}
 #endif
 #ifdef AT_COMMANDS_NVM

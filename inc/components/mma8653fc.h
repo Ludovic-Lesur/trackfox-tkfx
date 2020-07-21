@@ -36,6 +36,7 @@ static const MMA8653FC_RegisterSetting mma8653_tkfx_config[] = {
 /*** MMA8653FC functions ***/
 
 void MMA8653FC_Init(void);
+unsigned char MMA8653FC_GetId(void);
 void MMA8653FC_WriteConfig(const MMA8653FC_RegisterSetting* mma8653fc_config, unsigned char mma8653fc_config_size);
 void MMA8653FC_SetMotionInterruptFlag(void);
 void MMA8653FC_ClearMotionInterruptFlag(void);
