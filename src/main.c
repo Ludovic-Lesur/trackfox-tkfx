@@ -73,10 +73,8 @@ typedef enum {
 	TKFX_STATUS_BYTE_TRACKER_MODE1_BIT_IDX,
 	TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX,
 	TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX,
-	TKFX_STATUS_BYTE_MCU_CLOCK_SOURCE_BIT_IDX,
 	TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX,
 	TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX,
-	TKFX_STATUS_BYTE_DAILY_DOWNLINK_BIT_IDX
 } TKFX_StatusBitsIndex;
 #endif
 
@@ -107,6 +105,25 @@ typedef struct {
 static TKFX_Context tkfx_ctx;
 #endif
 
+/*** MAIN functions ***/
+
+/* PERFORM TIMER REINITIALIZATION FOR CLOCK SWITCHING.
+ * @param:	None.
+ * @return:	None.
+ */
+void TKFX_ReinitTimers(void) {
+	// Disable all timers.
+	TIM21_Disable();
+	TIM22_Disable();
+	LPTIM1_Disable();
+	// Reinit all timers.
+	TIM21_Init();
+	TIM22_Init();
+	TIM21_Start();
+	TIM22_Start();
+	LPTIM1_Init(0);
+}
+
 #ifdef SSM
 /* MAIN FUNCTION FOR START/STOP MODE.
  * @param: 	None.
@@ -130,6 +147,7 @@ int main (void) {
 	tkfx_ctx.tkfx_status_byte = 0; // Reset all flags and tracker mode='00'.
 	// Local variables.
 	unsigned char rtc_use_lse = 0;
+	unsigned char hse_success = 0;
 	unsigned int sfx_error = 0;
 	sfx_rc_t tkfx_sigfox_rc = (sfx_rc_t) RC1;
 	unsigned int geoloc_fix_start_time_seconds = 0;
@@ -144,37 +162,22 @@ int main (void) {
 			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
 			// Init watchdog.
 			IWDG_Init();
-			// Reset RTC.
+			IWDG_Reload();
+			// Init RTC.
 			RTC_Reset();
-			// LSE.
-			tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
-			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLse() << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
-			// RTC.
-			IWDG_Reload();
-			if (tkfx_ctx.tkfx_por_flag != 0) {
-				rtc_use_lse = tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
-				RTC_Init(&rtc_use_lse);
-				// Update LSE status if RTC failed to start on it.
-				if (rtc_use_lse == 0) {
-					tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
-				}
-			}
-			IWDG_Reload();
+			RTC_Init(&rtc_use_lse);
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
 			break;
 		case TKFX_STATE_INIT:
-			// Reset timers.
-			tkfx_ctx.tkfx_stop_timer_seconds = 0;
-			tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
+			IWDG_Reload();
+			// Disable RTC and accelerometer interrupts.
+			NVIC_DisableInterrupt(IT_RTC);
+			NVIC_DisableInterrupt(IT_EXTI_0_1);
 			// High speed oscillator.
 			IWDG_Reload();
 			RCC_EnableGpio();
-			tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_MCU_CLOCK_SOURCE_BIT_IDX);
-			tkfx_ctx.tkfx_status_byte |= (RCC_SwitchToHse() << TKFX_STATUS_BYTE_MCU_CLOCK_SOURCE_BIT_IDX);
-			if ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MCU_CLOCK_SOURCE_BIT_IDX)) == 0) {
-				RCC_SwitchToHsi();
-			}
+			RCC_SwitchToHsi();
 			// Init timers.
 			TIM21_Init();
 			TIM22_Init();
@@ -207,6 +210,7 @@ int main (void) {
 			}
 			break;
 		case TKFX_STATE_ACCELERO:
+			IWDG_Reload();
 			// Configure accelerometer once for motion detection.
 			I2C1_PowerOn();
 			MMA8653FC_WriteConfig(&(mma8653_tkfx_config[0]), MMA8653FC_TKFX_CONFIG_SIZE);
@@ -266,11 +270,32 @@ int main (void) {
 			break;
 		case TKFX_STATE_GEOLOC:
 			IWDG_Reload();
+			// Turn TCXO and HSE on for UART baud rate accuracy.
+			RCC_Tcxo(1);
+			hse_success = RCC_SwitchToHse();
+			if (hse_success == 0) {
+				// Go back to HSI.
+				RCC_SwitchToHsi();
+				RCC_Tcxo(0);
+			}
+			else {
+				// Reinit timers and LPUART.
+				TKFX_ReinitTimers();
+				LPUART1_Disable();
+				LPUART1_Init();
+			}
 			// Get position from GPS.
 			LPUART1_PowerOn();
 			geoloc_fix_start_time_seconds = TIM22_GetSeconds();
 			neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS);
 			LPUART1_PowerOff();
+			// Go back to HSI.
+			if (hse_success != 0) {
+				RCC_SwitchToHsi();
+				RCC_Tcxo(0);
+				// Reinit timers.
+				TKFX_ReinitTimers();
+			}
 			// Parse result.
 			if (neom8n_return_code == NEOM8N_SUCCESS) {
 				// Get fix duration and update flag.
@@ -315,8 +340,6 @@ int main (void) {
 			I2C1_Disable();
 			AES_Disable();
 			NVM_Disable();
-			// Switch to internal MSI 65kHz (must be called before WIND functions to init TIM2 with right clock frequency).
-			RCC_SwitchToMsi();
 			RCC_DisableGpio();
 			// Clear EXTI flags.
 			EXTI_ClearAllFlags();
@@ -332,19 +355,25 @@ int main (void) {
 			IWDG_Reload();
 			// Enter sleep mode.
 			PWR_EnterStopMode();
-			// Wake-up. Reload watchdog.
-			IWDG_Reload();
-			// Increment timers.
-			tkfx_ctx.tkfx_keep_alive_timer_seconds++;
-			tkfx_ctx.tkfx_stop_timer_seconds++;
 			// Check wake-up source.
 			if (RTC_GetAlarmAFlag() != 0) {
-				// Keep alive period reached.
-				tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
-				// Turn tracker on to send keep-alive.
-				tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
+				// Increment timers.
+				tkfx_ctx.tkfx_keep_alive_timer_seconds++;
+				tkfx_ctx.tkfx_stop_timer_seconds++;
+				// Check periods.
+				if (tkfx_ctx.tkfx_keep_alive_timer_seconds > TKFX_KEEP_ALIVE_PERIOD_SECONDS) {
+					// Reset timer and alarm flag.
+					tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
+					tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
+					// Turn tracker on to send keep-alive.
+					tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
+				}
+				// Clear RTC flags.
+				RTC_ClearAlarmAFlag();
 			}
 			if (MMA8653FC_GetMotionInterruptFlag() != 0) {
+				// Reset stop timer.
+				tkfx_ctx.tkfx_stop_timer_seconds = 0;
 				// Wake-up from accelerometer interrupt.
 				if ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) == 0) {
 					// Start condition detected.
@@ -353,14 +382,11 @@ int main (void) {
 					// Turn tracker on to send start alarm.
 					tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
 				}
-				else {
-					// Reset stop timer.
-					tkfx_ctx.tkfx_stop_timer_seconds = 0;
-				}
+				MMA8653FC_ClearMotionInterruptFlag();
 			}
 			else {
 				// No movement detected.
-				if (tkfx_ctx.tkfx_stop_timer_seconds > TKFX_STOP_CONDITION_THRESHOLD_SECONDS) {
+				if ((tkfx_ctx.tkfx_stop_timer_seconds > TKFX_STOP_CONDITION_THRESHOLD_SECONDS) && ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) != 0)) {
 					// Stop condition detected.
 					tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX);
 					tkfx_ctx.tkfx_status_byte |= (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
@@ -393,11 +419,7 @@ int main (void) {
 	GPIO_Init();
 	// Init clocks.
 	RCC_Init();
-	RCC_Tcxo(1);
-	unsigned char hse_success = RCC_SwitchToHse();
-	if (hse_success == 0) {
-		RCC_SwitchToHsi();
-	}
+	RCC_SwitchToHsi();
 	// Timers.
 	TIM21_Init();
 	TIM22_Init();

@@ -140,7 +140,7 @@ void RTC_Init(unsigned char* rtc_use_lse) {
 	RTC -> ISR &= ~(0b1 << 8); // Clear flag.
 	// Disable alarm B.
 	RTC -> CR &= ~(0b1 << 9); // Disable Alarm B.
-	RTC -> CR &= ~(0b1 << 13); // Disable interrupt (ALRBIE='1').
+	RTC -> CR &= ~(0b1 << 13); // Disable interrupt (ALRBIE='0').
 	RTC -> ISR &= ~(0b1 << 9); // Clear flag.
 	// Exit initialization mode.
 	RTC_ExitInitializationMode();

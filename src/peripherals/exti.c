@@ -108,6 +108,8 @@ void EXTI_ConfigureInterrupt(const GPIO* gpio, EXTI_Trigger edge_trigger) {
 		EXTI -> FTSR &= ~(0b1 << ((gpio -> gpio_num))); // Falling edge disabled.
 		break;
 	}
+	// Clear flag.
+	EXTI -> PR |= (0b1 << ((gpio -> gpio_num)));
 }
 
 /* CLEAR ALL EXTI FLAGS.

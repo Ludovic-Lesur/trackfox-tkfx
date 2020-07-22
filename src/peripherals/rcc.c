@@ -54,9 +54,6 @@ void RCC_Delay(void) {
  * @return:	None.
  */
 void RCC_Init(void) {
-	// Configure TCXO power control pin.
-	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 	// Prescalers (HCLK, PCLK1 and PCLK2 must not exceed 32MHz).
 	RCC -> CFGR &= ~(0b1111 << 4); // HCLK = SYSCLK = 16MHz (HPRE='0000').
 	RCC -> CFGR &= ~(0b111 << 8); // PCLK1 = HCLK = 16MHz (PPRE1='000').
@@ -83,6 +80,16 @@ void RCC_Tcxo(unsigned char tcxo_enable) {
 	else {
 		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 	}
+}
+
+/* ENABLE TCXO CONTROL PIN.
+ * @param:	None.
+ * @return:	None.
+ */
+void RCC_EnableGpio(void) {
+	// Configure TCXO power control pin.
+	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
 }
 
 /* DISABLE TCXO CONTROL PIN.

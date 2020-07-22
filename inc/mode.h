@@ -10,8 +10,8 @@
 
 /*** Tracker mode ***/
 
-#define ATM 		// AT command mode.
-//#define SSM 		// Start/stop mode.
+//#define ATM 		// AT command mode.
+#define SSM 		// Start/stop mode.
 //#define PM		// Periodic mode.
 //#define MM 		// Manual mode.
 

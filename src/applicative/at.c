@@ -468,8 +468,7 @@ unsigned short AT_GetByteArray(unsigned char last_param, unsigned char* byte_arr
  */
 void AT_ReplyOk(void) {
 	USART2_SendString(AT_OUT_COMMAND_OK);
-	USART2_SendValue(AT_CR_CHAR, USART_FORMAT_ASCII, 0);
-	USART2_SendValue(AT_LF_CHAR, USART_FORMAT_ASCII, 0);
+	USART2_SendString("\r\n");
 }
 
 /* PRINT AN ERROR THROUGH AT INTERFACE.
@@ -488,7 +487,7 @@ void AT_ReplyError(AT_ErrorSource error_source, unsigned short error_code) {
 		break;
 	}
 	USART2_SendValue(error_code, USART_FORMAT_HEXADECIMAL, 1);
-	USART2_SendValue(AT_CR_CHAR, USART_FORMAT_ASCII, 0);
+	USART2_SendString("\r\n");
 }
 
 /* PRINT GPS POSITION ON USART.
@@ -518,7 +517,7 @@ void AT_PrintPosition(Position* gps_position) {
 	// Altitude.
 	USART2_SendString(" Alt=");
 	USART2_SendValue((gps_position -> altitude), USART_FORMAT_DECIMAL, 0);
-	USART2_SendString("m\n");
+	USART2_SendString("m\r\n");
 }
 
 /* PRINT SIGFOX DOWNLINK DATA ON USART.
@@ -532,7 +531,7 @@ void AT_PrintDownlinkData(sfx_u8* sfx_downlink_data) {
 		USART2_SendValue(sfx_downlink_data[byte_idx], USART_FORMAT_HEXADECIMAL, 0);
 		USART2_SendString(" ");
 	}
-	USART2_SendString("\n");
+	USART2_SendString("\r\n");
 }
 
 /* PARSE THE CURRENT AT COMMAND BUFFER.

@@ -118,8 +118,9 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
  * \retval RF_ERR_API_STOP:           Close Radio link error
  *******************************************************************/
 sfx_u8 RF_API_stop(void) {
-	// Turn transceiver off.
+	// Turn transceiver and TCXO off.
 	SPI1_PowerOff();
+	RCC_Tcxo(0);
 	return SFX_ERR_NONE;
 }
 
