@@ -11,7 +11,9 @@
 #include "iwdg.h"
 #include "lptim.h"
 #include "lpuart.h"
+#include "mapping.h"
 #include "mode.h"
+#include "pwr.h"
 #include "tim.h"
 #include "usart.h"
 
@@ -451,6 +453,8 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeo
 	unsigned int fix_start_time = TIM22_GetSeconds();
 	// Loop until data is retrieved or timeout expired.
 	while ((TIM22_GetSeconds() < (fix_start_time + timeout_seconds)) && (neom8n_ctx.nmea_gga_same_altitude_count < NMEA_GGA_ALT_STABILITY_COUNT) && (neom8n_ctx.nmea_gga_high_quality_flag == 0)) {
+		// Enter low power sleep mode between each NMEA frame.
+		PWR_EnterLowPowerSleepMode();
 		// Check LF flag to trigger parsing process.
 		if (neom8n_ctx.nmea_rx_lf_flag != 0) {
 			// Decode incoming NMEA message.

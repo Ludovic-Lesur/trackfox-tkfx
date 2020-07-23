@@ -289,13 +289,6 @@ int main (void) {
 			geoloc_fix_start_time_seconds = TIM22_GetSeconds();
 			neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS);
 			LPUART1_PowerOff();
-			// Go back to HSI.
-			if (hse_success != 0) {
-				RCC_SwitchToHsi();
-				RCC_Tcxo(0);
-				// Reinit timers.
-				TKFX_ReinitTimers();
-			}
 			// Parse result.
 			if (neom8n_return_code == NEOM8N_SUCCESS) {
 				// Get fix duration and update flag.
@@ -308,6 +301,13 @@ int main (void) {
 				// Set fix duration to timeout.
 				tkfx_ctx.tkfx_geoloc_fix_duration_seconds = TKFX_GEOLOC_TIMEOUT_SECONDS;
 				tkfx_ctx.tkfx_geoloc_timeout = 1;
+			}
+			// Go back to HSI.
+			if (hse_success != 0) {
+				RCC_SwitchToHsi();
+				RCC_Tcxo(0);
+				// Reinit timers.
+				TKFX_ReinitTimers();
 			}
 			IWDG_Reload();
 			// Build Sigfox frame.

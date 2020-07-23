@@ -81,6 +81,8 @@ void LPUART1_Init(void) {
 	for (idx=0 ; idx<LPUART_TX_BUFFER_SIZE ; idx++) lpuart_ctx.tx_buf[idx] = 0;
 	lpuart_ctx.tx_buf_write_idx = 0;
 	lpuart_ctx.tx_buf_read_idx = 0;
+	// Peripheral clocked on APB bus.
+	RCC -> CCIPR &= ~(0b11 << 10); // LPUART1SEL='00'.
 	// Enable peripheral clock.
 	RCC -> APB1ENR |= (0b1 << 18); // LPUARTEN='1'.
 	// Configure power enable pin.
@@ -94,8 +96,10 @@ void LPUART1_Init(void) {
 	LPUART1 -> CR2 &= 0x00F04FEF; // 1 stop bit (STOP='00').
 	LPUART1 -> CR3 &= 0xFF0F0836;
 	LPUART1 -> CR3 |= (0b1 << 12); // No overrun detection (OVRDIS='0').
-	LPUART1 -> BRR &= 0xFFF00000; // Reset all bits.
-	LPUART1 -> BRR |= ((RCC_GetSysclkKhz() * 1000) / (LPUART_BAUD_RATE)) * 256; // BRR = (256*fCK)/(baud rate). See p.730 of RM0377 datasheet.
+	unsigned int brr = RCC_GetSysclkKhz() * 1000;
+	brr /= LPUART_BAUD_RATE;
+	brr *= 256;
+	LPUART1 -> BRR = (brr & 0x000FFFFF); // BRR = (256*fCK)/(baud rate). See p.730 of RM0377 datasheet.
 	// Configure character match interrupt and DMA.
 	LPUART1 -> CR2 |= (NMEA_LF << 24); // LF character used to trigger CM interrupt.
 	LPUART1 -> CR3 |= (0b1 << 6); // Transfer is performed after each RXNE event (see p.738 of RM0377 datasheet).

@@ -30,9 +30,6 @@ void PWR_EnterLowPowerSleepMode(void) {
 	FLASH -> ACR |= (0b1 << 3); // SLEEP_PD='1'.
 	// Regulator in low power mode.
 	PWR -> CR |= (0b1 << 0); // LPSDSR='1'.
-	// Switch to 65kHz MSI clock.
-	RCC_SwitchToMsi();
-	RCC_DisableGpio();
 	// Enter low power sleep mode.
 	SCB -> SCR &= ~(0b1 << 1); // Do not return in low power sleep mode after wake-up (SLEEPONEXIT='0').
 	SCB -> SCR &= ~(0b1 << 2); // SLEEPDEEP='0'.
