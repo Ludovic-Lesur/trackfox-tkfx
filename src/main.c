@@ -419,6 +419,7 @@ int main (void) {
 	GPIO_Init();
 	// Init clocks.
 	RCC_Init();
+	RCC_EnableGpio();
 	RCC_SwitchToHsi();
 	// Timers.
 	TIM21_Init();
@@ -453,6 +454,7 @@ int main (void) {
 	AT_Init();
 	// Main loop.
 	while (1) {
+		PWR_EnterLowPowerSleepMode();
 		AT_Task();
 	}
 	return 0;
