@@ -14,7 +14,24 @@
 #include "rcc_reg.h"
 #include "spi_reg.h"
 
+/*** DMA local global variables ***/
+
+static volatile unsigned char dma1_channel3_tcif = 0;
+
 /*** DMA local functions ***/
+
+/* DMA1 CHANNEL 6 INTERRUPT HANDLER.
+ * @param:	None.
+ * @return:	None.
+ */
+void DMA1_Channel2_3_IRQHandler(void) {
+	// Transfer complete interrupt (TCIF3='1').
+	if (((DMA1 -> ISR) & (0b1 << 9)) != 0) {
+		dma1_channel3_tcif = 1;
+		// Clear flag.
+		DMA1 -> IFCR |= (0b1 << 9); // CTCIF3='1'.
+	}
+}
 
 /* DMA1 CHANNEL 6 INTERRUPT HANDLER.
  * @param:	None.
@@ -45,7 +62,7 @@ void DMA1_InitChannel3(void) {
 	// Read from memory (DIR='1').
 	DMA1 -> CCR3 |= (0b11 << 12); // Very high priority (PL='11').
 	DMA1 -> CCR3 |= (0b1 << 7); // Memory increment mode enabled (MINC='1').
-	DMA1 -> CCR3 &= ~(0b1 << 1); // Disable transfer complete interrupt (TCIE='1').
+	DMA1 -> CCR3 |= (0b1 << 1); // Enable transfer complete interrupt (TCIE='1').
 	DMA1 -> CCR3 |= (0b1 << 4); // Read from memory.
 	// Configure peripheral address.
 	DMA1 -> CPAR3 = (unsigned int) &(SPI1 -> DR); // Peripheral address = SPI1 TX register.
@@ -62,7 +79,9 @@ void DMA1_InitChannel3(void) {
  */
 void DMA1_StartChannel3(void) {
 	// Clear all flags.
+	dma1_channel3_tcif = 0;
 	DMA1 -> IFCR |= 0x00000F00;
+	NVIC_EnableInterrupt(IT_DMA1_Channel2_3);
 	// Start transfer.
 	DMA1 -> CCR3 |= (0b1 << 0); // EN='1'.
 }
@@ -73,7 +92,9 @@ void DMA1_StartChannel3(void) {
  */
 void DMA1_StopChannel3(void) {
 	// Stop transfer.
+	dma1_channel3_tcif = 0;
 	DMA1 -> CCR3 &= ~(0b1 << 0); // EN='0'.
+	NVIC_DisableInterrupt(IT_DMA1_Channel2_3);
 }
 
 /* SET DMA1 CHANNEL 3 SOURCE BUFFER ADDRESS.
@@ -95,7 +116,7 @@ void DMA1_SetChannel3SourceAddr(unsigned int source_buf_addr, unsigned short sou
  * @return:	'1' if the transfer is complete, '0' otherwise.
  */
 unsigned char DMA1_GetChannel3Status(void) {
-	return ((unsigned char) (((DMA1 -> ISR) >> 9) & 0x01)); // Read TCIF3.
+	return dma1_channel3_tcif;
 }
 
 /* CONFIGURE DMA1 CHANNEL 6 FOR LPUART RX TRANSFER (NMEA FRAMES FROM GPS MODULE).

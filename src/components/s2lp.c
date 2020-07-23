@@ -12,6 +12,7 @@
 #include "gpio.h"
 #include "lptim.h"
 #include "mapping.h"
+#include "pwr.h"
 #include "s2lp_reg.h"
 #include "spi.h"
 
@@ -360,7 +361,9 @@ void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes) 
 #ifdef S2LP_TX_FIFO_USE_DMA
 	// Transfer buffer with DMA.
 	DMA1_StartChannel3();
-	while (DMA1_GetChannel3Status() == 0);
+	while (DMA1_GetChannel3Status() == 0) {
+		PWR_EnterLowPowerSleepMode();
+	}
 	DMA1_StopChannel3();
 #else
 	unsigned char byte_idx = 0;
