@@ -10,7 +10,7 @@
 
 /*** LPUART functions ***/
 
-void LPUART1_Init(void);
+void LPUART1_Init(unsigned char lpuart_use_lse);
 void LPUART1_EnableTx(void);
 void LPUART1_EnableRx(void);
 void LPUART1_Disable(void);

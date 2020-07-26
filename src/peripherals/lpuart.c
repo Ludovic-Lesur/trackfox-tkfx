@@ -72,17 +72,26 @@ void LPUART1_IRQHandler(void) {
 /*** LPUART functions ***/
 
 /* CONFIGURE LPUART1.
- * @param:	None.
- * @return:	None.
+ * @param lpuart_use_lse:	Use LSE as clock source if non zero, HSI otherwise.
+ * @return:					None.
  */
-void LPUART1_Init(void) {
+void LPUART1_Init(unsigned char lpuart_use_lse) {
 	// Init context.
 	unsigned int idx = 0;
 	for (idx=0 ; idx<LPUART_TX_BUFFER_SIZE ; idx++) lpuart_ctx.tx_buf[idx] = 0;
 	lpuart_ctx.tx_buf_write_idx = 0;
 	lpuart_ctx.tx_buf_read_idx = 0;
-	// Peripheral clocked on APB bus.
-	RCC -> CCIPR &= ~(0b11 << 10); // LPUART1SEL='00'.
+	// Select peripheral clock.
+	unsigned int lpuart_clock_hz = 0;
+	RCC -> CCIPR &= ~(0b11 << 10); // Reset bits 10-11.
+	if (lpuart_use_lse == 0) {
+		RCC -> CCIPR |= (0b10 << 10); // LPUART1SEL='10'.
+		lpuart_clock_hz = RCC_HSI_FREQUENCY_KHZ * 1000;
+	}
+	else {
+		RCC -> CCIPR |= (0b11 << 10); // LPUART1SEL='11'.
+		lpuart_clock_hz = RCC_LSE_FREQUENCY_HZ;
+	}
 	// Enable peripheral clock.
 	RCC -> APB1ENR |= (0b1 << 18); // LPUARTEN='1'.
 	// Configure power enable pin.
@@ -96,9 +105,8 @@ void LPUART1_Init(void) {
 	LPUART1 -> CR2 &= 0x00F04FEF; // 1 stop bit (STOP='00').
 	LPUART1 -> CR3 &= 0xFF0F0836;
 	LPUART1 -> CR3 |= (0b1 << 12); // No overrun detection (OVRDIS='0').
-	unsigned int brr = RCC_GetSysclkKhz() * 1000;
+	unsigned int brr = (lpuart_clock_hz * 256);
 	brr /= LPUART_BAUD_RATE;
-	brr *= 256;
 	LPUART1 -> BRR = (brr & 0x000FFFFF); // BRR = (256*fCK)/(baud rate). See p.730 of RM0377 datasheet.
 	// Configure character match interrupt and DMA.
 	LPUART1 -> CR2 |= (NMEA_LF << 24); // LF character used to trigger CM interrupt.

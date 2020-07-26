@@ -8,6 +8,7 @@
 #include "rtc.h"
 
 #include "at.h"
+#include "exti.h"
 #include "exti_reg.h"
 #include "mode.h"
 #include "nvic.h"
@@ -20,7 +21,7 @@
 
 /*** RTC local global variables ***/
 
-volatile unsigned char rtc_alra_flag;
+static volatile unsigned char rtc_wakeup_timer_flag;
 
 /*** RTC local functions ***/
 
@@ -29,20 +30,15 @@ volatile unsigned char rtc_alra_flag;
  * @return:	None.
  */
 void RTC_IRQHandler(void) {
-	// Alarm A interrupt.
-	if (((RTC -> ISR) & (0b1 << 8)) != 0) {
+	// Wake-up timer interrupt.
+	if (((RTC -> ISR) & (0b1 << 10)) != 0) {
 		// Update flag
-		rtc_alra_flag = 1;
+		rtc_wakeup_timer_flag = 1;
 		// Clear flag.
-		RTC -> ISR &= ~(0b1 << 8); // ALRAF='0'.
-	}
-	// Alarm B interrupt.
-	if (((RTC -> ISR) & (0b1 << 9)) != 0) {
-		// Clear flag.
-		RTC -> ISR &= ~(0b1 << 9); // ALRNF='0'.
+		RTC -> ISR &= ~(0b1 << 10); // WUTF='0'.
 	}
 	// Clear EXTI flag.
-	EXTI -> PR |= (0b1 << 17);
+	EXTI -> PR |= (0b1 << EXTI_LINE_RTC_WAKEUP_TIMER);
 }
 
 /* ENTER INITIALIZATION MODE TO ENABLE RTC REGISTERS UPDATE.
@@ -59,7 +55,7 @@ unsigned char RTC_EnterInitializationMode(void) {
 	unsigned int loop_count = 0;
 	while (((RTC -> ISR) & (0b1 << 6)) == 0) {
 		// Wait for INITF='1' or timeout.
-		if (loop_count + RTC_INIT_TIMEOUT_COUNT) {
+		if (loop_count > RTC_INIT_TIMEOUT_COUNT) {
 			rtc_initf_success = 0;
 			break;
 		}
@@ -132,40 +128,54 @@ void RTC_Init(unsigned char* rtc_use_lse) {
 	}
 	// Bypass shadow registers.
 	RTC -> CR |= (0b1 << 5); // BYPSHAD='1'.
-	// Configure alarm A to wake-up MCU every second.
-	RTC -> ALRMAR = 0; // Reset all bits.
-	RTC -> ALRMAR |= (0b1 << 31) | (0b1 << 23) | (0b1 << 15) | (0b1 << 7); // Mask all fields.
-	RTC -> CR |= (0b1 << 8); // Enable Alarm A.
-	RTC -> CR |= (0b1 << 12); // Enable interrupt (ALRAIE='1').
-	RTC -> ISR &= ~(0b1 << 8); // Clear flag.
-	// Disable alarm B.
-	RTC -> CR &= ~(0b1 << 9); // Disable Alarm B.
-	RTC -> CR &= ~(0b1 << 13); // Disable interrupt (ALRBIE='0').
-	RTC -> ISR &= ~(0b1 << 9); // Clear flag.
-	// Exit initialization mode.
+	// Configure wake-up timer.
+	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
+	RTC -> CR &= ~(0b111 << 0);
+	RTC -> CR |= (0b100 << 0); // Wake-up timer clocked by RTC clock (1Hz).
+	RTC -> CR |= (0b1 << 14); // Enable wake-up timer interrupt.
 	RTC_ExitInitializationMode();
 	// Enable RTC alarm interrupt (line 17).
-	RCC -> APB2ENR |= (0b1 << 0); // SYSCFEN='1'.
-	EXTI -> IMR |= (0b1 << 17); // IM17='1'.
-	EXTI -> RTSR |= (0b1 << 17); // RTC interrupt requires rising edge.
-	EXTI -> PR |= (0b1 << 17); // Clear flag.
+	EXTI_ConfigureLine(EXTI_LINE_RTC_WAKEUP_TIMER, EXTI_TRIGGER_RISING_EDGE);
+}
+
+void RTC_StartWakeUpTimer(unsigned char delay_seconds) {
+	// Enable RTC and register access.
+	RTC_EnterInitializationMode();
+	// Configure wake-up timer.
+	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
+	RTC -> WUTR = (delay_seconds - 1);
+	// Clear flags.
+	RTC -> ISR &= ~(0b1 << 10); // WUTF='0'.
+	EXTI -> PR |= (0b1 << EXTI_LINE_RTC_WAKEUP_TIMER);
+	// Start timer.
+	RTC -> CR |= (0b1 << 10); // Enable wake-up timer.
+	RTC_ExitInitializationMode();
+	// Enable interrupt.
+	NVIC_EnableInterrupt(IT_RTC);
+}
+
+void RTC_StopWakeUpTimer(void) {
+	// Enable RTC and register access.
+	RTC_EnterInitializationMode();
+	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
+	RTC_ExitInitializationMode();
+	// Disable interrupt.
+	NVIC_DisableInterrupt(IT_RTC);
 }
 
 /* RETURN THE CURRENT ALARM INTERRUPT STATUS.
  * @param:	None.
  * @return:	1 if the RTC interrupt occured, 0 otherwise.
  */
-volatile unsigned char RTC_GetAlarmAFlag(void) {
-	return rtc_alra_flag;
+volatile unsigned char RTC_GetWakeUpTimerFlag(void) {
+	return rtc_wakeup_timer_flag;
 }
 
 /* CLEAR ALARM A INTERRUPT FLAG.
  * @param:	None.
  * @return:	None.
  */
-void RTC_ClearAlarmAFlag(void) {
+void RTC_ClearWakeUpTimerFlag(void) {
 	// Clear ALARM and EXTI flags.
-	RTC -> ISR &= ~(0b1 << 8); // Clear flags.
-	EXTI -> PR |= (0b1 << 17);
-	rtc_alra_flag = 0;
+	rtc_wakeup_timer_flag = 0;
 }

@@ -31,7 +31,7 @@ void MMA8653FC_Init(void) {
 	mma8653fc_motion_interrupt_flag = 0;
 	// Configure interrupt pin.
 	GPIO_Configure(&GPIO_ACCELERO_IRQ, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
-	EXTI_ConfigureInterrupt(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_RISING_EDGE);
+	EXTI_ConfigureGpio(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_RISING_EDGE);
 }
 
 /* READ SENSOR ID.

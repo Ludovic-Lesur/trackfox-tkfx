@@ -11,11 +11,19 @@
 #include "mode.h"
 #include "neom8n.h"
 
+/*** RTC macros ***/
+
+// RTC wake-up timer period.
+// Warning: this value must be lower than the watchdog period = 25s.
+ #define RTC_WAKEUP_PERIOD_SECONDS	10
+
 /*** RTC functions ***/
 
 void RTC_Reset(void);
 void RTC_Init(unsigned char* rtc_use_lse);
-volatile unsigned char RTC_GetAlarmAFlag(void);
-void RTC_ClearAlarmAFlag(void);
+void RTC_StartWakeUpTimer(unsigned char delay_seconds);
+void RTC_StopWakeUpTimer(void);
+volatile unsigned char RTC_GetWakeUpTimerFlag(void);
+void RTC_ClearWakeUpTimerFlag(void);
 
 #endif /* RTC_H */

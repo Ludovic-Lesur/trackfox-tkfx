@@ -21,9 +21,9 @@ static const MMA8653FC_RegisterSetting mma8653_tkfx_config[] = {
 	{MMA8653FC_REG_CTRL_REG1, 0x00}, // ACTIVE='0' (standby mode required to program registers).
 	{MMA8653FC_REG_XYZ_DATA_CFG, 0x00}, // Full scale = +/-2g.
 	{MMA8653FC_REG_CTRL_REG2, 0x1B}, // (S)MODS='11' (low power operation) and SLPE='0' (Auto sleep disabled).
-	{MMA8653FC_REG_CTRL_REG3, 0x0A}, // WAKE_FF_MT='1' (motion interrupt wakes the sensor) and IPOL='1' (interrupt pin active high).
-	{MMA8653FC_REG_FF_MT_CFG, 0x38}, // OAE='0' (freefall detection). ELE='0' (latch disabled, bit automatically cleared). XEFE=YEFE=ZEFE='1' (any direction enabled).
-	{MMA8653FC_REG_FF_MT_THS, 0x09}, // DBCNTM='0' and threshold value (to be tuned).
+	{MMA8653FC_REG_CTRL_REG3, 0x08}, // WAKE_FF_MT='1' (motion interrupt wakes the sensor) and IPOL='0' (interrupt pin active low).
+	{MMA8653FC_REG_FF_MT_CFG, 0x78}, // OAE='1' (motion detection). ELE='0' (latch disabled, bit automatically cleared). XEFE=YEFE=ZEFE='1' (any direction enabled).
+	{MMA8653FC_REG_FF_MT_THS, 0x90}, // DBCNTM='0' and threshold value (to be tuned).
 	{MMA8653FC_REG_FF_MT_COUNT, 0x00}, // Debouncing counter (to be tuned).
 	{MMA8653FC_REG_CTRL_REG5, 0x04}, // INT_CFG_FF_MT='1' (motion interrupt on INT1 pin).
 	{MMA8653FC_REG_CTRL_REG4, 0x04}, // INT_EN_FF_MT='1' (motion interrupt enabled).

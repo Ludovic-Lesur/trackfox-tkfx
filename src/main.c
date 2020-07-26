@@ -45,9 +45,9 @@
 
 #ifdef SSM
 #define TKFX_STOP_CONDITION_THRESHOLD_SECONDS	300
-#define TKFX_KEEP_ALIVE_PERIOD_SECONDS			86400
-#define TKFX_GEOLOC_TIMEOUT_SECONDS				180
+#define TKFX_KEEP_ALIVE_PERIOD_SECONDS			3600
 #endif
+#define TKFX_GEOLOC_TIMEOUT_SECONDS				180
 
 /*** MAIN structures ***/
 
@@ -74,7 +74,7 @@ typedef enum {
 	TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX,
 	TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX,
 	TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX,
-	TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX,
+	TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX
 } TKFX_StatusBitsIndex;
 #endif
 
@@ -107,23 +107,6 @@ static TKFX_Context tkfx_ctx;
 
 /*** MAIN functions ***/
 
-/* PERFORM TIMER REINITIALIZATION FOR CLOCK SWITCHING.
- * @param:	None.
- * @return:	None.
- */
-void TKFX_ReinitTimers(void) {
-	// Disable all timers.
-	TIM21_Disable();
-	TIM22_Disable();
-	LPTIM1_Disable();
-	// Reinit all timers.
-	TIM21_Init();
-	TIM22_Init();
-	TIM21_Start();
-	TIM22_Start();
-	LPTIM1_Init(0);
-}
-
 #ifdef SSM
 /* MAIN FUNCTION FOR START/STOP MODE.
  * @param: 	None.
@@ -146,7 +129,7 @@ int main (void) {
 	tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
 	tkfx_ctx.tkfx_status_byte = 0; // Reset all flags and tracker mode='00'.
 	// Local variables.
-	unsigned char rtc_use_lse = 0;
+	unsigned char tkfx_use_lse = 0;
 	unsigned char hse_success = 0;
 	unsigned int sfx_error = 0;
 	sfx_rc_t tkfx_sigfox_rc = (sfx_rc_t) RC1;
@@ -157,22 +140,26 @@ int main (void) {
 		// Perform state machine.
 		switch (tkfx_ctx.tkfx_state) {
 		case TKFX_STATE_POR:
-			// LSI.
-			tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
-			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
 			// Init watchdog.
 			IWDG_Init();
 			IWDG_Reload();
-			// Init RTC.
+			// Reset RTC before starting oscillators.
 			RTC_Reset();
-			RTC_Init(&rtc_use_lse);
+			// Low speed oscillators.
+			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
+			tkfx_use_lse = RCC_EnableLse();
+			// Init RTC.
+			RTC_Init(&tkfx_use_lse);
+			tkfx_ctx.tkfx_status_byte |= (tkfx_use_lse << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
 			break;
 		case TKFX_STATE_INIT:
 			IWDG_Reload();
+			// Reset keep-alive timer.
+			tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
 			// Disable RTC and accelerometer interrupts.
-			NVIC_DisableInterrupt(IT_RTC);
+			RTC_StopWakeUpTimer();
 			NVIC_DisableInterrupt(IT_EXTI_0_1);
 			// High speed oscillator.
 			IWDG_Reload();
@@ -190,7 +177,7 @@ int main (void) {
 			// Analog.
 			ADC1_Init();
 			// Communication interfaces.
-			LPUART1_Init();
+			LPUART1_Init(tkfx_use_lse);
 			USART2_Init();
 			I2C1_Init();
 			SPI1_Init();
@@ -259,7 +246,7 @@ int main (void) {
 			}
 			SIGFOX_API_close();
 			// Compute next state.
-			if ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) == 0) {
+			if (((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) == 0) && ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX)) != 0)) {
 				// Stop condition.
 				tkfx_ctx.tkfx_state = TKFX_STATE_GEOLOC;
 			}
@@ -270,20 +257,6 @@ int main (void) {
 			break;
 		case TKFX_STATE_GEOLOC:
 			IWDG_Reload();
-			// Turn TCXO and HSE on for UART baud rate accuracy.
-			RCC_Tcxo(1);
-			hse_success = RCC_SwitchToHse();
-			if (hse_success == 0) {
-				// Go back to HSI.
-				RCC_SwitchToHsi();
-				RCC_Tcxo(0);
-			}
-			else {
-				// Reinit timers and LPUART.
-				TKFX_ReinitTimers();
-				LPUART1_Disable();
-				LPUART1_Init();
-			}
 			// Get position from GPS.
 			LPUART1_PowerOn();
 			geoloc_fix_start_time_seconds = TIM22_GetSeconds();
@@ -301,13 +274,6 @@ int main (void) {
 				// Set fix duration to timeout.
 				tkfx_ctx.tkfx_geoloc_fix_duration_seconds = TKFX_GEOLOC_TIMEOUT_SECONDS;
 				tkfx_ctx.tkfx_geoloc_timeout = 1;
-			}
-			// Go back to HSI.
-			if (hse_success != 0) {
-				RCC_SwitchToHsi();
-				RCC_Tcxo(0);
-				// Reinit timers.
-				TKFX_ReinitTimers();
 			}
 			IWDG_Reload();
 			// Build Sigfox frame.
@@ -343,11 +309,11 @@ int main (void) {
 			RCC_DisableGpio();
 			// Clear EXTI flags.
 			EXTI_ClearAllFlags();
-			RTC_ClearAlarmAFlag();
+			RTC_ClearWakeUpTimerFlag();
 			MMA8653FC_ClearMotionInterruptFlag();
 			// Enable RTC and accelerometer interrupts.
-			NVIC_EnableInterrupt(IT_RTC);
 			NVIC_EnableInterrupt(IT_EXTI_0_1);
+			RTC_StartWakeUpTimer(RTC_WAKEUP_PERIOD_SECONDS);
 			// Enter stop mode.
 			tkfx_ctx.tkfx_state = TKFX_STATE_SLEEP;
 			break;
@@ -356,20 +322,19 @@ int main (void) {
 			// Enter sleep mode.
 			PWR_EnterStopMode();
 			// Check wake-up source.
-			if (RTC_GetAlarmAFlag() != 0) {
+			if (RTC_GetWakeUpTimerFlag() != 0) {
 				// Increment timers.
-				tkfx_ctx.tkfx_keep_alive_timer_seconds++;
-				tkfx_ctx.tkfx_stop_timer_seconds++;
+				tkfx_ctx.tkfx_keep_alive_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
+				tkfx_ctx.tkfx_stop_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
 				// Check periods.
-				if (tkfx_ctx.tkfx_keep_alive_timer_seconds > TKFX_KEEP_ALIVE_PERIOD_SECONDS) {
-					// Reset timer and alarm flag.
+				if (tkfx_ctx.tkfx_keep_alive_timer_seconds >= TKFX_KEEP_ALIVE_PERIOD_SECONDS) {
+					// Reset alarm flag.
 					tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
-					tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
 					// Turn tracker on to send keep-alive.
 					tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
 				}
 				// Clear RTC flags.
-				RTC_ClearAlarmAFlag();
+				RTC_ClearWakeUpTimerFlag();
 			}
 			if (MMA8653FC_GetMotionInterruptFlag() != 0) {
 				// Reset stop timer.
@@ -386,7 +351,7 @@ int main (void) {
 			}
 			else {
 				// No movement detected.
-				if ((tkfx_ctx.tkfx_stop_timer_seconds > TKFX_STOP_CONDITION_THRESHOLD_SECONDS) && ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) != 0)) {
+				if ((tkfx_ctx.tkfx_stop_timer_seconds >= TKFX_STOP_CONDITION_THRESHOLD_SECONDS) && ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) != 0)) {
 					// Stop condition detected.
 					tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX);
 					tkfx_ctx.tkfx_status_byte |= (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);

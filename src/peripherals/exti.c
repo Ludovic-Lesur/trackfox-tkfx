@@ -64,10 +64,8 @@ void EXTI4_15_IRQHandler(void) {
 void EXTI_Init(void) {
 	// Enable peripheral clock.
 	RCC -> APB2ENR |= (0b1 << 0); // SYSCFEN='1'.
-	// Disable interrupts by default.
-	NVIC_DisableInterrupt(IT_EXTI_0_1);
-	NVIC_DisableInterrupt(IT_EXTI_2_3);
-	NVIC_DisableInterrupt(IT_EXTI_4_15);
+	// Mask all sources by default.
+	EXTI -> IMR = 0;
 	// Clear all flags.
 	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
 }
@@ -77,7 +75,7 @@ void EXTI_Init(void) {
  * @edge_trigger:	Interrupt edge trigger (see EXTI_Trigger egpio_numeration in exti.h).
  * @return:			None.
  */
-void EXTI_ConfigureInterrupt(const GPIO* gpio, EXTI_Trigger edge_trigger) {
+void EXTI_ConfigureGpio(const GPIO* gpio, EXTI_Trigger edge_trigger) {
 	// Select GPIO port.
 	SYSCFG -> EXTICR[((gpio -> gpio_num) / 4)] &= ~(0b1111 << (4 * ((gpio -> gpio_num) % 4)));
 	SYSCFG -> EXTICR[((gpio -> gpio_num) / 4)] |= ((gpio -> gpio_port_index) << (4 * ((gpio -> gpio_num) % 4)));
@@ -110,6 +108,43 @@ void EXTI_ConfigureInterrupt(const GPIO* gpio, EXTI_Trigger edge_trigger) {
 	}
 	// Clear flag.
 	EXTI -> PR |= (0b1 << ((gpio -> gpio_num)));
+}
+
+/* CONFIGURE A LINE AS INTERNAL INTERRUPT SOURCE.
+ * @param line:		Line to configure (see EXTI_Line enum).
+ * @edge_trigger:	Interrupt edge trigger (see EXTI_Trigger enum).
+ * @return:			None.
+ */
+void EXTI_ConfigureLine(EXTI_Line line, EXTI_Trigger edge_trigger) {
+	// Select triggers.
+	switch (edge_trigger) {
+	// Rising edge only.
+	case EXTI_TRIGGER_RISING_EDGE:
+		EXTI -> IMR |= (0b1 << line); // IMx='1'.
+		EXTI -> RTSR |= (0b1 << line); // Rising edge enabled.
+		EXTI -> FTSR &= ~(0b1 << line); // Falling edge disabled.
+		break;
+	// Falling edge only.
+	case EXTI_TRIGGER_FALLING_EDGE:
+		EXTI -> IMR |= (0b1 << line); // IMx='1'.
+		EXTI -> RTSR &= ~(0b1 << line); // Rising edge disabled.
+		EXTI -> FTSR |= (0b1 << line); // Falling edge enabled.
+		break;
+	// Both edges.
+	case EXTI_TRIGGER_ANY_EDGE:
+		EXTI -> IMR |= (0b1 << line); // IMx='1'.
+		EXTI -> RTSR |= (0b1 << line); // Rising edge enabled.
+		EXTI -> FTSR |= (0b1 << line); // Falling edge enabled.
+		break;
+	// Unknown configuration.
+	default:
+		EXTI -> IMR &= ~(0b1 << line); // IMx='0'.
+		EXTI -> RTSR &= ~(0b1 << line); // Rising edge disabled.
+		EXTI -> FTSR &= ~(0b1 << line); // Falling edge disabled.
+		break;
+	}
+	// Clear flag.
+	EXTI -> PR |= (0b1 << line);
 }
 
 /* CLEAR ALL EXTI FLAGS.

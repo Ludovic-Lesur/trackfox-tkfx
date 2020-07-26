@@ -33,7 +33,6 @@ void LPTIM1_Init(unsigned char lptim1_use_lsi) {
 	RCC -> APB1ENR |= (0b1 << 31); // LPTIM1EN='1'.
 	// Configure peripheral.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0'), needed to write CFGR.
-	LPTIM1 -> CFGR |= (0b1 << 19); // Enable timeout.
 	LPTIM1 -> CNT &= 0xFFFF0000; // Reset counter.
 	LPTIM1 -> CR |= (0b1 << 0); // Enable LPTIM1 (ENABLE='1'), needed to write ARR.
 	if (lptim1_use_lsi != 0) {
