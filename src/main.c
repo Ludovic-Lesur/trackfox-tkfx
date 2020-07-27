@@ -170,7 +170,7 @@ int main (void) {
 			TIM22_Init();
 			TIM21_Start();
 			TIM22_Start();
-			LPTIM1_Init(0);
+			LPTIM1_Init(tkfx_use_lse);
 			// DMA.
 			DMA1_InitChannel3();
 			DMA1_InitChannel6();

@@ -7,68 +7,64 @@
 
 #include "lptim.h"
 
+#include "exti.h"
 #include "lptim_reg.h"
+#include "nvic.h"
+#include "pwr.h"
 #include "rcc.h"
 #include "rcc_reg.h"
-#include "tim.h"
 
 /*** LPTIM local macros ***/
 
-#define LPTIM_TIMEOUT_SECONDS	3
+#define LPTIM_TIMEOUT_COUNT		1000
+#define LPTIM_DELAY_MS_MIN		4
+#define LPTIM_DELAY_MS_MAX		255000
+
+/*** LPTIM local global variables ***/
+
+static unsigned int lptim_clock_frequency_hz = 0;
+
+/*** LPTIM local functions ***/
+
+/* LPTIM INTERRUPT HANDLER.
+ * @param:	None.
+ * @return:	None.
+ */
+void LPTIM1_IRQHandler(void) {
+	// Clear all flags.
+	LPTIM1 -> ICR |= (0b1111111 << 0);
+}
 
 /*** LPTIM functions ***/
 
 /* INIT LPTIM FOR DELAY OPERATION.
- * @param lptim1_use_lsi:	Use APB as clock source if 0, LSI otherwise.
+ * @param lptim1_use_lsi:	Use LSE as clock source if non 0, LSI otherwise.
  * @return:					None.
  */
-void LPTIM1_Init(unsigned char lptim1_use_lsi) {
+void LPTIM1_Init(unsigned char lptim1_use_lse) {
 	// Disable peripheral.
 	RCC -> APB1ENR &= ~(0b1 << 31); // LPTIM1EN='0'.
 	// Enable peripheral clock.
-	RCC -> CCIPR &= ~(0b11 << 18); // LPTIMSEL='00' (APB clock selected = 16MHz).
-	if (lptim1_use_lsi != 0) {
+	RCC -> CCIPR &= ~(0b11 << 18); // Reset bits 18-19.
+	if (lptim1_use_lse != 0) {
+		RCC -> CCIPR |= (0b11 << 18); // LPTIMSEL='11' (LSE clock selected).
+		lptim_clock_frequency_hz = (RCC_LSE_FREQUENCY_HZ >> 7);
+	}
+	else {
 		RCC -> CCIPR |= (0b01 << 18); // LPTIMSEL='01' (LSI clock selected).
+		lptim_clock_frequency_hz = (RCC_LSI_FREQUENCY_HZ >> 7);
 	}
 	RCC -> APB1ENR |= (0b1 << 31); // LPTIM1EN='1'.
 	// Configure peripheral.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0'), needed to write CFGR.
+	LPTIM1 -> CFGR &= ~(0b1 << 0);
+	LPTIM1 -> CFGR |= (0b111 << 9); // Prescaler = 256.
 	LPTIM1 -> CNT &= 0xFFFF0000; // Reset counter.
-	LPTIM1 -> CR |= (0b1 << 0); // Enable LPTIM1 (ENABLE='1'), needed to write ARR.
-	if (lptim1_use_lsi != 0) {
-		LPTIM1 -> ARR = 0xFFFF; // Maximum overflow period.
-	}
-	else {
-		LPTIM1 -> ARR = RCC_GetSysclkKhz(); // Overflow period = 1ms.
-	}
-	unsigned int loop_start_time = TIM22_GetSeconds();
-	while (((LPTIM1 -> ISR) & (0b1 << 4)) == 0) {
-		// Wait for ARROK='1' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + LPTIM_TIMEOUT_SECONDS)) break;
-	}
+	// Enable LPTIM EXTI line.
+	LPTIM1 -> IER |= (0b1 << 1); // ARRMIE='1'.
+	EXTI_ConfigureLine(EXTI_LINE_LPTIM1, EXTI_TRIGGER_RISING_EDGE);
 	// Clear all flags.
 	LPTIM1 -> ICR |= (0b1111111 << 0);
-	// Disable peripheral by default.
-	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').
-}
-
-/* START LPTIM1.
- * @param:	None.
- * @return:	None.
- */
-void LPTIM1_Start(void) {
-	// Enable timer.
-	LPTIM1 -> CR |= (0b1 << 0); // Enable LPTIM1 (ENABLE='1').
-	LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
-}
-
-/* STOP LPTIM1.
- * @param:	None.
- * @return:	None.
- */
-void LPTIM1_Stop(void) {
-	// Stop timer.
-	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').
 }
 
 /* ENABLE LPTIM1 PERIPHERAL.
@@ -87,7 +83,7 @@ void LPTIM1_Enable(void) {
 void LPTIM1_Disable(void) {
 	// Disable timer.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').
-	LPTIM1 -> CNT = 0;
+	LPTIM1 -> CNT &= 0xFFFF0000;
 	// Clear all flags.
 	LPTIM1 -> ICR |= (0b1111111 << 0);
 	// Disable peripheral clock.
@@ -99,30 +95,32 @@ void LPTIM1_Disable(void) {
  * @return:			None.
  */
 void LPTIM1_DelayMilliseconds(unsigned int delay_ms) {
+	// Clamp value if required.
+	unsigned int local_delay_ms = delay_ms;
+	if (local_delay_ms > LPTIM_DELAY_MS_MAX) {
+		local_delay_ms = LPTIM_DELAY_MS_MAX;
+	}
+	if (local_delay_ms < LPTIM_DELAY_MS_MIN) {
+		local_delay_ms = LPTIM_DELAY_MS_MIN;
+	}
 	// Enable timer.
 	LPTIM1 -> CR |= (0b1 << 0); // Enable LPTIM1 (ENABLE='1').
-	// Make as many overflows as required.
-	unsigned int ms_count = 0;
-	unsigned int loop_start_time = 0;
-	unsigned char lptim_default = 0;
-	for (ms_count=0 ; ms_count<delay_ms ; ms_count++) {
-		// Start counter.
-		loop_start_time = TIM22_GetSeconds();
-		LPTIM1 -> CNT &= 0xFFFF0000;
-		LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
-		while (((LPTIM1 -> ISR) & (0b1 << 1)) == 0) {
-			if (TIM22_GetSeconds() > (loop_start_time + LPTIM_TIMEOUT_SECONDS)) {
-				lptim_default = 1;
-				break;
-			}
-		}
-		// Clear flag.
-		LPTIM1 -> ICR |= (0b1 << 1);
-		// Exit in case of timeout.
-		if (lptim_default != 0) {
-			break;
-		}
+
+	// Compute ARR value.
+	LPTIM1 -> CNT &= 0xFFFF0000;
+	LPTIM1 -> ARR = ((local_delay_ms * lptim_clock_frequency_hz) / (1000));
+	unsigned int loop_count = 0;
+	while (((LPTIM1 -> ISR) & (0b1 << 4)) == 0) {
+		// Wait for ARROK='1' or timeout.
+		loop_count++;
+		if (loop_count > LPTIM_TIMEOUT_COUNT) break;
 	}
-	// Disable timer/
+	// Start timer.
+	NVIC_EnableInterrupt(IT_LPTIM1);
+	LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
+	// Enter stop mode.
+	PWR_EnterStopMode();
+	// Disable timer.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').
+	NVIC_DisableInterrupt(IT_LPTIM1);
 }

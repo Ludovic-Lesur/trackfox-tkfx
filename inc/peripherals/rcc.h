@@ -11,6 +11,7 @@
 /*** RCC macros ***/
 
 #define RCC_HSI_FREQUENCY_KHZ	16000
+#define RCC_LSI_FREQUENCY_HZ	38000
 #define RCC_LSE_FREQUENCY_HZ	32768
 
 /*** RCC functions ***/
