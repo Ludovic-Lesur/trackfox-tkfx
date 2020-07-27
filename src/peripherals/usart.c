@@ -15,7 +15,6 @@
 #include "nvic.h"
 #include "rcc.h"
 #include "rcc_reg.h"
-#include "tim.h"
 #include "usart_reg.h"
 
 #include "lpuart.h"
@@ -29,6 +28,7 @@
 #define USART_BAUD_RATE 		9600
 // TX buffer size.
 #define USART_TX_BUFFER_SIZE	512
+#define USART2_TIMEOUT_COUNT	1000
 
 /*** USART local structures ***/
 
@@ -82,7 +82,6 @@ void USART2_IRQHandler(void) {
 		USART2 -> ICR |= (0b1 << 3);
 	}
 }
-#endif
 
 /* FILL USART TX BUFFER WITH A NEW BYTE.
  * @param tx_byte:	Byte to append.
@@ -101,7 +100,12 @@ void USART2_FillTxBuffer(unsigned char tx_byte) {
 	// Fill transmit register.
 	USART2 -> TDR = tx_byte;
 	// Wait for transmission to complete.
-	while (((USART2 -> ISR) & (0b1 << 7)) == 0); // Wait for TXE='1'.
+	unsigned int loop_count = 0;
+	while (((USART2 -> ISR) & (0b1 << 7)) == 0) {
+		// Wait for TXE='1' or timeout.
+		loop_count++;
+		if (loop_count > USART2_TIMEOUT_COUNT) break;
+	}
 #endif
 }
 
@@ -129,6 +133,7 @@ unsigned int USART2_Pow10(unsigned char power) {
 	}
 	return result;
 }
+#endif
 
 /*** USART functions ***/
 

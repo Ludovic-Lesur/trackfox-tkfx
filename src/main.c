@@ -25,7 +25,6 @@
 #include "rcc.h"
 #include "spi.h"
 #include "rtc.h"
-#include "tim.h"
 #include "usart.h"
 // Components.
 #include "mma8653fc.h"
@@ -92,7 +91,7 @@ typedef struct {
 	// Geoloc.
 	Position tkfx_geoloc_position;
 	unsigned int tkfx_geoloc_fix_duration_seconds;
-	unsigned char tkfx_geoloc_timeout;
+	unsigned int tkfx_geoloc_timeout;
 	// Sigfox.
 	unsigned char tkfx_sfx_uplink_data[SFX_UPLINK_DATA_MAX_SIZE_BYTES];
 	unsigned char tkfx_sfx_downlink_data[SFX_DOWNLINK_DATA_SIZE_BYTES];
@@ -165,11 +164,7 @@ int main (void) {
 			IWDG_Reload();
 			RCC_EnableGpio();
 			RCC_SwitchToHsi();
-			// Init timers.
-			TIM21_Init();
-			TIM22_Init();
-			TIM21_Start();
-			TIM22_Start();
+			// Init timer.
 			LPTIM1_Init(tkfx_use_lse);
 			// DMA.
 			DMA1_InitChannel3();
@@ -259,13 +254,11 @@ int main (void) {
 			IWDG_Reload();
 			// Get position from GPS.
 			LPUART1_PowerOn();
-			geoloc_fix_start_time_seconds = TIM22_GetSeconds();
-			neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS);
+			neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, &tkfx_ctx.tkfx_geoloc_fix_duration_seconds);
 			LPUART1_PowerOff();
 			// Parse result.
 			if (neom8n_return_code == NEOM8N_SUCCESS) {
 				// Get fix duration and update flag.
-				tkfx_ctx.tkfx_geoloc_fix_duration_seconds = TIM22_GetSeconds() - geoloc_fix_start_time_seconds;
 				if (tkfx_ctx.tkfx_geoloc_fix_duration_seconds > TKFX_GEOLOC_TIMEOUT_SECONDS) {
 					tkfx_ctx.tkfx_geoloc_fix_duration_seconds = TKFX_GEOLOC_TIMEOUT_SECONDS;
 				}
@@ -297,8 +290,6 @@ int main (void) {
 			// Turn peripherals off.
 			S2LP_DisableGpio();
 			ADC1_Disable();
-			TIM21_Disable();
-			TIM22_Disable();
 			LPTIM1_Disable();
 			SPI1_Disable();
 			DMA1_Disable();

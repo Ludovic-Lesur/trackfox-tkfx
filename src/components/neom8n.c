@@ -14,7 +14,8 @@
 #include "mapping.h"
 #include "mode.h"
 #include "pwr.h"
-#include "tim.h"
+#include "rcc.h"
+#include "rtc.h"
 #include "usart.h"
 
 /*** NEOM8N local macros ***/
@@ -428,11 +429,12 @@ void NEOM8N_Init(void) {
 }
 
 /* GET CURRENT GPS POSITION VIA NMEA GGA MESSAGES.
- * @param gps_position:		Pointer to GPS position structure that will contain the data.
- * @param timeout_seconds:	Timeout in seconds.
- * @return return_code:		See NEOM8N_ReturnCode structure in neom8n.h.
+ * @param gps_position:			Pointer to GPS position structure that will contain the data.
+ * @param timeout_seconds:		Timeout in seconds.
+ * @param fix_duration_seconds:	Pointer that will contain effective fix duration.
+ * @return return_code:			See NEOM8N_ReturnCode structure in neom8n.h.
  */
-NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeout_seconds) {
+NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int* fix_duration_seconds) {
 	NEOM8N_ReturnCode return_code = NEOM8N_TIMEOUT;
 	Position local_gps_position;
 	// Reset flags.
@@ -440,21 +442,25 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeo
 	neom8n_ctx.nmea_gga_same_altitude_count = 0;
 	neom8n_ctx.nmea_gga_previous_altitude = 0;
 	neom8n_ctx.nmea_gga_high_quality_flag = 0;
+	neom8n_ctx.nmea_rx_fill_buf1 = 1;
+	neom8n_ctx.nmea_rx_lf_flag = 0;
 	// Select GGA message to get complete position.
 	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
+	// Reset fix duration and start RTC wake-up timer for timeout.
+	(*fix_duration_seconds) = 0;
+	RTC_StartWakeUpTimer(timeout_seconds);
+	// Lower clock during GPS fix.
+	RCC_SwitchToMsi();
 	// Start DMA.
 	DMA1_StopChannel6();
 	DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
-	neom8n_ctx.nmea_rx_fill_buf1 = 1;
-	neom8n_ctx.nmea_rx_lf_flag = 0;
 	DMA1_StartChannel6();
 	LPUART1_EnableRx();
-	// Save fix start time.
-	unsigned int fix_start_time = TIM22_GetSeconds();
 	// Loop until data is retrieved or timeout expired.
-	while ((TIM22_GetSeconds() < (fix_start_time + timeout_seconds)) && (neom8n_ctx.nmea_gga_same_altitude_count < NMEA_GGA_ALT_STABILITY_COUNT) && (neom8n_ctx.nmea_gga_high_quality_flag == 0)) {
+	while ((RTC_GetWakeUpTimerFlag() == 0) && (neom8n_ctx.nmea_gga_same_altitude_count < NMEA_GGA_ALT_STABILITY_COUNT) && (neom8n_ctx.nmea_gga_high_quality_flag == 0)) {
 		// Enter low power sleep mode between each NMEA frame.
 		PWR_EnterLowPowerSleepMode();
+		(*fix_duration_seconds)++; // NMEA frames are output every seconds.
 		// Check LF flag to trigger parsing process.
 		if (neom8n_ctx.nmea_rx_lf_flag != 0) {
 			// Decode incoming NMEA message.
@@ -515,8 +521,12 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned char timeo
 		}
 		IWDG_Reload();
 	}
-	// Stop DMA.
+	// Stop DMA and RTC wake-up timer.
 	DMA1_StopChannel6();
+	RTC_StopWakeUpTimer();
+	RTC_ClearWakeUpTimerFlag();
+	// Go back to HSI.
+	RCC_SwitchToHsi();
 	// Return result.
 	return return_code;
 }

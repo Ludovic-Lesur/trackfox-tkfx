@@ -12,11 +12,10 @@
 #include "lptim.h"
 #include "mapping.h"
 #include "rcc_reg.h"
-#include "tim.h"
 
 /*** ADC local macros ***/
 
-#define ADC_TIMEOUT_SECONDS					3
+#define ADC_TIMEOUT_COUNT					1000000
 #define ADC_CHANNEL_SOURCE					6
 #define ADC_CHANNEL_SUPERCAP				7
 #define ADC_CHANNEL_LM4040					8
@@ -50,10 +49,11 @@ void ADC1_UpdateLm4040Result(void) {
 	ADC1 -> CHSELR |= (0b1 << ADC_CHANNEL_LM4040);
 	// Read raw supply voltage.
 	ADC1 -> CR |= (0b1 << 2); // ADSTART='1'.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((ADC1 -> ISR) & (0b1 << 2)) == 0) {
 		// Wait end of conversion ('EOC='1') or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
+		loop_count++;
+		if (loop_count > ADC_TIMEOUT_COUNT) return;
 	}
 	adc_ctx.adc_lm4040_voltage_12bits = (ADC1 -> DR);
 }
@@ -68,10 +68,11 @@ void ADC1_ComputeSourceVoltage(void) {
 	ADC1 -> CHSELR |= (0b1 << ADC_CHANNEL_SOURCE);
 	// Read raw supply voltage.
 	ADC1 -> CR |= (0b1 << 2); // ADSTART='1'.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((ADC1 -> ISR) & (0b1 << 2)) == 0) {
 		// Wait end of conversion ('EOC='1') or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
+		loop_count++;
+		if (loop_count > ADC_TIMEOUT_COUNT) return;
 	}
 	unsigned int source_voltage_12bits = (ADC1 -> DR);
 	// Convert to mV using bandgap result.
@@ -90,10 +91,11 @@ void ADC1_ComputeSupercapVoltage(void) {
 	ADC1 -> CHSELR |= (0b1 << ADC_CHANNEL_SUPERCAP);
 	// Read raw supply voltage.
 	ADC1 -> CR |= (0b1 << 2); // ADSTART='1'.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((ADC1 -> ISR) & (0b1 << 2)) == 0) {
 		// Wait end of conversion ('EOC='1') or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
+		loop_count++;
+		if (loop_count > ADC_TIMEOUT_COUNT) return;
 	}
 	unsigned int supercap_voltage_12bits = (ADC1 -> DR);
 	// Convert to mV using bandgap result.
@@ -144,10 +146,11 @@ void ADC1_Init(void) {
 	ADC1 -> SMPR |= (0b111 << 0); // Maximum sampling time.
 	// ADC calibration.
 	ADC1 -> CR |= (0b1 << 31); // ADCAL='1'.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while ((((ADC1 -> CR) & (0b1 << 31)) != 0) && (((ADC1 -> ISR) & (0b1 << 11)) == 0)) {
 		// Wait until calibration is done or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) break;
+		loop_count++;
+		if (loop_count > ADC_TIMEOUT_COUNT) break;
 	}
 	// Clear all flags.
 	ADC1 -> ISR |= 0x0000089F;
@@ -196,10 +199,11 @@ void ADC1_PowerOff(void) {
 void ADC1_PerformMeasurements(void) {
 	// Enable ADC peripheral.
 	ADC1 -> CR |= (0b1 << 0); // ADEN='1'.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((ADC1 -> ISR) & (0b1 << 0)) == 0) {
 		// Wait for ADC to be ready (ADRDY='1') or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + ADC_TIMEOUT_SECONDS)) return;
+		loop_count++;
+		if (loop_count > ADC_TIMEOUT_COUNT) return;
 	}
 	// Perform measurements.
 	ADC1_UpdateLm4040Result();

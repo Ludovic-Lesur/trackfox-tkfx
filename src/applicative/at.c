@@ -24,7 +24,6 @@
 #include "sht3x.h"
 #include "sigfox_api.h"
 #include "spi.h"
-#include "tim.h"
 #include "usart.h"
 
 #ifdef ATM

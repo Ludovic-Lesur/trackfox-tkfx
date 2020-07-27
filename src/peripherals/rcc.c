@@ -15,8 +15,6 @@
 #include "pwr_reg.h"
 #include "rcc_reg.h"
 #include "scb_reg.h"
-#include "tim.h"
-#include "tim_reg.h"
 
 /*** RCC local macros ***/
 
@@ -153,8 +151,8 @@ unsigned char RCC_SwitchToHsi(void) {
  */
 unsigned char RCC_SwitchToMsi(void) {
 	// Init MSI.
-	RCC -> CR |= (0b1 << 8); // Enable MSI (MSION='1').
 	RCC -> ICSCR &= ~(0b111 << 13); // Set frequency to 65kHz (MSIRANGE='000').
+	RCC -> CR |= (0b1 << 8); // Enable MSI (MSION='1').
 	// Wait for HSI to be stable.
 	unsigned char sysclk_on_msi = 0;
 	unsigned int count = 0;

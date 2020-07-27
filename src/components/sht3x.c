@@ -9,7 +9,6 @@
 
 #include "i2c.h"
 #include "lptim.h"
-#include "tim.h"
 
 /*** SHT3x local macros ***/
 

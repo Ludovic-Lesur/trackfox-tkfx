@@ -19,7 +19,6 @@
 #include "sigfox_api.h"
 #include "sigfox_types.h"
 #include "spi.h"
-#include "tim.h"
 #include "usart.h"
 
 #include "exti_reg.h"

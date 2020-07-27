@@ -12,9 +12,10 @@
 #include "i2c.h"
 #include "lptim.h"
 #include "nvm.h"
+#include "pwr.h"
+#include "rtc.h"
 #include "sht3x.h"
 #include "sigfox_types.h"
-#include "tim.h"
 #include "usart.h"
 
 /*** MCU API local macros ***/
@@ -312,10 +313,8 @@ sfx_u8 MCU_API_timer_start_carrier_sense(sfx_u16 time_duration_in_ms) {
  * \retval MCU_ERR_API_TIMER_START:              Start timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_start(sfx_u32 time_duration_in_s) {
-	// Get current number of seconds.
-	mcu_api_ctx.mcu_api_timer_start_time_seconds = TIM22_GetSeconds();
-	// Save required duration.
-	mcu_api_ctx.mcu_api_timer_duration_seconds = time_duration_in_s;
+	// Start wake-up timer.
+	RTC_StartWakeUpTimer(time_duration_in_s);
 	return SFX_ERR_NONE;
 }
 
@@ -330,6 +329,9 @@ sfx_u8 MCU_API_timer_start(sfx_u32 time_duration_in_s) {
  * \retval MCU_ERR_API_TIMER_STOP:               Stop timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_stop(void) {
+	// Start wake-up timer.
+	RTC_StopWakeUpTimer();
+	RTC_ClearWakeUpTimerFlag();
 	return SFX_ERR_NONE;
 }
 
@@ -360,9 +362,8 @@ sfx_u8 MCU_API_timer_stop_carrier_sense(void) {
  * \retval MCU_ERR_API_TIMER_END:                Wait end of timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_wait_for_end(void) {
-	// Wait for second counter to reach start time + duration.
-	while (TIM22_GetSeconds() < (mcu_api_ctx.mcu_api_timer_start_time_seconds + mcu_api_ctx.mcu_api_timer_duration_seconds));
-	// TBD : enter sleep mode and program timer to wake-up MCU.
+	// Enter stop mode until RTC wake-up.
+	PWR_EnterStopMode();
 	return SFX_ERR_NONE;
 }
 

@@ -13,11 +13,10 @@
 #include "i2c_reg.h"
 #include "rcc.h"
 #include "rcc_reg.h"
-#include "tim.h"
 
 /*** I2C local macros ***/
 
-#define I2C_ACCESS_TIMEOUT_SECONDS	3
+#define I2C_ACCESS_TIMEOUT_COUNT	1000000
 
 /*** I2C local functions ***/
 
@@ -116,10 +115,11 @@ unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, uns
 	// Clear peripheral.
 	I2C_Clear();
 	// Wait for I2C bus to be ready.
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((I2C1 -> ISR) & (0b1 << 15)) != 0) {
 		// Wait for BUSY='0' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Configure number of bytes to send.
 	I2C1 -> CR2 &= 0xFF00FFFF; // Reset bits 16-23.
@@ -130,14 +130,15 @@ unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, uns
 	I2C1 -> CR2 |= ((slave_address & 0x7F) << 1); // SADD = slave_address. Warning: the 7-bits address starts from bit 1!
 	// Generate start condition.
 	I2C1 -> CR2 |= (0b1 << 13); // START='1'.
-	loop_start_time = TIM22_GetSeconds();
+	loop_count = 0;
 	while (((I2C1 -> CR2) & (0b1 << 13)) != 0) {
 		// Wait for START bit to be cleared by hardware or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Send bytes.
 	unsigned char byte_idx = 0;
-	loop_start_time = TIM22_GetSeconds();
+	loop_count = 0;
 	while ((byte_idx < tx_buf_length) && (((I2C1 -> ISR) & (0b1 << 4)) == 0)) {
 		// Wait for transmit buffer to be empty (TXIS='1').
 		if (((I2C1 -> ISR) & (0b1 << 1)) != 0) {
@@ -146,21 +147,24 @@ unsigned char I2C1_Write(unsigned char slave_address, unsigned char* tx_buf, uns
 			byte_idx++;
 		}
 		// Exit if timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Wait for last byte to be sent.
-	loop_start_time = TIM22_GetSeconds();
+	loop_count = 0;
 	while (((I2C1 -> ISR) & (0b1 << 6)) == 0) {
 		// Wait for TC='1' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	if (stop_flag != 0) {
 		// Generate stop condition.
 		I2C1 -> CR2 |= (0b1 << 14);
-		loop_start_time = TIM22_GetSeconds();
+		loop_count = 0;
 		while (((I2C1 -> ISR) & (0b1 << 5)) == 0) {
 			// Wait for STOPF='1' or timeout.
-			if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+			loop_count++;
+			if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 		}
 		// Clear flag.
 		I2C1 -> ICR |= (0b1 << 5); // STOPCF='1'.
@@ -178,10 +182,11 @@ unsigned char I2C1_Read(unsigned char slave_address, unsigned char* rx_buf, unsi
 	// Clear peripheral.
 	I2C_Clear();
 	// Wait for I2C bus to be ready/
-	unsigned int loop_start_time = TIM22_GetSeconds();
+	unsigned int loop_count = 0;
 	while (((I2C1 -> ISR) & (0b1 << 15)) != 0) {
 		// Wait for BUSY='0' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Configure number of bytes to send.
 	I2C1 -> CR2 &= 0xFF00FFFF; // Reset bits 16-23.
@@ -193,14 +198,15 @@ unsigned char I2C1_Read(unsigned char slave_address, unsigned char* rx_buf, unsi
 	I2C1 -> CR2 |= ((slave_address & 0x7F) << 1); // SADD = slave_address. Warning: the 7-bits address starts from bit 1!
 	// Generate start condition.
 	I2C1 -> CR2 |= (0b1 << 13); // START='1'.
-	loop_start_time = TIM22_GetSeconds();
+	loop_count = 0;
 	while (((I2C1 -> CR2) & (0b1 << 13)) != 0) {
 		// Wait for START bit to be cleared by hardware or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Get bytes.
 	unsigned char byte_idx = 0;
-	loop_start_time = TIM22_GetSeconds();
+	loop_count = 0;
 	while (byte_idx < rx_buf_length) {
 		// Wait for incoming data (RXNE='1').
 		if (((I2C1 -> ISR) & (0b1 << 2)) != 0) {
@@ -209,15 +215,17 @@ unsigned char I2C1_Read(unsigned char slave_address, unsigned char* rx_buf, unsi
 			byte_idx++;
 		}
 		// Exit if timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Send a NACK and STOP condition after last byte.
 	I2C1 -> CR2 |= (0b1 << 15);
 	I2C1 -> CR2 |= (0b1 << 14);
-	loop_start_time = TIM22_GetSeconds();
+	loop_count = 0;
 	while (((I2C1 -> ISR) & (0b1 << 5)) == 0) {
 		// Wait for STOPF='1' or timeout.
-		if (TIM22_GetSeconds() > (loop_start_time + I2C_ACCESS_TIMEOUT_SECONDS)) return 0;
+		loop_count++;
+		if (loop_count > I2C_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	// Clear flag.
 	I2C1 -> ICR |= (0b1 << 5); // STOPCF='1'.
