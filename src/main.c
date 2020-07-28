@@ -115,7 +115,6 @@ int main (void) {
 	// Init memory.
 	NVIC_Init();
 	FLASH_Init();
-	NVM_Enable();
 	// Init GPIOs.
 	GPIO_Init();
 	EXTI_Init();
@@ -164,20 +163,10 @@ int main (void) {
 			IWDG_Reload();
 			RCC_EnableGpio();
 			RCC_SwitchToHsi();
-			// Init timer.
+			// Init delay timer.
 			LPTIM1_Init(tkfx_use_lse);
-			// DMA.
-			DMA1_InitChannel3();
-			DMA1_InitChannel6();
-			// Analog.
-			ADC1_Init();
-			// Communication interfaces.
-			LPUART1_Init(tkfx_use_lse);
+			// Unused communication interfaces.
 			USART2_Init();
-			I2C1_Init();
-			SPI1_Init();
-			// Hardware AES.
-			AES_Init();
 			// Init components.
 			NEOM8N_Init();
 			SHT3X_Init();
@@ -194,9 +183,11 @@ int main (void) {
 		case TKFX_STATE_ACCELERO:
 			IWDG_Reload();
 			// Configure accelerometer once for motion detection.
+			I2C1_Init();
 			I2C1_PowerOn();
 			MMA8653FC_WriteConfig(&(mma8653_tkfx_config[0]), MMA8653FC_TKFX_CONFIG_SIZE);
 			I2C1_PowerOff();
+			I2C1_Disable();
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_OOB;
 			break;
@@ -214,14 +205,18 @@ int main (void) {
 		case TKFX_STATE_MEASURE:
 			IWDG_Reload();
 			// Get temperature from SHT30.
+			I2C1_Init();
 			I2C1_PowerOn();
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
+			I2C1_Disable();
 			SHT3X_GetTemperature(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_temperature_degrees));
 			// Get voltages measurements.
+			ADC1_Init();
 			ADC1_PowerOn();
 			ADC1_PerformMeasurements();
 			ADC1_PowerOff();
+			ADC1_Disable();
 			ADC1_GetSupercapVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_supercap_voltage_mv));
 			ADC1_GetSourceVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_source_voltage_mv));
 			ADC1_GetMcuVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_mcu_voltage_mv));
@@ -253,9 +248,11 @@ int main (void) {
 		case TKFX_STATE_GEOLOC:
 			IWDG_Reload();
 			// Get position from GPS.
+			LPUART1_Init(tkfx_use_lse);
 			LPUART1_PowerOn();
 			neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, &tkfx_ctx.tkfx_geoloc_fix_duration_seconds);
 			LPUART1_PowerOff();
+			LPUART1_Disable();
 			// Parse result.
 			if (neom8n_return_code == NEOM8N_SUCCESS) {
 				// Get fix duration and update flag.
@@ -288,15 +285,9 @@ int main (void) {
 			// Clear POR flag.
 			tkfx_ctx.tkfx_por_flag = 0;
 			// Turn peripherals off.
-			S2LP_DisableGpio();
-			ADC1_Disable();
 			LPTIM1_Disable();
-			SPI1_Disable();
-			DMA1_Disable();
-			LPUART1_Disable();
-			I2C1_Disable();
-			AES_Disable();
-			NVM_Disable();
+			// Turn components off.
+			S2LP_DisableGpio();
 			RCC_DisableGpio();
 			// Clear EXTI flags.
 			EXTI_ClearAllFlags();

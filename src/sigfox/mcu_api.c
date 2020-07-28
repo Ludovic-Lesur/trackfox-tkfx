@@ -96,13 +96,17 @@ sfx_u8 MCU_API_free(sfx_u8* ptr) {
  *******************************************************************/
 sfx_u8 MCU_API_get_voltage_temperature(sfx_u16* voltage_idle, sfx_u16* voltage_tx, sfx_s16* temperature) {
 	// Perform temperature measurement.
+	I2C1_Init();
 	I2C1_PowerOn();
 	SHT3X_PerformMeasurements();
 	I2C1_PowerOff();
+	I2C1_Disable();
 	// Perform voltage measurement.
+	ADC1_Init();
 	ADC1_PowerOn();
 	ADC1_PerformMeasurements();
 	ADC1_PowerOff();
+	ADC1_Disable();
 	// Get MCU supply voltage.
 	unsigned int mcu_supply_voltage_mv = 0;
 	ADC1_GetMcuVoltage(&mcu_supply_voltage_mv);
@@ -198,6 +202,7 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 			break;
 	}
 	// Perform encryption.
+	AES_Init();
 	for (block_idx=0; block_idx<number_of_blocks ; block_idx++) {
 		// Fill input data and initialization vector with previous result.
 		for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE; byte_idx++) data_in[byte_idx] = data_to_encrypt[(block_idx * AES_BLOCK_SIZE) + byte_idx];
@@ -207,6 +212,7 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 		// Fill output data.
 		for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE; byte_idx++) encrypted_data[(block_idx * AES_BLOCK_SIZE) + byte_idx] = data_out[byte_idx];
 	}
+	AES_Disable();
 	return SFX_ERR_NONE;
 }
 
@@ -235,6 +241,7 @@ sfx_u8 MCU_API_get_nv_mem(sfx_u8 read_data[SFX_NVMEM_BLOCK_SIZE]) {
 	// |______|_______|______|______|
 
 	// PN.
+	NVM_Enable();
 	NVM_ReadByte(NVM_SIGFOX_PN_ADDRESS_OFFSET, &(read_data[SFX_NVMEM_PN]));
 	NVM_ReadByte(NVM_SIGFOX_PN_ADDRESS_OFFSET+1, &(read_data[SFX_NVMEM_PN+1]));
 	// Sequence number.
@@ -245,6 +252,7 @@ sfx_u8 MCU_API_get_nv_mem(sfx_u8 read_data[SFX_NVMEM_BLOCK_SIZE]) {
 	NVM_ReadByte(NVM_SIGFOX_FH_ADDRESS_OFFSET+1, &(read_data[SFX_NVMEM_FH+1]));
 	// RL.
 	NVM_ReadByte(NVM_SIGFOX_RL_ADDRESS_OFFSET, &(read_data[SFX_NVMEM_RL]));
+	NVM_Disable();
 	return SFX_ERR_NONE;
 }
 
@@ -274,6 +282,7 @@ sfx_u8 MCU_API_set_nv_mem(sfx_u8 data_to_write[SFX_NVMEM_BLOCK_SIZE]) {
 	// |______|_______|______|______|
 
 	// PN.
+	NVM_Enable();
 	NVM_WriteByte(NVM_SIGFOX_PN_ADDRESS_OFFSET, data_to_write[SFX_NVMEM_PN]);
 	NVM_WriteByte(NVM_SIGFOX_PN_ADDRESS_OFFSET+1, data_to_write[SFX_NVMEM_PN+1]);
 	// Sequence number.
@@ -284,6 +293,7 @@ sfx_u8 MCU_API_set_nv_mem(sfx_u8 data_to_write[SFX_NVMEM_BLOCK_SIZE]) {
 	NVM_WriteByte(NVM_SIGFOX_FH_ADDRESS_OFFSET+1, data_to_write[SFX_NVMEM_FH+1]);
 	// RL.
 	NVM_WriteByte(NVM_SIGFOX_RL_ADDRESS_OFFSET, data_to_write[SFX_NVMEM_RL]);
+	NVM_Disable();
 	return SFX_ERR_NONE;
 }
 

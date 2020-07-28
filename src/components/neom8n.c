@@ -452,6 +452,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	// Lower clock during GPS fix.
 	RCC_SwitchToMsi();
 	// Start DMA.
+	DMA1_InitChannel6();
 	DMA1_StopChannel6();
 	DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
 	DMA1_StartChannel6();
@@ -523,6 +524,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	}
 	// Stop DMA and RTC wake-up timer.
 	DMA1_StopChannel6();
+	DMA1_Disable();
 	RTC_StopWakeUpTimer();
 	RTC_ClearWakeUpTimerFlag();
 	// Go back to HSI.

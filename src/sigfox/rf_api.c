@@ -7,6 +7,7 @@
 
 #include "rf_api.h"
 
+#include "dma.h"
 #include "exti.h"
 #include "gpio.h"
 #include "iwdg.h"
@@ -72,6 +73,9 @@ static unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTE
  * \retval RF_ERR_API_INIT:          Init Radio link error
  *******************************************************************/
 sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
+	// Init required peripherals.
+	DMA1_InitChannel3();
+	SPI1_Init();
 	// Turn TCXO and transceiver on.
 	RCC_Tcxo(1);
 	SPI1_PowerOn();
@@ -120,6 +124,9 @@ sfx_u8 RF_API_stop(void) {
 	// Turn transceiver and TCXO off.
 	SPI1_PowerOff();
 	RCC_Tcxo(0);
+	// Turn peripherals off.
+	DMA1_Disable();
+	SPI1_Disable();
 	return SFX_ERR_NONE;
 }
 
