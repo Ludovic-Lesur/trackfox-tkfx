@@ -114,7 +114,6 @@ static TKFX_Context tkfx_ctx;
 int main (void) {
 	// Init memory.
 	NVIC_Init();
-	FLASH_Init();
 	// Init GPIOs.
 	GPIO_Init();
 	EXTI_Init();

@@ -112,6 +112,8 @@ unsigned int RCC_GetSysclkKhz(void) {
  * @return sysclk_on_hsi:	'1' if SYSCLK source was successfully switched to HSI, 0 otherwise.
  */
 unsigned char RCC_SwitchToHsi(void) {
+	// Set flash latency.
+	FLASH_SetLatency(1);
 	// Init HSI.
 	RCC -> CR |= (0b1 << 0); // Enable HSI (HSI16ON='1').
 	// Wait for HSI to be stable.
@@ -172,6 +174,8 @@ unsigned char RCC_SwitchToMsi(void) {
 		}
 		// Check timeout.
 		if (count < RCC_TIMEOUT_COUNT) {
+			// Set flash latency.
+			FLASH_SetLatency(0);
 			// Disable HSI and HSE.
 			RCC -> CR &= ~(0b1 << 0); // Disable HSI (HSI16ON='0').
 			RCC -> CR &= ~(0b1 << 16); // Disable HSE (HSEON='0').
@@ -188,6 +192,8 @@ unsigned char RCC_SwitchToMsi(void) {
  * @return sysclk_on_hse:	'1' if SYSCLK source was successfully switched to HSE (TCXO), 0 otherwise.
  */
 unsigned char RCC_SwitchToHse(void) {
+	// Set flash latency.
+	FLASH_SetLatency(1);
 	// Init HSE.
 	RCC -> CR |= (0b1 << 18); // Bypass oscillator (HSEBYP='1').
 	RCC -> CR |= (0b1 << 16); // Enable HSE (HSEON='1').
