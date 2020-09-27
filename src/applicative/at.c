@@ -133,7 +133,7 @@ static AT_Context at_ctx;
  * @param c:	The hexadecimal character to convert.
  * @return:		The results of conversion.
  */
-unsigned char AT_AsciiToHexa(char c) {
+static unsigned char AT_AsciiToHexa(char c) {
 	unsigned char hexa_value = 0;
 	if ((c >= 'A') && (c <= 'F')) {
 		hexa_value = c - 'A' + 10;
@@ -148,7 +148,7 @@ unsigned char AT_AsciiToHexa(char c) {
  * @param n:	The char to converts.
  * @return:		The results of conversion.
  */
-char AT_HexaToAscii(unsigned char n) {
+static char AT_HexaToAscii(unsigned char n) {
 	char hexa_char = 0;
 	if (n <= 15) {
 		hexa_char = (n <= 9 ? (char) (n + '0') : (char) (n + ('A' - 10)));
@@ -160,7 +160,7 @@ char AT_HexaToAscii(unsigned char n) {
  * @param ascii_code:	The byte to analyse.
  * @return:				1 if the byte is the ASCII code of an hexadecimal character, 0 otherwise.
  */
-unsigned char AT_IsHexaChar(unsigned char ascii_code) {
+static unsigned char AT_IsHexaChar(unsigned char ascii_code) {
 	return (((ascii_code >= '0') && (ascii_code <= '9')) || ((ascii_code >= 'A') && (ascii_code <= 'F')));
 }
 
@@ -168,7 +168,7 @@ unsigned char AT_IsHexaChar(unsigned char ascii_code) {
  * @param ascii_code:	The byte to analyse.
  * @return:				1 if the byte is the ASCII code of a decimal character, 0 otherwise.
  */
-unsigned char AT_IsDecimalChar(unsigned char ascii_code) {
+static unsigned char AT_IsDecimalChar(unsigned char ascii_code) {
 	return ((ascii_code >= '0') && (ascii_code <= '9'));
 }
 
@@ -176,7 +176,7 @@ unsigned char AT_IsDecimalChar(unsigned char ascii_code) {
  * @param power:	The desired power.
  * @return result:	Result of computation.
  */
-unsigned int AT_Pow10(unsigned char power) {
+static unsigned int AT_Pow10(unsigned char power) {
 	unsigned int result = 0;
 	unsigned int pow10_buf[10] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 	if (power <= 9) {
@@ -190,7 +190,7 @@ unsigned int AT_Pow10(unsigned char power) {
  * @return return_code:		'AT_NO_ERROR' if strings are identical.
  * 							'AT_OUT_ERROR_UNKNOWN_COMMAND' otherwise.
  */
-unsigned short AT_CompareCommand(char* command) {
+static unsigned short AT_CompareCommand(char* command) {
 	unsigned short return_code = AT_OUT_ERROR_UNKNOWN_COMMAND;
 	unsigned int idx = 0;
 	// 'command' ends with a NULL character (standard in C).
@@ -217,7 +217,7 @@ unsigned short AT_CompareCommand(char* command) {
  * @return return_code:		'AT_NO_ERROR' if headers are identical.
  * 							'AT_OUT_ERROR_UNKNOWN_COMMAND' otherwise.
  */
-unsigned short AT_CompareHeader(char* header) {
+static unsigned short AT_CompareHeader(char* header) {
 	unsigned short return_code = AT_OUT_ERROR_UNKNOWN_COMMAND;
 	unsigned int idx = 0;
 	// 'header' ends with a NULL character (standard in C).
@@ -247,7 +247,7 @@ unsigned short AT_CompareHeader(char* header) {
  * @param:					None.
  * @return separator_found:	Boolean indicating if separator was found.
  */
-unsigned char AT_SearchSeparator(void) {
+static unsigned char AT_SearchSeparator(void) {
 	unsigned char separator_found = 0;
 	unsigned int i = 0;
 	// Starting from char following the current separator (which is the start of buffer in case of first call).
@@ -267,7 +267,7 @@ unsigned char AT_SearchSeparator(void) {
  * @param param_value:	Pointer to the parameter value.
  * @return return_code:	AT error code.
  */
-unsigned short AT_GetParameter(AT_ParameterType param_type, unsigned char last_param, unsigned int* param_value) {
+static unsigned short AT_GetParameter(AT_ParameterType param_type, unsigned char last_param, unsigned int* param_value) {
 	unsigned short return_code = AT_OUT_ERROR_UNKNOWN_COMMAND;
 	// Local variables.
 	unsigned int i = 0; // Generic index used in for loops.
@@ -397,7 +397,7 @@ unsigned short AT_GetParameter(AT_ParameterType param_type, unsigned char last_p
  * @param expected_length:	Length of buffer to extract.
  * @return return_code:		AT error code.
  */
-unsigned short AT_GetByteArray(unsigned char last_param, unsigned char* byte_array, unsigned char max_length, unsigned char* extracted_length) {
+static unsigned short AT_GetByteArray(unsigned char last_param, unsigned char* byte_array, unsigned char max_length, unsigned char* extracted_length) {
 	unsigned short return_code = AT_OUT_ERROR_UNKNOWN_COMMAND;
 	// Local variables.
 	unsigned int i = 0; // Generic index used in for loops.
@@ -465,7 +465,7 @@ unsigned short AT_GetByteArray(unsigned char last_param, unsigned char* byte_arr
  * @param:	None.
  * @return:	None.
  */
-void AT_ReplyOk(void) {
+static void AT_ReplyOk(void) {
 	USART2_SendString(AT_OUT_COMMAND_OK);
 	USART2_SendString("\r\n");
 }
@@ -474,7 +474,7 @@ void AT_ReplyOk(void) {
  * @param error_code:	Error code to display.
  * @return:				None.
  */
-void AT_ReplyError(AT_ErrorSource error_source, unsigned short error_code) {
+static void AT_ReplyError(AT_ErrorSource error_source, unsigned short error_code) {
 	switch (error_source) {
 	case AT_ERROR_SOURCE_AT:
 		USART2_SendString(AT_OUT_HEADER_AT_ERROR);
@@ -493,7 +493,7 @@ void AT_ReplyError(AT_ErrorSource error_source, unsigned short error_code) {
  * @param gps_position:	Pointer to GPS position to print.
  * @return:				None.
  */
-void AT_PrintPosition(Position* gps_position) {
+static void AT_PrintPosition(Position* gps_position) {
 	// Header.
 	// Latitude.
 	USART2_SendString("Lat=");
@@ -523,7 +523,7 @@ void AT_PrintPosition(Position* gps_position) {
  * @param sfx_downlink_data:	Downlink data to print.
  * @return:						None.
  */
-void AT_PrintDownlinkData(sfx_u8* sfx_downlink_data) {
+static void AT_PrintDownlinkData(sfx_u8* sfx_downlink_data) {
 	USART2_SendString("+RX=");
 	unsigned char byte_idx = 0;
 	for (byte_idx=0 ; byte_idx<8 ; byte_idx++) {
@@ -537,7 +537,7 @@ void AT_PrintDownlinkData(sfx_u8* sfx_downlink_data) {
  * @param:	None.
  * @return:	None.
  */
-void AT_DecodeRxBuffer(void) {
+static void AT_DecodeRxBuffer(void) {
 	// At this step, 'at_buf_idx' is 1 character after the first line end character (<CR> or <LF>).
 	unsigned short get_param_result = 0;
 	unsigned char byte_idx = 0;

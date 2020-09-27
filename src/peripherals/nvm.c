@@ -17,7 +17,7 @@
  * @param:	None.
  * @return:	None.
  */
-void NVM_Unlock(void) {
+static void NVM_Unlock(void) {
 	// Check no write/erase operation is running.
 	while (((FLASH -> SR) & (0b1 << 0)) != 0); // Wait till BSY='1'.
 	// Check the NVM is not allready unlocked.
@@ -32,7 +32,7 @@ void NVM_Unlock(void) {
  * @param:	None.
  * @return:	None.
  */
-void NVM_Lock(void) {
+static void NVM_Lock(void) {
 	// Check no write/erase operation is running.
 	while (((FLASH -> SR) & (0b1 << 0)) != 0); // Wait till BSY='1'.
 	// Lock PECR register.

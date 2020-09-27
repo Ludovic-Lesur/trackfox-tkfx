@@ -168,6 +168,4 @@ void S2LP_SetRxDataLength(unsigned char rx_data_length_bytes);
 signed char S2LP_GetRssi(void);
 void S2LP_ReadFifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
 
-void S2LP_ReadRegister(unsigned char addr, unsigned char* value);
-
 #endif /* S2LP_H */

@@ -24,7 +24,7 @@
  * @param:	None.
  * @return:	None.
  */
-void I2C_Clear(void) {
+static void I2C_Clear(void) {
 	// Disable peripheral.
 	I2C1 -> CR1 &= ~(0b1 << 0); // PE='0'.
 	LPTIM1_DelayMilliseconds(1);

@@ -20,7 +20,7 @@
 /*** SHT3x local structures ***/
 
 typedef struct {
-	signed char sht3x_temperature_degrees;
+	unsigned char sht3x_temperature_degrees;
 	unsigned char sht3x_humidity_percent;
 } SHT3X_Context;
 
@@ -45,7 +45,7 @@ void SHT3X_Init(void) {
  * @return:	None.
  */
 void SHT3X_PerformMeasurements(void) {
-	// Trigger high repeatability measurement with clock streching disabled.
+	// Trigger high repeatability measurement with clock stretching disabled.
 	unsigned char measurement_command[2] = {0x24, 0x00};
 	unsigned char i2c_access = I2C1_Write(SHT3X_I2C_ADDRESS, measurement_command, 2, 1);
 	if (i2c_access == 0) return;
@@ -56,17 +56,27 @@ void SHT3X_PerformMeasurements(void) {
 	if (i2c_access == 0) return;
 	// Compute temperature (TBC: verify checksum).
 	unsigned int temperature_16bits = (measure_buf[0] << 8) + measure_buf[1];
-	sht3x_ctx.sht3x_temperature_degrees = ((175 * temperature_16bits) / (SHT3X_FULL_SCALE)) - 45;
+	signed sht3x_temperature_signed = ((175 * temperature_16bits) / (SHT3X_FULL_SCALE)) - 45;
+	// Convert to 1-complement value.
+	sht3x_ctx.sht3x_temperature_degrees = 0;
+	if (sht3x_temperature_signed < 0) {
+		sht3x_ctx.sht3x_temperature_degrees |= 0x80;
+		unsigned char temperature_abs = (-1) * (sht3x_temperature_signed);
+		sht3x_ctx.sht3x_temperature_degrees |= (temperature_abs & 0x7F);
+	}
+	else {
+		sht3x_ctx.sht3x_temperature_degrees = (sht3x_temperature_signed & 0x7F);
+	}
 	// Compute humidity (TBC: verify checksum).
 	unsigned int humidity_16bits = (measure_buf[3] << 8) + measure_buf[4];
 	sht3x_ctx.sht3x_humidity_percent = (100 * humidity_16bits) / (SHT3X_FULL_SCALE);
 }
 
 /* READ TEMPERATURE FROM SHT3X SENSOR.
- * @param temperature_degrees:	Pointer to byte that will contain temperature result (�C).
+ * @param temperature_degrees:	Pointer to byte that will contain temperature result (dC).
  * @return:						None.
  */
-void SHT3X_GetTemperature(signed char* temperature_degrees) {
+void SHT3X_GetTemperature(unsigned char* temperature_degrees) {
 	// Get result.
 	(*temperature_degrees) = sht3x_ctx.sht3x_temperature_degrees;
 	// Reset results for next conversion.

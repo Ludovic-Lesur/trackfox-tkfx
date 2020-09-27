@@ -47,6 +47,8 @@ void DMA1_Channel4_5_6_7_IRQHandler(void) {
 	}
 }
 
+/*** DMA functions ***/
+
 /* CONFIGURE DMA1 CHANNEL3 FOR SPI1 TX TRANSFER (S2LP TX POLAR MODULATION).
  * @param:	None.
  * @return:	None.

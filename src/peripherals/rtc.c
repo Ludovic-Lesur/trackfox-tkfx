@@ -45,7 +45,7 @@ void RTC_IRQHandler(void) {
  * @param:						None.
  * @return rtc_initf_success:	1 if RTC entered initialization mode, 0 otherwise.
  */
-unsigned char RTC_EnterInitializationMode(void) {
+static unsigned char RTC_EnterInitializationMode(void) {
 	// Local variables.
 	unsigned char rtc_initf_success = 1;
 	// Enter key.
@@ -68,7 +68,7 @@ unsigned char RTC_EnterInitializationMode(void) {
  * @param:	None.
  * @return:	None.
  */
-void RTC_ExitInitializationMode(void) {
+static void RTC_ExitInitializationMode(void) {
 	RTC -> ISR &= ~(0b1 << 7); // INIT='0'.
 }
 

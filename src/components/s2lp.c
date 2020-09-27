@@ -39,7 +39,7 @@
  * @param valie:	Value to write in register.
  * @return:			None.
  */
-void S2LP_WriteRegister(unsigned char addr, unsigned char value) {
+static void S2LP_WriteRegister(unsigned char addr, unsigned char value) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
@@ -55,7 +55,7 @@ void S2LP_WriteRegister(unsigned char addr, unsigned char value) {
  * @param value:	Pointer to byte that will contain the register Value to read.
  * @return:			None.
  */
-void S2LP_ReadRegister(unsigned char addr, unsigned char* value) {
+static void S2LP_ReadRegister(unsigned char addr, unsigned char* value) {
 	// Falling edge on CS pin.
 	GPIO_Write(&GPIO_S2LP_CS, 0);
 	// Read sequence.

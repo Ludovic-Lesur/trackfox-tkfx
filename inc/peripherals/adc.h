@@ -18,5 +18,6 @@ void ADC1_PerformMeasurements(void);
 void ADC1_GetSourceVoltage(unsigned int* source_voltage_mv);
 void ADC1_GetSupercapVoltage(unsigned int* supercap_voltage_mv);
 void ADC1_GetMcuVoltage(unsigned int* supply_voltage_mv);
+void ADC1_GetMcuTemperature(unsigned char* mcu_temperature_degrees);
 
 #endif /* ADC_H */

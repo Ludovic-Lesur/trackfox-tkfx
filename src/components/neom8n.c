@@ -79,7 +79,7 @@ static NEOM8N_Context neom8n_ctx;
  * @param c:			Hexadecimal character to convert.
  * @return hexa_value:	Result of conversion.
  */
-unsigned char NEOM8N_AsciiToHexa(unsigned char c) {
+static unsigned char NEOM8N_AsciiToHexa(unsigned char c) {
 	unsigned char value = 0;
 	if ((c >= '0') && (c <= '9')) {
 		value = c - '0';
@@ -96,7 +96,7 @@ unsigned char NEOM8N_AsciiToHexa(unsigned char c) {
  * @param power:	The desired power.
  * @return result:	Result of computation.
  */
-unsigned int NEOM8N_Pow10(unsigned char n) {
+static unsigned int NEOM8N_Pow10(unsigned char n) {
 	unsigned int result = 0;
 	unsigned int pow10_buf[9] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
 	if (n <= 9) {
@@ -110,7 +110,7 @@ unsigned int NEOM8N_Pow10(unsigned char n) {
  * @param payload_length:	Length of the payload (in bytes) for this message.
  * @return:					None.
  */
-void NEOM8N_ComputeUbxChecksum(unsigned char* neom8n_command, unsigned char payload_length) {
+static void NEOM8N_ComputeUbxChecksum(unsigned char* neom8n_command, unsigned char payload_length) {
 	// See algorithme on p.136 of NEO-M8 programming manual.
 	unsigned char ck_a = 0;
 	unsigned char ck_b = 0;
@@ -128,7 +128,7 @@ void NEOM8N_ComputeUbxChecksum(unsigned char* neom8n_command, unsigned char payl
  * @param:		None;
  * @return ck:	Computed checksum.
  */
-unsigned char NEOM8N_GetNmeaChecksum(unsigned char* nmea_rx_buf) {
+static unsigned char NEOM8N_GetNmeaChecksum(unsigned char* nmea_rx_buf) {
 	// See NMEA messages format on p.105 of NEO-M8 programming manual.
 	unsigned char ck = 0;
 	// Get checksum start index.
@@ -146,7 +146,7 @@ unsigned char NEOM8N_GetNmeaChecksum(unsigned char* nmea_rx_buf) {
  * @param:		None;
  * @return ck:	Computed checksum.
  */
-unsigned char NEOM8N_ComputeNmeaChecksum(unsigned char* nmea_rx_buf) {
+static unsigned char NEOM8N_ComputeNmeaChecksum(unsigned char* nmea_rx_buf) {
 	// See algorithme on p.105 of NEO-M8 programming manual.
 	unsigned char ck = 0;
 	// Get message start index.
@@ -172,7 +172,7 @@ unsigned char NEOM8N_ComputeNmeaChecksum(unsigned char* nmea_rx_buf) {
  * @param nmea_rx_buf:	NMEA message to decode.
  * @return:						None.
  */
-void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps_position) {
+static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps_position) {
 	unsigned char error_found = 0;
 	unsigned char idx = 0;
 	// Verify checksum.
@@ -360,7 +360,7 @@ void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps_positi
  * @param local_gps_position:	GPS position structure to analyse.
  * @return gps_position_valid:	1 if GPS position is valid, 0 otherwise.
  */
-unsigned char NEOM8N_PositionIsValid(Position* local_gps_position) {
+static unsigned char NEOM8N_PositionIsValid(Position* local_gps_position) {
 	unsigned char gps_position_valid = 0;
 	if ((local_gps_position -> lat_degrees >= 0) && (local_gps_position -> lat_degrees <= 89) &&
 		(local_gps_position -> lat_minutes >= 0) && (local_gps_position -> lat_minutes <= 59) &&
@@ -378,7 +378,7 @@ unsigned char NEOM8N_PositionIsValid(Position* local_gps_position) {
  * 								0b <ZDA> <VTG> <VLW> <TXT> <RMC> <GSV> <GST> <GSA> <GRS> <GPQ> <GND> <GNQ> <GLQ> <GLL> <GGA> <GBS> <GBQ> <DTM>.
  * @return:						None.
  */
-void NEOM8N_SelectNmeaMessages(unsigned int nmea_message_id_mask) {
+static void NEOM8N_SelectNmeaMessages(unsigned int nmea_message_id_mask) {
 	// See p.110 for NMEA messages ID.
 	unsigned char nmea_message_id[18] = {0x0A, 0x44, 0x09, 0x00, 0x01, 0x43, 0x42, 0x0D, 0x40, 0x06, 0x02, 0x07, 0x03, 0x04, 0x41, 0x0F, 0x05, 0x08};
 	unsigned char nmea_message_id_idx = 0;

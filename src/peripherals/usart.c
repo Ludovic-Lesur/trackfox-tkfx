@@ -87,7 +87,7 @@ void USART2_IRQHandler(void) {
  * @param tx_byte:	Byte to append.
  * @return:			None.
  */
-void USART2_FillTxBuffer(unsigned char tx_byte) {
+static void USART2_FillTxBuffer(unsigned char tx_byte) {
 #ifdef USE_TXE_INTERRUPT
 	// Fill buffer.
 	usart_ctx.tx_buf[usart_ctx.tx_buf_write_idx] = tx_byte;
@@ -113,7 +113,7 @@ void USART2_FillTxBuffer(unsigned char tx_byte) {
  * @param n:	The word to converts.
  * @return:		The results of conversion.
  */
-char USART2_HexaToAscii(unsigned char hexa_value) {
+static char USART2_HexaToAscii(unsigned char hexa_value) {
 	char hexa_ascii = 0;
 	if (hexa_value <= 15) {
 		hexa_ascii = (hexa_value <= 9 ? (char) (hexa_value + '0') : (char) (hexa_value + ('A' - 10)));
@@ -125,7 +125,7 @@ char USART2_HexaToAscii(unsigned char hexa_value) {
  * @param power:	The desired power.
  * @return result:	Result of computation.
  */
-unsigned int USART2_Pow10(unsigned char power) {
+static unsigned int USART2_Pow10(unsigned char power) {
 	unsigned int result = 0;
 	unsigned int pow10_buf[10] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 	if (power <= 9) {

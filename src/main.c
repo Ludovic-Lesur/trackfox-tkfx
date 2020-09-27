@@ -34,19 +34,19 @@
 #include "sigfox_types.h"
 // Applicative.
 #include "at.h"
-#include "dlk.h"
-#include "geoloc.h"
 #include "mode.h"
-#include "monitoring.h"
 #include "sigfox_api.h"
 
 /*** MAIN macros ***/
 
 #ifdef SSM
-#define TKFX_STOP_CONDITION_THRESHOLD_SECONDS	300
-#define TKFX_KEEP_ALIVE_PERIOD_SECONDS			3600
+#define TKFX_STOP_CONDITION_THRESHOLD_SECONDS			300
+#define TKFX_KEEP_ALIVE_PERIOD_SECONDS					3600
+#define TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES		8
+#define TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES			11
+#define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_LENGTH_BYTES	1
 #endif
-#define TKFX_GEOLOC_TIMEOUT_SECONDS				180
+#define TKFX_GEOLOC_TIMEOUT_SECONDS						180
 
 /*** MAIN structures ***/
 
@@ -63,9 +63,37 @@ typedef enum {
 	TKFX_STATE_OFF,
 	TKFX_STATE_SLEEP
 } TKFX_State;
-#endif
 
-#ifndef ATM
+// Sigfox monitoring frame data format.
+typedef union {
+	unsigned char raw_frame[TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES];
+	struct {
+		unsigned temperature_degrees : 8;
+		unsigned mcu_temperature_degrees : 8;
+		unsigned source_voltage_mv : 16;
+		unsigned supercap_voltage_mv : 12;
+		unsigned mcu_voltage_mv : 12;
+		unsigned status_byte : 8;
+	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) field;
+} TKFX_SigfoxMonitoringData;
+
+// Sigfox geoloc frame data format.
+typedef union {
+	unsigned char raw_frame[TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES];
+	struct {
+		unsigned latitude_degrees : 8;
+		unsigned latitude_minutes : 6;
+		unsigned latitude_seconds : 17;
+		unsigned latitude_north_flag : 1;
+		unsigned longitude_degrees : 8;
+		unsigned longitude_minutes : 6;
+		unsigned longitude_seconds : 17;
+		unsigned longitude_east_flag : 1;
+		unsigned altitude_meters : 16;
+		unsigned gps_fix_duration_seconds : 8;
+	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) field;
+} TKFX_SigfoxGeolocData;
+
 // Status byte bit indexes.
 typedef enum {
 	TKFX_STATUS_BYTE_TRACKER_MODE0_BIT_IDX,
@@ -75,9 +103,7 @@ typedef enum {
 	TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX,
 	TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX
 } TKFX_StatusBitsIndex;
-#endif
 
-#ifndef ATM
 // Device context.
 typedef struct {
 	// State machine.
@@ -86,14 +112,19 @@ typedef struct {
 	unsigned int tkfx_stop_timer_seconds;
 	unsigned int tkfx_keep_alive_timer_seconds;
 	unsigned char tkfx_status_byte;
-	// Monitoring.
-	MONITORING_Data tkfx_monitoring_data;
+	// Monitoring data.
+	unsigned char tkfx_temperature_degrees;
+	unsigned char tkfx_mcu_temperature_degrees;
+	unsigned int tkfx_source_voltage_mv;
+	unsigned int tkfx_supercap_voltage_mv;
+	unsigned int tkfx_mcu_voltage_mv;
 	// Geoloc.
 	Position tkfx_geoloc_position;
 	unsigned int tkfx_geoloc_fix_duration_seconds;
 	unsigned int tkfx_geoloc_timeout;
 	// Sigfox.
-	unsigned char tkfx_sfx_uplink_data[SFX_UPLINK_DATA_MAX_SIZE_BYTES];
+	TKFX_SigfoxMonitoringData tkfx_sfx_monitoring_data;
+	TKFX_SigfoxGeolocData tkfx_sfx_geoloc_data;
 	unsigned char tkfx_sfx_downlink_data[SFX_DOWNLINK_DATA_SIZE_BYTES];
 } TKFX_Context;
 #endif
@@ -209,29 +240,33 @@ int main (void) {
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
 			I2C1_Disable();
-			SHT3X_GetTemperature(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_temperature_degrees));
+			SHT3X_GetTemperature(&tkfx_ctx.tkfx_temperature_degrees);
 			// Get voltages measurements.
 			ADC1_Init();
 			ADC1_PowerOn();
 			ADC1_PerformMeasurements();
 			ADC1_PowerOff();
 			ADC1_Disable();
-			ADC1_GetSupercapVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_supercap_voltage_mv));
-			ADC1_GetSourceVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_source_voltage_mv));
-			ADC1_GetMcuVoltage(&(tkfx_ctx.tkfx_monitoring_data.monitoring_data_mcu_voltage_mv));
-			// Status byte.
-			tkfx_ctx.tkfx_monitoring_data.monitoring_data_status_byte = tkfx_ctx.tkfx_status_byte;
+			ADC1_GetSourceVoltage(&tkfx_ctx.tkfx_source_voltage_mv);
+			ADC1_GetSupercapVoltage(&tkfx_ctx.tkfx_supercap_voltage_mv);
+			ADC1_GetMcuVoltage(&tkfx_ctx.tkfx_mcu_voltage_mv);
+			ADC1_GetMcuTemperature(&tkfx_ctx.tkfx_mcu_temperature_degrees);
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_MONITORING;
 			break;
 		case TKFX_STATE_MONITORING:
 			IWDG_Reload();
 			// Build Sigfox frame.
-			MONITORING_BuildSigfoxData(&tkfx_ctx.tkfx_monitoring_data, tkfx_ctx.tkfx_sfx_uplink_data);
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.temperature_degrees = tkfx_ctx.tkfx_temperature_degrees;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.mcu_temperature_degrees = tkfx_ctx.tkfx_mcu_temperature_degrees;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.source_voltage_mv = tkfx_ctx.tkfx_source_voltage_mv;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.supercap_voltage_mv = tkfx_ctx.tkfx_supercap_voltage_mv;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.mcu_voltage_mv = tkfx_ctx.tkfx_mcu_voltage_mv;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.status_byte = tkfx_ctx.tkfx_status_byte;
 			// Send uplink monitoring frame.
 			sfx_error = SIGFOX_API_open(&tkfx_sigfox_rc);
 			if (sfx_error == SFX_ERR_NONE) {
-				sfx_error = SIGFOX_API_send_frame(tkfx_ctx.tkfx_sfx_uplink_data, MONITORING_SIGFOX_DATA_LENGTH, tkfx_ctx.tkfx_sfx_downlink_data, 2, 0);
+				sfx_error = SIGFOX_API_send_frame(tkfx_ctx.tkfx_sfx_monitoring_data.raw_frame, TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES, tkfx_ctx.tkfx_sfx_downlink_data, 2, 0);
 			}
 			SIGFOX_API_close();
 			// Compute next state.
@@ -266,11 +301,25 @@ int main (void) {
 			}
 			IWDG_Reload();
 			// Build Sigfox frame.
-			GEOLOC_BuildSigfoxData(&tkfx_ctx.tkfx_geoloc_position, tkfx_ctx.tkfx_geoloc_fix_duration_seconds, tkfx_ctx.tkfx_geoloc_timeout, tkfx_ctx.tkfx_sfx_uplink_data);
+			if (tkfx_ctx.tkfx_geoloc_timeout == 0) {
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_degrees = tkfx_ctx.tkfx_geoloc_position.lat_degrees;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_minutes = tkfx_ctx.tkfx_geoloc_position.lat_minutes;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_seconds = tkfx_ctx.tkfx_geoloc_position.lat_seconds;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_north_flag = tkfx_ctx.tkfx_geoloc_position.lat_north;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_degrees = tkfx_ctx.tkfx_geoloc_position.long_degrees;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_minutes = tkfx_ctx.tkfx_geoloc_position.long_minutes;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_seconds = tkfx_ctx.tkfx_geoloc_position.long_seconds;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_east_flag = tkfx_ctx.tkfx_geoloc_position.long_east;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.altitude_meters = tkfx_ctx.tkfx_geoloc_position.altitude;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.gps_fix_duration_seconds = tkfx_ctx.tkfx_geoloc_fix_duration_seconds;
+			}
+			else {
+				tkfx_ctx.tkfx_sfx_geoloc_data.raw_frame[0] = tkfx_ctx.tkfx_geoloc_fix_duration_seconds;
+			}
 			// Send uplink geolocation frame.
 			sfx_error = SIGFOX_API_open(&tkfx_sigfox_rc);
 			if (sfx_error == SFX_ERR_NONE) {
-				sfx_error = SIGFOX_API_send_frame(tkfx_ctx.tkfx_sfx_uplink_data, (tkfx_ctx.tkfx_geoloc_timeout ? GEOLOC_TIMEOUT_SIGFOX_DATA_LENGTH : GEOLOC_SIGFOX_DATA_LENGTH), tkfx_ctx.tkfx_sfx_downlink_data, 2, 0);
+				sfx_error = SIGFOX_API_send_frame(tkfx_ctx.tkfx_sfx_geoloc_data.raw_frame, (tkfx_ctx.tkfx_geoloc_timeout ? TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_LENGTH_BYTES : TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES), tkfx_ctx.tkfx_sfx_downlink_data, 2, 0);
 			}
 			SIGFOX_API_close();
 			// Reset geoloc variables.
