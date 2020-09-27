@@ -123,16 +123,12 @@ void S2LP_WaitForStateSwitch(S2LP_State new_state) {
  * @return:	None.
  */
 void S2LP_WaitForXo(void) {
-	unsigned char xo_conf0 = 0;
-	unsigned char xo_conf1 = 0;
 	unsigned char xo_on = 0;
 	unsigned char reg_value = 0;
 	// Poll MC_STATE until state is reached.
 	do {
 		S2LP_ReadRegister(S2LP_REG_MC_STATE0, &reg_value);
 		xo_on = (reg_value & 0x01);
-		S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF0, &xo_conf0);
-		S2LP_ReadRegister(S2LP_REG_XO_RCO_CONF1, &xo_conf1);
 	}
 	while (xo_on == 0);
 }

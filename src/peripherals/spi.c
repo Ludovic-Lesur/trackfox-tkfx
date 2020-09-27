@@ -30,23 +30,17 @@ void SPI1_Init(void) {
 	// Configure power enable pins.
 	GPIO_Configure(&GPIO_RF_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Write(&GPIO_RF_POWER_ENABLE, 0);
-	// Configure SCK, MISO and MOSI (first as high impedance).
-	GPIO_Configure(&GPIO_SPI1_SCK, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_SPI1_MOSI, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_SPI1_MISO, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	// Configure CS pins (first as output low).
-	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Write(&GPIO_S2LP_CS, 0);
+	// Configure NSS, SCK, MISO and MOSI (first as high impedance).
+	GPIO_Configure(&GPIO_SPI1_SCK, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	GPIO_Configure(&GPIO_SPI1_MOSI, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	GPIO_Configure(&GPIO_SPI1_MISO, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
 	// Configure peripheral.
 	SPI1 -> CR1 &= 0xFFFF0000; // Disable peripheral before configuration (SPE='0').
 	SPI1 -> CR1 |= (0b1 << 2); // Master mode (MSTR='1').
 	// Set baud rate according to system clock.
-	SPI1 -> CR1 &= ~(0b111 << 3); // Reset bits 3-5 (PCLK2/2 = 8MHz for HSI)
-	if (RCC_GetSysclkKhz() > RCC_HSI_FREQUENCY_KHZ) {
-		SPI1 -> CR1 |= (0b001 << 3); // PCLK2/4 = 6.5MHz for HSE.
-	}
 	SPI1 -> CR1 &= ~(0b111 << 3); // Baud rate = PCLK2/2 = SYSCLK/2 = 8MHz.
-	SPI1 -> CR1 &= ~(0b1 << 11); // 8-bits format (DFF='0') by default.
+	SPI1 -> CR1 &= ~(0b1 << 11); // 8-bits format (DFF='0').
 	SPI1 -> CR1 &= ~(0b11 << 0); // CPOL='0' and CPHA='0'.
 	SPI1 -> CR2 &= 0xFFFFFF08;
 	SPI1 -> CR2 |= (0b1 << 2); // Enable output (SSOE='1').
@@ -66,9 +60,6 @@ void SPI1_Enable(void) {
 	// Configure power enable pins.
 	GPIO_Configure(&GPIO_RF_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Write(&GPIO_RF_POWER_ENABLE, 0);
-	// Configure CS pins (first as output low).
-	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Write(&GPIO_S2LP_CS, 0);
 }
 
 /* DISABLE SPI1 PERIPHERAL.
@@ -78,8 +69,6 @@ void SPI1_Enable(void) {
 void SPI1_Disable(void) {
 	// Disable power control pin.
 	GPIO_Configure(&GPIO_RF_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	// Disable CS pin.
-	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Disable SPI1 peripheral.
 	SPI1 -> CR1 &= ~(0b1 << 6);
 	// Clear all flags.
@@ -95,13 +84,16 @@ void SPI1_Disable(void) {
 void SPI1_PowerOn(void) {
 	// Turn S2LP on.
 	GPIO_Write(&GPIO_RF_POWER_ENABLE, 1);
-	GPIO_Write(&GPIO_S2LP_CS, 1); // CS high (idle state).
+	// Wait for power-on.
+	LPTIM1_DelayMilliseconds(50);
 	// Enable GPIOs.
 	GPIO_Configure(&GPIO_SPI1_SCK, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_SPI1_MOSI, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_SPI1_MISO, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
+	GPIO_Write(&GPIO_S2LP_CS, 1); // CS high (idle state).
+	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
 	// Wait for power-on.
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(50);
 }
 
 /* SWITCH ALL SPI1 SLAVES OFF.
@@ -113,9 +105,12 @@ void SPI1_PowerOff(void) {
 	GPIO_Write(&GPIO_RF_POWER_ENABLE, 0);
 	GPIO_Write(&GPIO_S2LP_CS, 0); // CS low (to avoid powering slaves via SPI bus).
 	// Disable SPI alternate function.
-	GPIO_Configure(&GPIO_SPI1_SCK, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_SPI1_MOSI, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_SPI1_MISO, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Configure(&GPIO_SPI1_SCK, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	GPIO_Configure(&GPIO_SPI1_MOSI, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	GPIO_Configure(&GPIO_SPI1_MISO, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	GPIO_Configure(&GPIO_S2LP_CS, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+	// Wait for power-off.
+	LPTIM1_DelayMilliseconds(100);
 }
 
 /* SEND A BYTE THROUGH SPI1.
@@ -123,15 +118,15 @@ void SPI1_PowerOff(void) {
  * @return:			1 in case of success, 0 in case of failure.
  */
 unsigned char SPI1_WriteByte(unsigned char tx_data) {
-	// Send data.
-	*((volatile unsigned char*) &(SPI1 -> DR)) = tx_data;
-	// Wait for transmission to complete.
+	// Wait for TXE flag.
 	unsigned int loop_count = 0;
-	while ((((SPI1 -> SR) & (0b1 << 1)) == 0) || (((SPI1 -> SR) & (0b1 << 7)) != 0)) {
-		// Wait for TXE='1' and BSY='0' or timeout.
+	while (((SPI1 -> SR) & (0b1 << 1)) == 0) {
+		// Wait for TXE='1' or timeout.
 		loop_count++;
 		if (loop_count > SPI_ACCESS_TIMEOUT_COUNT) return 0;
 	}
+	// Send data.
+	*((volatile unsigned char*) &(SPI1 -> DR)) = tx_data;
 	return 1;
 }
 
@@ -142,22 +137,22 @@ unsigned char SPI1_WriteByte(unsigned char tx_data) {
 unsigned char SPI1_ReadByte(unsigned char tx_data, unsigned char* rx_data) {
 	// Dummy read to DR to clear RXNE flag.
 	(*rx_data) = *((volatile unsigned char*) &(SPI1 -> DR));
+	// Wait for TXE flag.
+	unsigned int loop_count = 0;
+	while (((SPI1 -> SR) & (0b1 << 1)) == 0) {
+		// Wait for TXE='1' or timeout.
+		loop_count++;
+		if (loop_count > SPI_ACCESS_TIMEOUT_COUNT) return 0;
+	}
 	// Send dummy data on MOSI to generate clock.
 	*((volatile unsigned char*) &(SPI1 -> DR)) = tx_data;
 	// Wait for incoming data.
-	unsigned int loop_count = 0;
+	loop_count = 0;
 	while (((SPI1 -> SR) & (0b1 << 0)) == 0) {
 		// Wait for RXNE='1' or timeout.
 		loop_count++;
 		if (loop_count > SPI_ACCESS_TIMEOUT_COUNT) return 0;
 	}
 	(*rx_data) = *((volatile unsigned char*) &(SPI1 -> DR));
-	// Wait for reception to complete.
-	loop_count = 0;
-	while ((((SPI1 -> SR) & (0b1 << 0)) != 0) || (((SPI1 -> SR) & (0b1 << 7)) != 0)) {
-		// Wait for RXNE='0' and BSY='0' or timeout.
-		loop_count++;
-		if (loop_count > SPI_ACCESS_TIMEOUT_COUNT) return 0;
-	}
 	return 1;
 }

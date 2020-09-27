@@ -22,9 +22,6 @@
 #include "spi.h"
 #include "usart.h"
 
-#include "exti_reg.h"
-#include "s2lp_reg.h"
-
 /*** RF API local macros ***/
 
 // Uplink parameters.
@@ -76,10 +73,14 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	// Init required peripherals.
 	DMA1_InitChannel3();
 	SPI1_Init();
-	// Turn TCXO and transceiver on.
-	RCC_Tcxo(1);
+	S2LP_Init();
+	// Turn transceiver on.
 	SPI1_PowerOn();
+	// Turn TCXO on.
+	RCC_EnableGpio();
+	RCC_Tcxo(1);
 	// TX/RX common init.
+	S2LP_SendCommand(S2LP_CMD_SRES);
 	S2LP_SendCommand(S2LP_CMD_STANDBY);
 	S2LP_WaitForStateSwitch(S2LP_STATE_STANDBY);
 	S2LP_SetOscillator(S2LP_OSCILLATOR_TCXO);
@@ -124,6 +125,8 @@ sfx_u8 RF_API_stop(void) {
 	// Turn transceiver and TCXO off.
 	SPI1_PowerOff();
 	RCC_Tcxo(0);
+	RCC_DisableGpio();
+	S2LP_DisableGpio();
 	// Turn peripherals off.
 	DMA1_Disable();
 	SPI1_Disable();

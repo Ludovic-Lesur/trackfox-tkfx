@@ -113,9 +113,12 @@ sfx_u8 MCU_API_get_voltage_temperature(sfx_u16* voltage_idle, sfx_u16* voltage_t
 	(*voltage_idle) = (sfx_u16) mcu_supply_voltage_mv;
 	(*voltage_tx) = (sfx_u16) mcu_supply_voltage_mv;
 	// Get MCU internal temperature.
-	signed char mcu_temperature_degrees = 0;
+	unsigned char mcu_temperature_degrees = 0;
 	SHT3X_GetTemperature(&mcu_temperature_degrees);
-	(*temperature) = ((sfx_s16) mcu_temperature_degrees) * 10; // Unit = 1/10 of degrees.
+	// Convert to 2-complement value.
+	signed char mcu_temperature_degrees_signed = 0;
+	// TBD.
+	(*temperature) = ((sfx_s16) mcu_temperature_degrees_signed) * 10; // Unit = 1/10 of degrees.
 	return SFX_ERR_NONE;
 }
 

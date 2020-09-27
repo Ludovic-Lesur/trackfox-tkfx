@@ -14,6 +14,10 @@
 #include "rcc_reg.h"
 #include "syscfg_reg.h"
 
+/*** EXTI local macros ***/
+
+#define EXTI_RTSR_FTSR_MAX_INDEX	22
+
 /*** EXTI local functions ***/
 
 /* EXTI LINES 0-1 INTERRUPT HANDLER.
@@ -121,30 +125,35 @@ void EXTI_ConfigureLine(EXTI_Line line, EXTI_Trigger edge_trigger) {
 	// Rising edge only.
 	case EXTI_TRIGGER_RISING_EDGE:
 		EXTI -> IMR |= (0b1 << line); // IMx='1'.
-		EXTI -> RTSR |= (0b1 << line); // Rising edge enabled.
-		EXTI -> FTSR &= ~(0b1 << line); // Falling edge disabled.
+		if (line <= EXTI_RTSR_FTSR_MAX_INDEX) {
+			EXTI -> RTSR |= (0b1 << line); // Rising edge enabled.
+			EXTI -> FTSR &= ~(0b1 << line); // Falling edge disabled.
+		}
 		break;
 	// Falling edge only.
 	case EXTI_TRIGGER_FALLING_EDGE:
 		EXTI -> IMR |= (0b1 << line); // IMx='1'.
-		EXTI -> RTSR &= ~(0b1 << line); // Rising edge disabled.
-		EXTI -> FTSR |= (0b1 << line); // Falling edge enabled.
+		if (line <= EXTI_RTSR_FTSR_MAX_INDEX) {
+			EXTI -> RTSR &= ~(0b1 << line); // Rising edge disabled.
+			EXTI -> FTSR |= (0b1 << line); // Falling edge enabled.
+		}
 		break;
 	// Both edges.
 	case EXTI_TRIGGER_ANY_EDGE:
 		EXTI -> IMR |= (0b1 << line); // IMx='1'.
-		EXTI -> RTSR |= (0b1 << line); // Rising edge enabled.
-		EXTI -> FTSR |= (0b1 << line); // Falling edge enabled.
+		if (line <= EXTI_RTSR_FTSR_MAX_INDEX) {
+			EXTI -> RTSR |= (0b1 << line); // Rising edge enabled.
+			EXTI -> FTSR |= (0b1 << line); // Falling edge enabled.
+		}
 		break;
 	// Unknown configuration.
 	default:
-		EXTI -> IMR &= ~(0b1 << line); // IMx='0'.
-		EXTI -> RTSR &= ~(0b1 << line); // Rising edge disabled.
-		EXTI -> FTSR &= ~(0b1 << line); // Falling edge disabled.
 		break;
 	}
 	// Clear flag.
-	EXTI -> PR |= (0b1 << line);
+	if (line <= EXTI_RTSR_FTSR_MAX_INDEX) {
+		EXTI -> PR |= (0b1 << line);
+	}
 }
 
 /* CLEAR ALL EXTI FLAGS.

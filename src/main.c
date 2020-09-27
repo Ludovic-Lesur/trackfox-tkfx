@@ -194,13 +194,12 @@ int main (void) {
 			RCC_EnableGpio();
 			RCC_SwitchToHsi();
 			// Init delay timer.
-			LPTIM1_Init(tkfx_use_lse);
+			LPTIM1_Init();
 			// Unused communication interfaces.
 			USART2_Init();
 			// Init components.
 			NEOM8N_Init();
 			SHT3X_Init();
-			S2LP_Init();
 			MMA8653FC_Init();
 			// Compute next state.
 			if (tkfx_ctx.tkfx_por_flag == 0) {
@@ -334,9 +333,6 @@ int main (void) {
 			tkfx_ctx.tkfx_por_flag = 0;
 			// Turn peripherals off.
 			LPTIM1_Disable();
-			// Turn components off.
-			S2LP_DisableGpio();
-			RCC_DisableGpio();
 			// Clear EXTI flags.
 			EXTI_ClearAllFlags();
 			RTC_ClearWakeUpTimerFlag();
