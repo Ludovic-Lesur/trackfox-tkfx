@@ -239,7 +239,7 @@ int main (void) {
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
 			I2C1_Disable();
-			SHT3X_GetTemperature(&tkfx_ctx.tkfx_temperature_degrees);
+			SHT3X_GetTemperatureComp1(&tkfx_ctx.tkfx_temperature_degrees);
 			// Get voltages measurements.
 			ADC1_Init();
 			ADC1_PowerOn();
@@ -249,7 +249,7 @@ int main (void) {
 			ADC1_GetSourceVoltage(&tkfx_ctx.tkfx_source_voltage_mv);
 			ADC1_GetSupercapVoltage(&tkfx_ctx.tkfx_supercap_voltage_mv);
 			ADC1_GetMcuVoltage(&tkfx_ctx.tkfx_mcu_voltage_mv);
-			ADC1_GetMcuTemperature(&tkfx_ctx.tkfx_mcu_temperature_degrees);
+			ADC1_GetMcuTemperatureComp1(&tkfx_ctx.tkfx_mcu_temperature_degrees);
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_MONITORING;
 			break;
