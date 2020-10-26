@@ -45,6 +45,7 @@
 #define TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES		8
 #define TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES			11
 #define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_LENGTH_BYTES	1
+#define TKFX_SIGFOX_DOWNLINK_DATA_LENGTH_BYTES			8
 #endif
 #define TKFX_GEOLOC_TIMEOUT_SECONDS						180
 
@@ -125,7 +126,7 @@ typedef struct {
 	// Sigfox.
 	TKFX_SigfoxMonitoringData tkfx_sfx_monitoring_data;
 	TKFX_SigfoxGeolocData tkfx_sfx_geoloc_data;
-	unsigned char tkfx_sfx_downlink_data[SFX_DOWNLINK_DATA_SIZE_BYTES];
+	unsigned char tkfx_sfx_downlink_data[TKFX_SIGFOX_DOWNLINK_DATA_LENGTH_BYTES];
 } TKFX_Context;
 #endif
 

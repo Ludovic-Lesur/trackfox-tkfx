@@ -7,6 +7,7 @@
 
 #include "rcc.h"
 
+#include "flash.h"
 #include "gpio.h"
 #include "lptim.h"
 #include "lptim_reg.h"
