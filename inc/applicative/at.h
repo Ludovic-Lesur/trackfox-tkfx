@@ -19,7 +19,7 @@
 #define AT_COMMANDS_SENSORS
 #define AT_COMMANDS_NVM
 #define AT_COMMANDS_SIGFOX
-#define AT_COMMANDS_CW_RSSI
+#define AT_COMMANDS_CW
 
 /*** AT user functions ***/
 

@@ -492,7 +492,7 @@ static void AT_ReplyError(AT_ErrorSource error_source, unsigned short error_code
  * @param gps_position:	Pointer to GPS position to print.
  * @return:				None.
  */
-static void AT_PrintPosition(Position* gps_position) {
+static void AT_PrintPosition(Position* gps_position, unsigned int gps_fix_duration) {
 	// Header.
 	// Latitude.
 	USART2_SendString("Lat=");
@@ -515,7 +515,9 @@ static void AT_PrintPosition(Position* gps_position) {
 	// Altitude.
 	USART2_SendString(" Alt=");
 	USART2_SendValue((gps_position -> altitude), USART_FORMAT_DECIMAL, 0);
-	USART2_SendString("m\r\n");
+	USART2_SendString("m Fix=");
+	USART2_SendValue(gps_fix_duration, USART_FORMAT_DECIMAL, 0);
+	USART2_SendString("s\r\n");
 }
 
 /* PRINT SIGFOX DOWNLINK DATA ON USART.
@@ -545,7 +547,7 @@ static void AT_DecodeRxBuffer(void) {
 	sfx_u8 sfx_uplink_data[12] = {0x00};
 	sfx_u8 sfx_downlink_data[8] = {0x00};
 	sfx_error_t sfx_error = 0;
-	sfx_rc_t rc1 = TKFX_SIGFOX_RC;
+	sfx_rc_t rc1 = (sfx_rc_t) RC1;
 #endif
 	// Empty or too short command.
 	if (at_ctx.at_rx_buf_idx < AT_COMMAND_MIN_SIZE) {
@@ -567,12 +569,14 @@ static void AT_DecodeRxBuffer(void) {
 			if (get_param_result == AT_NO_ERROR) {
 				// Start GPS fix.
 				Position gps_position;
+				unsigned int gps_fix_duration = 0;
 				LPUART1_PowerOn();
-				NEOM8N_ReturnCode get_position_result = NEOM8N_GetPosition(&gps_position, timeout_seconds);
+				NEOM8N_ReturnCode get_position_result = NEOM8N_GetPosition(&gps_position, timeout_seconds, &gps_fix_duration);
 				LPUART1_PowerOff();
 				switch (get_position_result) {
 				case NEOM8N_SUCCESS:
-					AT_PrintPosition(&gps_position);
+					AT_PrintPosition(&gps_position, gps_fix_duration);
+
 					break;
 				case NEOM8N_TIMEOUT:
 					AT_ReplyError(AT_ERROR_SOURCE_AT, AT_OUT_ERROR_NEOM8N_TIMEOUT);
@@ -607,7 +611,7 @@ static void AT_DecodeRxBuffer(void) {
 			USART2_SendValue(supercap_voltage_mv, USART_FORMAT_DECIMAL, 0);
 			USART2_SendString("mV Vmcu=");
 			USART2_SendValue(mcu_supply_voltage_mv, USART_FORMAT_DECIMAL, 0);
-			USART2_SendString("mV\n");
+			USART2_SendString("mV\r\n");
 		}
 		// Temperature and humidity sensor command AT$THS?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_THS) == AT_NO_ERROR) {
@@ -617,7 +621,7 @@ static void AT_DecodeRxBuffer(void) {
 			I2C1_PowerOn();
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
-			SHT3X_GetTemperature(&sht3x_temperature_degrees);
+			SHT3X_GetTemperatureComp2(&sht3x_temperature_degrees);
 			SHT3X_GetHumidity(&sht3x_humidity_percent);
 			// Print results.
 			USART2_SendString("T=");
@@ -631,7 +635,7 @@ static void AT_DecodeRxBuffer(void) {
 			}
 			USART2_SendString("dC H=");
 			USART2_SendValue(sht3x_humidity_percent, USART_FORMAT_DECIMAL, 0);
-			USART2_SendString("%\n");
+			USART2_SendString("%\r\n");
 		}
 		// Accelerometer check command AT$ACC?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_ACC) == AT_NO_ERROR) {
@@ -642,7 +646,7 @@ static void AT_DecodeRxBuffer(void) {
 			// Print results.
 			USART2_SendString("WhoAmI=");
 			USART2_SendValue(mma8653fc_who_am_i, USART_FORMAT_HEXADECIMAL, 0);
-			USART2_SendString("\n");
+			USART2_SendString("\r\n");
 		}
 #endif
 #ifdef AT_COMMANDS_NVM
@@ -666,7 +670,7 @@ static void AT_DecodeRxBuffer(void) {
 					NVM_Disable();
 					// Print byte.
 					USART2_SendValue(nvm_byte, USART_FORMAT_HEXADECIMAL, 1);
-					USART2_SendString("\n");
+					USART2_SendString("\r\n");
 				}
 				else {
 					AT_ReplyError(AT_ERROR_SOURCE_AT, AT_OUT_ERROR_NVM_ADDRESS_OVERFLOW);
@@ -687,7 +691,7 @@ static void AT_DecodeRxBuffer(void) {
 				NVM_ReadByte((NVM_SIGFOX_ID_ADDRESS_OFFSET + ID_LENGTH - byte_idx - 1), &id_byte);
 				USART2_SendValue(id_byte, USART_FORMAT_HEXADECIMAL, (byte_idx==0 ? 1 : 0));
 			}
-			USART2_SendString("\n");
+			USART2_SendString("\r\n");
 			// Disable NVM interface.
 			NVM_Disable();
 		}
@@ -728,7 +732,7 @@ static void AT_DecodeRxBuffer(void) {
 				NVM_ReadByte((NVM_SIGFOX_KEY_ADDRESS_OFFSET + byte_idx), &id_byte);
 				USART2_SendValue(id_byte, USART_FORMAT_HEXADECIMAL, (byte_idx==0 ? 1 : 0));
 			}
-			USART2_SendString("\n");
+			USART2_SendString("\r\n");
 			// Disable NVM interface.
 			NVM_Disable();
 		}
@@ -905,7 +909,7 @@ static void AT_DecodeRxBuffer(void) {
 			}
 		}
 #endif
-#ifdef AT_COMMANDS_CW_RSSI
+#ifdef AT_COMMANDS_CW
 		// CW command AT$CW=<frequency_hz>,<enable>,<output_power_dbm><CR>.
 		else if (AT_CompareHeader(AT_IN_HEADER_CW) == AT_NO_ERROR) {
 			unsigned int frequency_hz = 0;
@@ -953,34 +957,6 @@ static void AT_DecodeRxBuffer(void) {
 					// Error in enable parameter.
 					AT_ReplyError(AT_ERROR_SOURCE_AT, get_param_result);
 				}
-			}
-			else {
-				// Error in frequency parameter.
-				AT_ReplyError(AT_ERROR_SOURCE_AT, get_param_result);
-			}
-		}
-		// RSSI report command AT$RSSI=<frequency_hz><CR>.
-		else if (AT_CompareHeader(AT_IN_HEADER_RSSI) == AT_NO_ERROR) {
-			// Parse frequency parameter.
-			unsigned int frequency_hz = 0;
-			get_param_result = AT_GetParameter(AT_PARAM_TYPE_DECIMAL, 1, &frequency_hz);
-			if (get_param_result == AT_NO_ERROR) {
-				RF_API_init(SFX_RF_MODE_RX);
-				RF_API_change_frequency(frequency_hz);
-				// Start continuous listening.
-				// TBD.
-				unsigned int rssi_print_start_time = TIM22_GetSeconds();
-				unsigned char rssi = 0;
-				while (TIM22_GetSeconds() < (rssi_print_start_time + AT_RSSI_REPORT_DURATION_SECONDS)) {
-					// TBD get RSSI.
-					USART2_SendString("RSSI = -");
-					USART2_SendValue(rssi, USART_FORMAT_DECIMAL, 0);
-					USART2_SendString("\n");
-					LPTIM1_DelayMilliseconds(500);
-				}
-				// Stop radio.
-				RF_API_stop();
-				AT_ReplyOk();
 			}
 			else {
 				// Error in frequency parameter.

@@ -20,9 +20,6 @@
 
 /*** NEOM8N local macros ***/
 
-#ifdef ATM
-//#define NEOM8N_PRINT_NMEA					// Print NMEA frames if defined.
-#endif
 #define NEOM8N_MSG_OVERHEAD_LENGTH			8 // 6 bytes header + 2 bytes checksum.
 #define NEOM8N_CHECKSUM_OVERHEAD_LENGTH		4
 #define NEOM8N_CHECKSUM_OFFSET				2
@@ -58,8 +55,8 @@ typedef struct {
 	// Buffers.
 	unsigned char nmea_rx_buf1[NMEA_RX_BUFFER_SIZE]; 	// NMEA input messages buffer 1.
 	unsigned char nmea_rx_buf2[NMEA_RX_BUFFER_SIZE]; 	// NMEA input messages buffer 2.
-	unsigned char nmea_rx_fill_buf1;					// 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
-	unsigned char nmea_rx_lf_flag;						// Set to '1' as soon as a complete NMEA message is received.
+	volatile unsigned char nmea_rx_fill_buf1;					// 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
+	volatile unsigned char nmea_rx_lf_flag;						// Set to '1' as soon as a complete NMEA message is received.
 	// Parsing.
 	unsigned char nmea_zda_parsing_success;				// Set to '1' as soon an NMEA ZDA message was successfully parsed.
 	unsigned char nmea_zda_data_valid;					// set to '1' if retrieved NMEA ZDA data is valid.
@@ -418,7 +415,6 @@ void NEOM8N_Init(void) {
 	unsigned int byte_idx = 0;
 	for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) neom8n_ctx.nmea_rx_buf1[byte_idx] = 0;
 	for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) neom8n_ctx.nmea_rx_buf2[byte_idx] = 0;
-	neom8n_ctx.nmea_rx_fill_buf1 = 1;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
 	neom8n_ctx.nmea_zda_parsing_success = 0;
 	neom8n_ctx.nmea_zda_data_valid = 0;
@@ -442,18 +438,19 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	neom8n_ctx.nmea_gga_same_altitude_count = 0;
 	neom8n_ctx.nmea_gga_previous_altitude = 0;
 	neom8n_ctx.nmea_gga_high_quality_flag = 0;
-	neom8n_ctx.nmea_rx_fill_buf1 = 1;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
-	// Select GGA message to get complete position.
-	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
 	// Reset fix duration and start RTC wake-up timer for timeout.
 	(*fix_duration_seconds) = 0;
 	RTC_StartWakeUpTimer(timeout_seconds);
+	// Select GGA message to get complete position.
+	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
 	// Lower clock during GPS fix.
 	RCC_SwitchToMsi();
+	LPUART1_UpdateBrr();
 	// Start DMA.
 	DMA1_InitChannel6();
 	DMA1_StopChannel6();
+	neom8n_ctx.nmea_rx_fill_buf1 = 1;
 	DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
 	DMA1_StartChannel6();
 	LPUART1_EnableRx();
@@ -466,23 +463,9 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 		if (neom8n_ctx.nmea_rx_lf_flag != 0) {
 			// Decode incoming NMEA message.
 			if (neom8n_ctx.nmea_rx_fill_buf1 != 0) {
-#ifdef NEOM8N_PRINT_NMEA
-				unsigned char byte_idx = 0;
-				for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) {
-					USART2_SendValue(neom8n_ctx.nmea_rx_buf2[byte_idx], USART_FORMAT_ASCII, 0);
-					if (neom8n_ctx.nmea_rx_buf2[byte_idx] == NMEA_LF) break;
-				}
-#endif
 				NEOM8N_ParseNmeaGgaMessage(neom8n_ctx.nmea_rx_buf2, &local_gps_position); // Buffer 1 is currently filled by DMA, buffer 2 is available for parsing.
 			}
 			else {
-#ifdef NEOM8N_PRINT_NMEA
-				unsigned char byte_idx = 0;
-				for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) {
-					USART2_SendValue(neom8n_ctx.nmea_rx_buf1[byte_idx], USART_FORMAT_ASCII, 0);
-					if (neom8n_ctx.nmea_rx_buf1[byte_idx] == NMEA_LF) break;
-				}
-#endif
 				NEOM8N_ParseNmeaGgaMessage(neom8n_ctx.nmea_rx_buf1, &local_gps_position); // Buffer 2 is currently filled by DMA, buffer 1 is available for parsing.
 			}
 			if (neom8n_ctx.nmea_gga_parsing_success != 0) {
@@ -529,6 +512,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	RTC_ClearWakeUpTimerFlag();
 	// Go back to HSI.
 	RCC_SwitchToHsi();
+	LPUART1_UpdateBrr();
 	// Return result.
 	return return_code;
 }
@@ -541,13 +525,13 @@ void NEOM8N_SwitchDmaBuffer(unsigned char lf_flag) {
 	// Stop and start DMA transfer to switch buffer.
 	DMA1_StopChannel6();
 	// Switch buffer.
-	if (neom8n_ctx.nmea_rx_fill_buf1 == 1) {
-		DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf2), NMEA_RX_BUFFER_SIZE); // Switch to buffer 2.
-		neom8n_ctx.nmea_rx_fill_buf1 = 0;
-	}
-	else {
+	if (neom8n_ctx.nmea_rx_fill_buf1 == 0) {
 		DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf1), NMEA_RX_BUFFER_SIZE); // Switch to buffer 1.
 		neom8n_ctx.nmea_rx_fill_buf1 = 1;
+	}
+	else {
+		DMA1_SetChannel6DestAddr((unsigned int) &(neom8n_ctx.nmea_rx_buf2), NMEA_RX_BUFFER_SIZE); // Switch to buffer 2.
+		neom8n_ctx.nmea_rx_fill_buf1 = 0;
 	}
 	// Update LF flag to start decoding or not.
 	neom8n_ctx.nmea_rx_lf_flag = lf_flag;

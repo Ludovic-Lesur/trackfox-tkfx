@@ -28,7 +28,7 @@
 #define USART_BAUD_RATE 		9600
 // TX buffer size.
 #define USART_TX_BUFFER_SIZE	512
-#define USART2_TIMEOUT_COUNT	1000
+#define USART2_TIMEOUT_COUNT	100000
 
 /*** USART local structures ***/
 

@@ -20,7 +20,6 @@
 /*** RCC local macros ***/
 
 #define RCC_MSI_RESET_FREQUENCY_KHZ		2100
-#define RCC_MSI_FREQUENCY_KHZ			65
 #define RCC_TCXO_FREQUENCY_KHZ			26000
 #define RCC_TIMEOUT_COUNT				10
 

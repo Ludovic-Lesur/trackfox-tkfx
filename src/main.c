@@ -405,29 +405,28 @@ int main (void) {
 int main (void) {
 	// Init memory.
 	NVIC_Init();
-	FLASH_Init();
 	NVM_Enable();
 	// Init GPIOs.
 	GPIO_Init();
-	// Init clocks.
+	EXTI_Init();
+	// Init clocks and RTC.
 	RCC_Init();
+	RTC_Reset();
+	RCC_EnableLsi();
+	unsigned char tkfx_use_lse = RCC_EnableLse();
+	RTC_Init(&tkfx_use_lse);
+	RTC_StopWakeUpTimer();
 	RCC_EnableGpio();
 	RCC_SwitchToHsi();
 	// Timers.
-	TIM21_Init();
-	TIM22_Init();
-	TIM21_Start();
-	TIM22_Start();
-	LPTIM1_Init(0);
+	LPTIM1_Init();
 	// DMA.
 	DMA1_InitChannel3();
 	DMA1_InitChannel6();
 	// Analog.
 	ADC1_Init();
-	// External interrupts.
-	EXTI_Init();
 	// Communication interfaces.
-	LPUART1_Init();
+	LPUART1_Init(tkfx_use_lse);
 	USART2_Init();
 	I2C1_Init();
 	SPI1_Init();
@@ -446,7 +445,6 @@ int main (void) {
 	AT_Init();
 	// Main loop.
 	while (1) {
-		PWR_EnterLowPowerSleepMode();
 		AT_Task();
 	}
 	return 0;
