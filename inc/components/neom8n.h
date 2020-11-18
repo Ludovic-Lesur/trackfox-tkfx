@@ -10,6 +10,8 @@
 
 /*** NEOM8N macros ***/
 
+//#define NEOM8N_USE_VBCKP // Manage VBCKP pin if defined.
+
 #define NMEA_CR		'\r'
 #define NMEA_LF		'\n'
 
@@ -38,6 +40,9 @@ typedef enum {
 /*** NEOM8N user functions ***/
 
 void NEOM8N_Init(void);
+#if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
+void NEOM8N_SetVbckp(unsigned char vbckp_on);
+#endif
 NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int* fix_duration_seconds);
 
 /*** NEOM8N utility functions ***/

@@ -411,6 +411,11 @@ static void NEOM8N_SelectNmeaMessages(unsigned int nmea_message_id_mask) {
  * @return:	None.
  */
 void NEOM8N_Init(void) {
+	// Init backup pin if required.
+#if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
+	GPIO_Configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Write(&GPIO_GPS_VBCKP, 0);
+#endif
 	// Init context.
 	unsigned int byte_idx = 0;
 	for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) neom8n_ctx.nmea_rx_buf1[byte_idx] = 0;
@@ -423,6 +428,17 @@ void NEOM8N_Init(void) {
 	neom8n_ctx.nmea_gga_previous_altitude = 0;
 	neom8n_ctx.nmea_gga_high_quality_flag = 0;
 }
+
+#if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
+/* CONTROL BACKUP PIN.
+ * @param vbckp_on:	Turn on (1) or off (0) GPS backup pin.
+ * @return:			None.
+ */
+void NEOM8N_SetVbckp(unsigned char vbckp_on) {
+	// Set backup pin.
+	GPIO_Write(&GPIO_GPS_VBCKP, vbckp_on);
+}
+#endif
 
 /* GET CURRENT GPS POSITION VIA NMEA GGA MESSAGES.
  * @param gps_position:			Pointer to GPS position structure that will contain the data.

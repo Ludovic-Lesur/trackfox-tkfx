@@ -11,14 +11,21 @@
 #include "gpio.h"
 #include "gpio_reg.h"
 
-#ifdef HW1_0
 // Accelerometer.
+#ifdef HW1_0
 static const GPIO GPIO_ACCELERO_IRQ =			(GPIO) {GPIOA, 0, 1, 0};
+#endif
+#ifdef HW1_1
+static const GPIO GPIO_ACCELERO_IRQ =			(GPIO) {GPIOA, 0, 0, 0};
+#endif
 // LPUART1 (GPS).
 static const GPIO GPIO_LPUART1_TX =				(GPIO) {GPIOA, 0, 2, 6};
 static const GPIO GPIO_LPUART1_RX =				(GPIO) {GPIOA, 0, 3, 6};
-// GPS power control.
+// GPS power control and backup.
 static const GPIO GPIO_GPS_POWER_ENABLE =		(GPIO) {GPIOA, 0, 5, 0};
+#ifdef HW1_1
+static const GPIO GPIO_GPS_VBCKP =				(GPIO) {GPIOA, 0, 1, 0};
+#endif
 // ADC inputs.
 static const GPIO GPIO_ADC1_IN6 =				(GPIO) {GPIOA, 0, 6, 0};
 static const GPIO GPIO_ADC1_IN7 =				(GPIO) {GPIOA, 0, 7, 0};
@@ -29,7 +36,12 @@ static const GPIO GPIO_TCXO_POWER_ENABLE =		(GPIO) {GPIOA, 0, 8, 0};
 static const GPIO GPIO_USART2_TX =				(GPIO) {GPIOA, 0, 9, 4};
 static const GPIO GPIO_USART2_RX =				(GPIO) {GPIOA, 0, 10, 4};
 // S2LP.
+#ifdef HW1_0
 static const GPIO GPIO_S2LP_GPIO3 =				(GPIO) {GPIOA, 0, 11, 0};
+#endif
+#ifdef HW1_1
+static const GPIO GPIO_S2LP_SDN =				(GPIO) {GPIOA, 0, 11, 0};
+#endif
 static const GPIO GPIO_S2LP_GPIO0 =				(GPIO) {GPIOA, 0, 12, 0};
 // Programming.
 static const GPIO GPIO_SWDIO =					(GPIO) {GPIOA, 0, 13, 0};
@@ -50,6 +62,5 @@ static const GPIO GPIO_I2C1_SCL	=				(GPIO) {GPIOB, 1, 6, 1};
 static const GPIO GPIO_I2C1_SDA	=				(GPIO) {GPIOB, 1, 7, 1};
 // Sensors power control.
 static const GPIO GPIO_SENSORS_POWER_ENABLE =	(GPIO) {GPIOB, 1, 8, 0};
-#endif
 
 #endif /* MAPPING_H */

@@ -25,7 +25,7 @@
  * @return:	None.
  */
 void EXTI0_1_IRQHandler(void) {
-	// Accelero IRQ (PA1).
+	// Accelero IRQ (PA0 or PA1).
 	if (((EXTI -> PR) & (0b1 << (GPIO_ACCELERO_IRQ.gpio_num))) != 0) {
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.gpio_num)); // PIFx='1' (writing '1' clears the bit).
@@ -39,7 +39,7 @@ void EXTI0_1_IRQHandler(void) {
  * @return:	None.
  */
 void EXTI2_3_IRQHandler(void) {
-	// Can be used for TP1 (PA4).
+	// Can be used for TP2 (PA4).
 }
 
 /* EXTI LINES 4-15 INTERRUPT HANDLER.
@@ -47,15 +47,10 @@ void EXTI2_3_IRQHandler(void) {
  * @return:	None.
  */
 void EXTI4_15_IRQHandler(void) {
-	// S2LP GPIO0
+	// S2LP GPIO0 (PA12).
 	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.gpio_num))) != 0) {
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.gpio_num)); // PIFx='1' (writing '1' clears the bit).
-	}
-	// S2LP GPIO3
-	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO3.gpio_num))) != 0) {
-		// Clear flag.
-		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO3.gpio_num)); // PIFx='1' (writing '1' clears the bit).
 	}
 }
 
