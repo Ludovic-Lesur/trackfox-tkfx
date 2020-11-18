@@ -16,6 +16,7 @@
 #include "nvic.h"
 #include "pwr.h"
 #include "rcc.h"
+#include "rtc.h"
 #include "s2lp.h"
 #include "sigfox_api.h"
 #include "sigfox_types.h"
@@ -44,12 +45,24 @@ static const unsigned char rf_api_etsi_bit0_amplitude_profile[RF_API_SYMBOL_PROF
 // Downlink parameters.
 #define RF_API_DOWNLINK_FRAME_LENGTH_BYTES		15
 #define RF_API_DOWNLINK_TIMEOUT_SECONDS			25
-#define RF_API_ESTI_DOWNLINK_DATARATE			S2LP_DATARATE_600BPS
-#define RF_API_ETSI_DOWNLINK_DEVIATION			S2LP_FDEV_800HZ
+#define RF_API_DOWNLINK_DATARATE				S2LP_DATARATE_600BPS
+#define RF_API_DOWNLINK_DEVIATION				S2LP_FDEV_800HZ
+#define RF_API_DOWNLINK_PREAMBLE_LENGTH_BITS	32 // 0xAAAAAAAA.
+#define RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS	16 // 0xB227.
+#define RF_API_WAIT_FRAME_CALLS_MAX				100
+static unsigned char downlink_sync_word[(RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS / 8)] = {0xB2, 0x27};
+
+/*** RF API local structures ***/
+
+typedef struct {
+	unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES];
+	unsigned int rf_api_wait_frame_calls_count;
+	volatile unsigned char rf_api_s2lp_irq_flag;
+} RF_API_Context;
 
 /*** RF API local global variables ***/
 
-static unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES];
+static RF_API_Context rf_api_ctx;
 
 /*** RF API functions ***/
 
@@ -70,26 +83,32 @@ static unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTE
  * \retval RF_ERR_API_INIT:          Init Radio link error
  *******************************************************************/
 sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
+	// Clear watchdog.
+	IWDG_Reload();
 	// Init required peripherals.
 	DMA1_InitChannel3();
 	SPI1_Init();
-	S2LP_Init();
 	// Turn transceiver on.
 	SPI1_PowerOn();
 	// Turn TCXO on.
 	RCC_EnableGpio();
 	RCC_Tcxo(1);
+	// Exit shutdown.
+	S2LP_ExitShutdown();
 	// TX/RX common init.
 	S2LP_SendCommand(S2LP_CMD_SRES);
 	S2LP_SendCommand(S2LP_CMD_STANDBY);
 	S2LP_WaitForStateSwitch(S2LP_STATE_STANDBY);
 	S2LP_SetOscillator(S2LP_OSCILLATOR_TCXO);
-	S2LP_ConfigureSmps();
 	S2LP_ConfigureChargePump();
 	// Dedicated configurations.
 	switch (rf_mode) {
 	case SFX_RF_MODE_TX:
+		// Configure GPIO.
+		GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+		EXTI_ConfigureGpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
 		// Uplink.
+		S2LP_ConfigureSmps(S2LP_SMPS_TX);
 		S2LP_ConfigurePa();
 		S2LP_SetModulation(S2LP_MODULATION_POLAR);
 		S2LP_SetTxSource(S2LP_TX_SOURCE_FIFO);
@@ -99,10 +118,28 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		S2LP_ConfigureGpio(0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_FIFO_EMPTY, 0);
 		break;
 	case SFX_RF_MODE_RX:
+		// Reset call counter.
+		rf_api_ctx.rf_api_wait_frame_calls_count = 0;
+		// Configure GPIO.
+		GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_UP);
+		EXTI_ConfigureGpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_FALLING_EDGE);
 		// Downlink.
+		S2LP_ConfigureSmps(S2LP_SMPS_RX);
 		S2LP_SetModulation(S2LP_MODULATION_2GFSK_BT1);
-		S2LP_SetFskDeviation(RF_API_ETSI_DOWNLINK_DEVIATION);
-		S2LP_SetBitRate(RF_API_ESTI_DOWNLINK_DATARATE);
+		S2LP_SetFskDeviation(RF_API_DOWNLINK_DEVIATION);
+		S2LP_SetBitRate(RF_API_DOWNLINK_DATARATE);
+		S2LP_SetRxBandwidth(S2LP_RXBW_2KHZ1);
+		S2LP_ConfigureGpio(0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_NIRQ, 1);
+		S2LP_ConfigureIrq(S2LP_IRQ_RX_DATA_READY_IDX, 1);
+		// Downlink packet structure.
+		S2LP_SetPreambleDetector((RF_API_DOWNLINK_PREAMBLE_LENGTH_BITS / 2), S2LP_PREAMBLE_PATTERN_1010);
+		S2LP_SetSyncWord(downlink_sync_word, RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS);
+		S2LP_SetPacketlength(RF_API_DOWNLINK_FRAME_LENGTH_BYTES);
+		S2LP_DisableCrc();
+		// Disable CS blanking, equalization and antenna switching.
+		S2LP_DisableEquaCsAntSwitch();
+		// FIFO.
+		S2LP_SetRxSource(S2LP_RX_SOURCE_NORMAL);
 		break;
 	default:
 		// Unknwon mode.
@@ -123,6 +160,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
  *******************************************************************/
 sfx_u8 RF_API_stop(void) {
 	// Turn transceiver and TCXO off.
+	S2LP_EnterShutdown();
 	SPI1_PowerOff();
 	RCC_Tcxo(0);
 	RCC_DisableGpio();
@@ -161,11 +199,11 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
 	// First ramp-up.
 	for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
-		rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // No deviation.
-		rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_ramp_amplitude_profile[RF_API_SYMBOL_PROFILE_LENGTH_BYTES - s2lp_fifo_sample_idx - 1]; // PA output power for ramp-up.
+		rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // No deviation.
+		rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_ramp_amplitude_profile[RF_API_SYMBOL_PROFILE_LENGTH_BYTES - s2lp_fifo_sample_idx - 1]; // PA output power for ramp-up.
 	}
 	// Transfer ramp-up buffer to S2LP FIFO.
-	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
+	S2LP_WriteFifo(rf_api_ctx.rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Enable external GPIO interrupt.
 	EXTI_ClearAllFlags();
 	NVIC_EnableInterrupt(IT_EXTI_4_15);
@@ -179,37 +217,37 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 				// Phase shift and amplitude shaping required.
 				s2lp_fdev = (s2lp_fdev == RF_API_S2LP_FDEV_NEGATIVE) ? RF_API_S2LP_FDEV_POSITIVE : RF_API_S2LP_FDEV_NEGATIVE; // Toggle deviation.
 				for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
-					rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = (s2lp_fifo_sample_idx == RF_API_S2LP_FIFO_BUFFER_FDEV_IDX) ? s2lp_fdev : 0; // Deviation.
-					rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_bit0_amplitude_profile[s2lp_fifo_sample_idx]; // PA output power.
+					rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = (s2lp_fifo_sample_idx == RF_API_S2LP_FIFO_BUFFER_FDEV_IDX) ? s2lp_fdev : 0; // Deviation.
+					rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_bit0_amplitude_profile[s2lp_fifo_sample_idx]; // PA output power.
 				}
 			}
 			else {
 				// Constant CW.
 				for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
-					rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // No deviation.
-					rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = 1; // Constant PA output power.
+					rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // No deviation.
+					rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = 1; // Constant PA output power.
 				}
 			}
 			// Enter stop and wait for S2LP interrupt to transfer next bit buffer.
 			PWR_EnterStopMode();
-			S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
+			S2LP_WriteFifo(rf_api_ctx.rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 		}
 	}
 	// Last ramp down.
 	for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
-		rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // FDEV.
-		rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_ramp_amplitude_profile[s2lp_fifo_sample_idx]; // PA output power for ramp-down.
+		rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx)] = 0; // FDEV.
+		rf_api_ctx.rf_api_s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = rf_api_etsi_ramp_amplitude_profile[s2lp_fifo_sample_idx]; // PA output power for ramp-down.
 	}
 	// Enter stop and wait for S2LP interrupt to transfer ramp-down buffer.
 	PWR_EnterStopMode();
-	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
+	S2LP_WriteFifo(rf_api_ctx.rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Padding bit to ensure ramp-down is completely transmitted.
 	for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
-		rf_api_s2lp_fifo_buffer[s2lp_fifo_sample_idx] = 0;
+		rf_api_ctx.rf_api_s2lp_fifo_buffer[s2lp_fifo_sample_idx] = 0;
 	}
 	// Enter stop and wait for S2LP interrupt to transfer padding buffer.
 	PWR_EnterStopMode();
-	S2LP_WriteFifo(rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
+	S2LP_WriteFifo(rf_api_ctx.rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Enter stop and wait for S2LP interrupt.
 	PWR_EnterStopMode();
 	// Disable external GPIO interrupt.
@@ -301,8 +339,60 @@ sfx_u8 RF_API_change_frequency(sfx_u32 frequency) {
  * \retval SFX_ERR_NONE:                      No error
  *******************************************************************/
 sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * state) {
-	// TBD.
-	return SFX_ERR_NONE;
+	// Init state.
+	(*state) = DL_TIMEOUT;
+	sfx_error_t sfx_err = RF_ERR_API_WAIT_FRAME;
+	// Manage call count.
+	rf_api_ctx.rf_api_wait_frame_calls_count++;
+	if (rf_api_ctx.rf_api_wait_frame_calls_count < RF_API_WAIT_FRAME_CALLS_MAX) {
+		// Got to ready state.
+		S2LP_SendCommand(S2LP_CMD_READY);
+		S2LP_WaitForStateSwitch(S2LP_STATE_READY);
+		S2LP_SendCommand(S2LP_CMD_FLUSHRXFIFO);
+		S2LP_ClearIrqFlags();
+		rf_api_ctx.rf_api_s2lp_irq_flag = 0;
+		// Start radio.
+		S2LP_SendCommand(S2LP_CMD_RX);
+		// Enable external GPIO.
+		EXTI_ClearAllFlags();
+		NVIC_EnableInterrupt(IT_EXTI_4_15);
+		// Clear watchdog.
+		IWDG_Reload();
+		// Enter stop mode until GPIO interrupt or RTC wake-up.
+		unsigned int remaining_delay = RF_API_DOWNLINK_TIMEOUT_SECONDS;
+		unsigned int sub_delay = 0;
+		while ((remaining_delay > 0) && (rf_api_ctx.rf_api_s2lp_irq_flag == 0)) {
+			// Compute sub-delay.
+			sub_delay = (remaining_delay > IWDG_REFRESH_PERIOD_SECONDS) ? (IWDG_REFRESH_PERIOD_SECONDS) : (remaining_delay);
+			remaining_delay -= sub_delay;
+			// Start wake-up timer.
+			RTC_StartWakeUpTimer(sub_delay);
+			PWR_EnterStopMode();
+			// Wake-up: clear watchdog and flags.
+			IWDG_Reload();
+			RTC_ClearWakeUpTimerFlag();
+			EXTI_ClearAllFlags();
+		}
+		// Wake-up: disable interrupts.
+		RTC_StopWakeUpTimer();
+		NVIC_DisableInterrupt(IT_EXTI_4_15);
+		// Check flag.
+		if (rf_api_ctx.rf_api_s2lp_irq_flag != 0) {
+			// Downlink frame received.
+			(*state) = DL_PASSED;
+			sfx_err = SFX_ERR_NONE;
+			S2LP_ReadFifo(frame, RF_API_DOWNLINK_FRAME_LENGTH_BYTES);
+			(*rssi) = (sfx_s16) S2LP_GetRssi();
+		}
+		// Stop radio.
+		S2LP_SendCommand(S2LP_CMD_SABORT);
+		S2LP_WaitForStateSwitch(S2LP_STATE_READY);
+		S2LP_SendCommand(S2LP_CMD_FLUSHRXFIFO);
+		S2LP_SendCommand(S2LP_CMD_STANDBY);
+		S2LP_WaitForStateSwitch(S2LP_STATE_STANDBY);
+	}
+	// Return.
+	return sfx_err;
 }
 
 /*!******************************************************************
@@ -341,4 +431,17 @@ sfx_u8 RF_API_wait_for_clear_channel(sfx_u8 cs_min, sfx_s8 cs_threshold, sfx_rx_
  *******************************************************************/
 sfx_u8 RF_API_get_version(sfx_u8 **version, sfx_u8 *size) {
 	return SFX_ERR_NONE;
+}
+
+/*!******************************************************************
+ * \fn sfx_u8 RF_API_SetIrqFlag(void)
+ * \brief Set S2LP IRQ flag.
+ *
+ * \param[in] none
+ * \param[out] none
+ *
+ * \retval none
+ *******************************************************************/
+void RF_API_SetIrqFlag(void) {
+	rf_api_ctx.rf_api_s2lp_irq_flag = 1;
 }

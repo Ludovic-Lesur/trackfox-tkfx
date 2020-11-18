@@ -236,4 +236,15 @@ sfx_u8 RF_API_wait_for_clear_channel(sfx_u8 cs_min, sfx_s8 cs_threshold, sfx_rx_
  *******************************************************************/
 sfx_u8 RF_API_get_version(sfx_u8** version, sfx_u8* size);
 
+/*!******************************************************************
+ * \fn sfx_u8 RF_API_SetIrqFlag(void)
+ * \brief Set S2LP IRQ flag.
+ *
+ * \param[in] none
+ * \param[out] none
+ *
+ * \retval none
+ *******************************************************************/
+void RF_API_SetIrqFlag(void);
+
 #endif /* RF_API_H */

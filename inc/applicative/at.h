@@ -20,6 +20,7 @@
 #define AT_COMMANDS_NVM
 #define AT_COMMANDS_SIGFOX
 #define AT_COMMANDS_CW
+#define AT_COMMANDS_TEST_MODES
 
 /*** AT user functions ***/
 

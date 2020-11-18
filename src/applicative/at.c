@@ -8,6 +8,7 @@
 #include "at.h"
 
 #include "adc.h"
+#include "addon_sigfox_rf_protocol_api.h"
 #include "aes.h"
 #include "flash_reg.h"
 #include "i2c.h"
@@ -59,7 +60,6 @@
 #define AT_IN_HEADER_SF									"AT$SF="		// AT$SF=<uplink_data>,<downlink_request><CR>.
 #define AT_IN_HEADER_SB									"AT$SB="		// AT$SB=<bit><CR>.
 #define AT_IN_HEADER_CW									"AT$CW="		// AT$CW=<frequency_hz>,<enable>,<output_power_dbm><CR>.
-#define AT_IN_HEADER_RSSI								"AT$RSSI="		// AT$RSSI=<frequency_hz><CR>.
 #define AT_IN_HEADER_TM									"AT$TM="		// AT$TM=<rc>,<test_mode><CR>.
 
 // Output commands without data.
@@ -80,23 +80,20 @@
 #define AT_OUT_ERROR_PARAM_HEXA_INVALID_CHAR			0x07 			// Invalid character found in hexadecimal parameter.
 #define AT_OUT_ERROR_PARAM_HEXA_OVERFLOW				0x08 			// Parameter value overflow (> 32 bits).
 #define AT_OUT_ERROR_PARAM_DEC_INVALID_CHAR				0x09 			// Invalid character found in decimal parameter.
-#define AT_OUT_ERROR_PARAM_DEC_OVERFLOW					0x0A 			// Invalid length when parsing byte array.
-#define AT_OUT_ERROR_PARAM_BYTE_ARRAY_INVALID_LENGTH	0x0B
+#define AT_OUT_ERROR_PARAM_DEC_OVERFLOW					0x0A 			// Decimal parameter overflow.
+#define AT_OUT_ERROR_PARAM_BYTE_ARRAY_INVALID_LENGTH	0x0B			// Invalid length when parsing byte array.
 
 // Parameters errors
-#define AT_OUT_ERROR_TIMEOUT_OVERFLOW					0x80			// Timeout is too large.
-#define AT_OUT_ERROR_NVM_ADDRESS_OVERFLOW				0x81			// Address offset exceeds NVM size.
-#define AT_OUT_ERROR_RF_FREQUENCY_UNDERFLOW				0x82			// RF frequency is too low.
-#define AT_OUT_ERROR_RF_FREQUENCY_OVERFLOW				0x83			// RF frequency is too high.
-#define AT_OUT_ERROR_RF_OUTPUT_POWER_OVERFLOW			0x84			// RF output power is too high.
-#define AT_OUT_ERROR_UNKNOWN_RC							0x85			// Unknown RC.
-#define AT_OUT_ERROR_UNKNOWN_TEST_MODE					0x86			// Unknown test mode.
+#define AT_OUT_ERROR_NVM_ADDRESS_OVERFLOW				0x80			// Address offset exceeds NVM size.
+#define AT_OUT_ERROR_RF_FREQUENCY_UNDERFLOW				0x81			// RF frequency is too low.
+#define AT_OUT_ERROR_RF_FREQUENCY_OVERFLOW				0x82			// RF frequency is too high.
+#define AT_OUT_ERROR_RF_OUTPUT_POWER_OVERFLOW			0x83			// RF output power is too high.
+#define AT_OUT_ERROR_UNKNOWN_RC							0x84			// Unknown Sigfox RC.
+#define AT_OUT_ERROR_UNKNOWN_TEST_MODE					0x85			// Unknwon Sigfox test mode.
+#define AT_OUT_ERROR_TIMEOUT_OVERFLOW					0x86			// Timeout is too large.
 
 // Components errors
 #define AT_OUT_ERROR_NEOM8N_TIMEOUT						0x87			// GPS timeout.
-
-// Duration of RSSI command.
-#define AT_RSSI_REPORT_DURATION_SECONDS					60
 
 /*** AT local structures ***/
 
@@ -547,7 +544,7 @@ static void AT_DecodeRxBuffer(void) {
 	sfx_u8 sfx_uplink_data[12] = {0x00};
 	sfx_u8 sfx_downlink_data[8] = {0x00};
 	sfx_error_t sfx_error = 0;
-	sfx_rc_t rc1 = (sfx_rc_t) RC1;
+	sfx_rc_t rc1 = RC1;
 #endif
 	// Empty or too short command.
 	if (at_ctx.at_rx_buf_idx < AT_COMMAND_MIN_SIZE) {
@@ -618,9 +615,11 @@ static void AT_DecodeRxBuffer(void) {
 			signed char sht3x_temperature_degrees = 0;
 			unsigned char sht3x_humidity_percent = 0;
 			// Perform measurements.
+			I2C1_Init();
 			I2C1_PowerOn();
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
+			I2C1_Disable();
 			SHT3X_GetTemperatureComp2(&sht3x_temperature_degrees);
 			SHT3X_GetHumidity(&sht3x_humidity_percent);
 			// Print results.
@@ -640,9 +639,11 @@ static void AT_DecodeRxBuffer(void) {
 		// Accelerometer check command AT$ACC?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_ACC) == AT_NO_ERROR) {
 			// Get sensor ID.
+			I2C1_Init();
 			I2C1_PowerOn();
 			unsigned char mma8653fc_who_am_i = MMA8653FC_GetId();
 			I2C1_PowerOff();
+			I2C1_Disable();
 			// Print results.
 			USART2_SendString("WhoAmI=");
 			USART2_SendValue(mma8653fc_who_am_i, USART_FORMAT_HEXADECIMAL, 0);
@@ -797,7 +798,7 @@ static void AT_DecodeRxBuffer(void) {
 					}
 					SIGFOX_API_close();
 					if (sfx_error == SFX_ERR_NONE) {
-						if (downlink_request == 1) {
+						if (downlink_request != 0) {
 							AT_PrintDownlinkData(sfx_downlink_data);
 						}
 						AT_ReplyOk();
@@ -866,10 +867,9 @@ static void AT_DecodeRxBuffer(void) {
 					if (sfx_error == SFX_ERR_NONE) {
 						sfx_error = SIGFOX_API_send_frame(sfx_uplink_data, extracted_length, sfx_downlink_data, 2, downlink_request);
 					}
-
 					SIGFOX_API_close();
 					if (sfx_error == SFX_ERR_NONE) {
-						if (downlink_request == 1) {
+						if (downlink_request != 0) {
 							AT_PrintDownlinkData(sfx_downlink_data);
 						}
 						AT_ReplyOk();
@@ -960,6 +960,52 @@ static void AT_DecodeRxBuffer(void) {
 			}
 			else {
 				// Error in frequency parameter.
+				AT_ReplyError(AT_ERROR_SOURCE_AT, get_param_result);
+			}
+		}
+#endif
+#ifdef AT_COMMANDS_TEST_MODES
+		// Sigfox test mode command AT$TM=<rc>,<test_mode><CR>.
+		else if (AT_CompareHeader(AT_IN_HEADER_TM) == AT_NO_ERROR) {
+			unsigned int rc = 0;
+			// Search RC parameter.
+			get_param_result = AT_GetParameter(AT_PARAM_TYPE_DECIMAL, 0, &rc);
+			if (get_param_result == AT_NO_ERROR) {
+				// Check value.
+				if (rc < SFX_RC_LIST_MAX_SIZE) {
+					// Search test mode number.
+					unsigned int test_mode = 0;
+					get_param_result =  AT_GetParameter(AT_PARAM_TYPE_DECIMAL, 1, &test_mode);
+					if (get_param_result == AT_NO_ERROR) {
+						// Check parameters.
+						if (test_mode <= SFX_TEST_MODE_NVM) {
+							// Call test mode function wth public key.
+							sfx_error = ADDON_SIGFOX_RF_PROTOCOL_API_test_mode(rc, test_mode);
+							if (sfx_error == SFX_ERR_NONE) {
+								AT_ReplyOk();
+							}
+							else {
+								// Error from Sigfox library.
+								AT_ReplyError(AT_ERROR_SOURCE_SFX, sfx_error);
+							}
+						}
+						else {
+							// Invalid test mode.
+							AT_ReplyError(AT_ERROR_SOURCE_AT, AT_OUT_ERROR_UNKNOWN_TEST_MODE);
+						}
+					}
+					else {
+						// Error in test_mode parameter.
+						AT_ReplyError(AT_ERROR_SOURCE_AT, get_param_result);
+					}
+				}
+				else {
+					// Invalid RC.
+					AT_ReplyError(AT_ERROR_SOURCE_AT, AT_OUT_ERROR_UNKNOWN_RC);
+				}
+			}
+			else {
+				// Error in RC parameter.
 				AT_ReplyError(AT_ERROR_SOURCE_AT, get_param_result);
 			}
 		}

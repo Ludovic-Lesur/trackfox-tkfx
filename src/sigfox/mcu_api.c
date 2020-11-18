@@ -9,13 +9,14 @@
 
 #include "adc.h"
 #include "aes.h"
+#include "exti.h"
 #include "i2c.h"
+#include "iwdg.h"
 #include "lptim.h"
 #include "nvm.h"
 #include "pwr.h"
 #include "rtc.h"
 #include "sht3x.h"
-#include "sigfox_api.h"
 #include "sigfox_types.h"
 #include "usart.h"
 
@@ -27,13 +28,12 @@
 
 typedef struct {
 	sfx_u8 mcu_api_malloc_buffer[MCU_API_MALLOC_BUFFER_SIZE];
-	sfx_u16 mcu_api_timer_start_time_seconds;
 	sfx_u32 mcu_api_timer_duration_seconds;
 } MCU_API_Context;
 
 /*** MCU API local global variables ***/
 
-MCU_API_Context mcu_api_ctx;
+static MCU_API_Context mcu_api_ctx;
 
 /*** MCU API functions ***/
 
@@ -324,8 +324,8 @@ sfx_u8 MCU_API_timer_start_carrier_sense(sfx_u16 time_duration_in_ms) {
  * \retval MCU_ERR_API_TIMER_START:              Start timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_start(sfx_u32 time_duration_in_s) {
-	// Start wake-up timer.
-	RTC_StartWakeUpTimer(time_duration_in_s);
+	// Save duration.
+	mcu_api_ctx.mcu_api_timer_duration_seconds = time_duration_in_s;
 	return SFX_ERR_NONE;
 }
 
@@ -340,9 +340,8 @@ sfx_u8 MCU_API_timer_start(sfx_u32 time_duration_in_s) {
  * \retval MCU_ERR_API_TIMER_STOP:               Stop timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_stop(void) {
-	// Start wake-up timer.
+	// Stop wake-up timer.
 	RTC_StopWakeUpTimer();
-	RTC_ClearWakeUpTimerFlag();
 	return SFX_ERR_NONE;
 }
 
@@ -373,8 +372,23 @@ sfx_u8 MCU_API_timer_stop_carrier_sense(void) {
  * \retval MCU_ERR_API_TIMER_END:                Wait end of timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_wait_for_end(void) {
-	// Enter stop mode until RTC wake-up.
-	PWR_EnterStopMode();
+	// Clear watchdog.
+	IWDG_Reload();
+	// Enter stop mode until GPIO interrupt or RTC wake-up.
+	unsigned int remaining_delay = mcu_api_ctx.mcu_api_timer_duration_seconds;
+	unsigned int sub_delay = 0;
+	while (remaining_delay > 0) {
+		// Compute sub-delay.
+		sub_delay = (remaining_delay > IWDG_REFRESH_PERIOD_SECONDS) ? (IWDG_REFRESH_PERIOD_SECONDS) : (remaining_delay);
+		remaining_delay -= sub_delay;
+		// Start wake-up timer.
+		RTC_StartWakeUpTimer(sub_delay);
+		PWR_EnterStopMode();
+		// Wake-up: clear watchdog and flags.
+		IWDG_Reload();
+		RTC_ClearWakeUpTimerFlag();
+		EXTI_ClearAllFlags();
+	}
 	return SFX_ERR_NONE;
 }
 
@@ -397,13 +411,14 @@ sfx_u8 MCU_API_report_test_result(sfx_bool status, sfx_s16 rssi) {
 #ifdef ATM
 	// Print test result on UART.
 	if (status == SFX_TRUE) {
-		USART2_SendString("Test passed. RSSI = -");
+		USART2_SendString("Test passed. RSSI=-");
 		USART2_SendValue(((unsigned int) ((-1) * rssi)), USART_FORMAT_DECIMAL, 0);
+		USART2_SendString("dBm");
 	}
 	else {
 		USART2_SendString("Test failed. ");
 	}
-	USART2_SendString("\n");
+	USART2_SendString("\r\n");
 #endif
 	return SFX_ERR_NONE;
 }
@@ -456,6 +471,7 @@ sfx_u8 MCU_API_get_device_id_and_payload_encryption_flag(sfx_u8 dev_id[ID_LENGTH
  * \retval MCU_ERR_API_GET_MSG_COUNTER_ROLLOVER: Error when getting msg counter rollover
  *******************************************************************/
 sfx_u8 MCU_API_get_msg_counter_rollover(e_sfx_msg_counter_rollover* msgCounterRollover) {
+	(*msgCounterRollover) = SFX_MSG_COUNTER_ROLLOVER_4096;
 	return SFX_ERR_NONE;
 }
 

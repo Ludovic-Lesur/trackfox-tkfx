@@ -403,50 +403,46 @@ int main (void) {
  * @return: 0.
  */
 int main (void) {
+	// Start LSI clock and watchdog.
+	RCC_EnableLsi();
+	IWDG_Init();
 	// Init memory.
 	NVIC_Init();
 	NVM_Enable();
 	// Init GPIOs.
 	GPIO_Init();
 	EXTI_Init();
-	// Init clocks and RTC.
+	// Init clock.
 	RCC_Init();
+	RCC_SwitchToHsi();
+	// Reset RTC before starting oscillators.
 	RTC_Reset();
-	RCC_EnableLsi();
+	// Init RTC and timers.
 	unsigned char tkfx_use_lse = RCC_EnableLse();
 	RTC_Init(&tkfx_use_lse);
-	RTC_StopWakeUpTimer();
-	RCC_EnableGpio();
-	RCC_SwitchToHsi();
-	// Timers.
 	LPTIM1_Init();
-	// DMA.
-	DMA1_InitChannel3();
-	DMA1_InitChannel6();
-	// Analog.
+	// Init peripherals.
 	ADC1_Init();
-	// Communication interfaces.
-	LPUART1_Init(tkfx_use_lse);
 	USART2_Init();
-	I2C1_Init();
-	SPI1_Init();
-	// Hardware AES.
-	AES_Init();
+	LPUART1_Init(tkfx_use_lse);
 	// Components.
 	NEOM8N_Init();
 	SHT3X_Init();
-	S2LP_Init();
 	MMA8653FC_Init();
 	// Configure accelerometer.
+	I2C1_Init();
 	I2C1_PowerOn();
 	MMA8653FC_WriteConfig(&(mma8653_tkfx_config[0]), MMA8653FC_TKFX_CONFIG_SIZE);
 	I2C1_PowerOff();
+	I2C1_Disable();
 	// Applicative layers.
 	AT_Init();
 	// Main loop.
 	while (1) {
 		AT_Task();
+		IWDG_Reload();
 	}
 	return 0;
 }
 #endif
+
