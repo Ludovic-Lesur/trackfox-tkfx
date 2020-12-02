@@ -17,7 +17,7 @@
 
 /*** Debug mode ***/
 
-#define DEBUG		// Use programming pins for debug purpose if defined.
+//#define DEBUG		// Use programming pins for debug purpose if defined.
 
 /*** Error management ***/
 

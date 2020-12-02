@@ -7,6 +7,7 @@
 
 #include "neom8n.h"
 
+#include "adc.h"
 #include "dma.h"
 #include "iwdg.h"
 #include "lptim.h"
@@ -55,8 +56,8 @@ typedef struct {
 	// Buffers.
 	unsigned char nmea_rx_buf1[NMEA_RX_BUFFER_SIZE]; 	// NMEA input messages buffer 1.
 	unsigned char nmea_rx_buf2[NMEA_RX_BUFFER_SIZE]; 	// NMEA input messages buffer 2.
-	volatile unsigned char nmea_rx_fill_buf1;					// 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
-	volatile unsigned char nmea_rx_lf_flag;						// Set to '1' as soon as a complete NMEA message is received.
+	volatile unsigned char nmea_rx_fill_buf1;			// 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
+	volatile unsigned char nmea_rx_lf_flag;				// Set to '1' as soon as a complete NMEA message is received.
 	// Parsing.
 	unsigned char nmea_zda_parsing_success;				// Set to '1' as soon an NMEA ZDA message was successfully parsed.
 	unsigned char nmea_zda_data_valid;					// set to '1' if retrieved NMEA ZDA data is valid.
@@ -64,6 +65,8 @@ typedef struct {
 	unsigned char nmea_gga_same_altitude_count;			// Number of consecutive same altitudes.
 	unsigned int nmea_gga_previous_altitude;
 	unsigned char nmea_gga_high_quality_flag;			// Set to '1' when fix quality indicator is > 1.
+	// Energy monitoring.
+	unsigned int neom8n_supercap_voltage_mv;			// Supercap voltage in mV.
 } NEOM8N_Context;
 
 /*** NEOM8N local global variables ***/
@@ -427,6 +430,7 @@ void NEOM8N_Init(void) {
 	neom8n_ctx.nmea_gga_same_altitude_count = 0;
 	neom8n_ctx.nmea_gga_previous_altitude = 0;
 	neom8n_ctx.nmea_gga_high_quality_flag = 0;
+	neom8n_ctx.neom8n_supercap_voltage_mv = 0;
 }
 
 #if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
@@ -446,7 +450,7 @@ void NEOM8N_SetVbckp(unsigned char vbckp_on) {
  * @param fix_duration_seconds:	Pointer that will contain effective fix duration.
  * @return return_code:			See NEOM8N_ReturnCode structure in neom8n.h.
  */
-NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int* fix_duration_seconds) {
+NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int supercap_voltage_min_mv, unsigned int* fix_duration_seconds) {
 	NEOM8N_ReturnCode return_code = NEOM8N_TIMEOUT;
 	Position local_gps_position;
 	// Reset flags.
@@ -455,14 +459,13 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	neom8n_ctx.nmea_gga_previous_altitude = 0;
 	neom8n_ctx.nmea_gga_high_quality_flag = 0;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
+	// Init ADC to monitor supercap voltage.
+	ADC1_Init();
 	// Reset fix duration and start RTC wake-up timer for timeout.
 	(*fix_duration_seconds) = 0;
 	RTC_StartWakeUpTimer(timeout_seconds);
 	// Select GGA message to get complete position.
 	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
-	// Lower clock during GPS fix.
-	RCC_SwitchToMsi();
-	LPUART1_UpdateBrr();
 	// Start DMA.
 	DMA1_InitChannel6();
 	DMA1_StopChannel6();
@@ -518,17 +521,26 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 			}
 			// Wait for next message.
 			neom8n_ctx.nmea_rx_lf_flag = 0;
+			// Check supercap voltage.
+			ADC1_PowerOn();
+			ADC1_PerformMeasurements();
+			ADC1_PowerOff();
+			ADC1_GetSupercapVoltage(&neom8n_ctx.neom8n_supercap_voltage_mv);
+			// Exit if supercap voltage falls below the given threshold.
+			if (neom8n_ctx.neom8n_supercap_voltage_mv < supercap_voltage_min_mv) break;
 		}
 		IWDG_Reload();
 	}
-	// Stop DMA and RTC wake-up timer.
+	// Stop ADC, DMA and RTC wake-up timer.
+	ADC1_Disable();
 	DMA1_StopChannel6();
 	DMA1_Disable();
 	RTC_StopWakeUpTimer();
 	RTC_ClearWakeUpTimerFlag();
-	// Go back to HSI.
-	RCC_SwitchToHsi();
-	LPUART1_UpdateBrr();
+	// Clamp fix duration.
+	if ((*fix_duration_seconds) > timeout_seconds) {
+		(*fix_duration_seconds) = timeout_seconds;
+	}
 	// Return result.
 	return return_code;
 }

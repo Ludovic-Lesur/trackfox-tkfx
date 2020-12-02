@@ -48,6 +48,7 @@
 #define TKFX_SIGFOX_DOWNLINK_DATA_LENGTH_BYTES			8
 #endif
 #define TKFX_GEOLOC_TIMEOUT_SECONDS						180
+#define TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV				1500
 
 /*** MAIN structures ***/
 
@@ -281,23 +282,23 @@ int main (void) {
 			break;
 		case TKFX_STATE_GEOLOC:
 			IWDG_Reload();
-			// Get position from GPS.
-			LPUART1_Init(tkfx_use_lse);
-			LPUART1_PowerOn();
-			neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, &tkfx_ctx.tkfx_geoloc_fix_duration_seconds);
-			LPUART1_PowerOff();
-			LPUART1_Disable();
-			// Parse result.
-			if (neom8n_return_code == NEOM8N_SUCCESS) {
-				// Get fix duration and update flag.
-				if (tkfx_ctx.tkfx_geoloc_fix_duration_seconds > TKFX_GEOLOC_TIMEOUT_SECONDS) {
-					tkfx_ctx.tkfx_geoloc_fix_duration_seconds = TKFX_GEOLOC_TIMEOUT_SECONDS;
-				}
+			// Check supercap voltage.
+			if (tkfx_ctx.tkfx_supercap_voltage_mv < TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV) {
+				// Do not perform GPS fix.
+				tkfx_ctx.tkfx_geoloc_fix_duration_seconds = 0;
+				tkfx_ctx.tkfx_geoloc_timeout = 1;
 			}
 			else {
-				// Set fix duration to timeout.
-				tkfx_ctx.tkfx_geoloc_fix_duration_seconds = TKFX_GEOLOC_TIMEOUT_SECONDS;
-				tkfx_ctx.tkfx_geoloc_timeout = 1;
+				// Get position from GPS.
+				LPUART1_Init(tkfx_use_lse);
+				LPUART1_PowerOn();
+				neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV, &tkfx_ctx.tkfx_geoloc_fix_duration_seconds);
+				LPUART1_PowerOff();
+				LPUART1_Disable();
+				// Parse result.
+				if (neom8n_return_code != NEOM8N_SUCCESS) {
+					tkfx_ctx.tkfx_geoloc_timeout = 1;
+				}
 			}
 			IWDG_Reload();
 			// Build Sigfox frame.
