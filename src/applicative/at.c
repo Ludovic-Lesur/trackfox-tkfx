@@ -568,12 +568,11 @@ static void AT_DecodeRxBuffer(void) {
 				Position gps_position;
 				unsigned int gps_fix_duration = 0;
 				LPUART1_PowerOn();
-				NEOM8N_ReturnCode get_position_result = NEOM8N_GetPosition(&gps_position, timeout_seconds, &gps_fix_duration);
+				NEOM8N_ReturnCode get_position_result = NEOM8N_GetPosition(&gps_position, timeout_seconds, 0, &gps_fix_duration);
 				LPUART1_PowerOff();
 				switch (get_position_result) {
 				case NEOM8N_SUCCESS:
 					AT_PrintPosition(&gps_position, gps_fix_duration);
-
 					break;
 				case NEOM8N_TIMEOUT:
 					AT_ReplyError(AT_ERROR_SOURCE_AT, AT_OUT_ERROR_NEOM8N_TIMEOUT);
