@@ -476,7 +476,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	// Loop until data is retrieved or timeout expired.
 	while ((RTC_GetWakeUpTimerFlag() == 0) && (neom8n_ctx.nmea_gga_same_altitude_count < NMEA_GGA_ALT_STABILITY_COUNT) && (neom8n_ctx.nmea_gga_high_quality_flag == 0)) {
 		// Enter low power sleep mode between each NMEA frame.
-		PWR_EnterLowPowerSleepMode();
+		PWR_EnterSleepMode();
 		(*fix_duration_seconds)++; // NMEA frames are output every seconds.
 		// Check LF flag to trigger parsing process.
 		if (neom8n_ctx.nmea_rx_lf_flag != 0) {

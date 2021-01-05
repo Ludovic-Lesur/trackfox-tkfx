@@ -456,7 +456,7 @@ void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes) 
 	// Transfer buffer with DMA.
 	DMA1_StartChannel3();
 	while (DMA1_GetChannel3Status() == 0) {
-		PWR_EnterLowPowerSleepMode();
+		PWR_EnterSleepMode();
 	}
 	DMA1_StopChannel3();
 #else
