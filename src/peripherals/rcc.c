@@ -58,9 +58,6 @@ void RCC_Init(void) {
 	RCC -> CFGR &= ~(0b111 << 11); // PCLK2 = HCLK = 16MHz (PPRE2='000').
 	// Peripherals clock source.
 	RCC -> CCIPR &= 0xFFF0C3F0; // All peripherals clocked via the corresponding APBx line.
-	// Unlock back-up registers.
-	RCC -> APB1ENR |= (0b1 << 28); // PWREN='1'.
-	PWR -> CR |= (0b1 << 8); // Set DBP bit to unlock back-up registers write protection.
 	// Reset clock is MSI 2.1MHz.
 	rcc_sysclk_khz = RCC_MSI_RESET_FREQUENCY_KHZ;
 }
@@ -105,6 +102,46 @@ void RCC_DisableGpio(void) {
  */
 unsigned int RCC_GetSysclkKhz(void) {
 	return rcc_sysclk_khz;
+}
+
+/* CONFIGURE AND USE MSI AS SYSTEM CLOCK.
+ * @param:					None.
+ * @return sysclk_on_hsi:	'1' if SYSCLK source was successfully switched to MSI, 0 otherwise.
+ */
+unsigned char RCC_SwitchToMsi(void) {
+	// Init MSI.
+	RCC -> ICSCR &= ~(0b111 << 13); // Set frequency to 65kHz (MSIRANGE='000').
+	RCC -> CR |= (0b1 << 8); // Enable MSI (MSION='1').
+	// Wait for HSI to be stable.
+	unsigned char sysclk_on_msi = 0;
+	unsigned int count = 0;
+	while ((((RCC -> CR) & (0b1 << 9)) == 0) && (count < RCC_TIMEOUT_COUNT)) {
+		RCC_Delay();
+		count++; // Wait for MSIRDYF='1' or timeout.
+	}
+	// Check timeout.
+	if (count < RCC_TIMEOUT_COUNT) {
+		// Switch SYSCLK.
+		RCC -> CFGR &= ~(0b11 << 0); // Use MSI as system clock (SW='00').
+		// Wait for clock switch.
+		count = 0;
+		while ((((RCC -> CFGR) & (0b11 << 2)) != (0b00 << 2)) && (count < RCC_TIMEOUT_COUNT)) {
+			RCC_Delay();
+			count++; // Wait for SWS='00' or timeout.
+		}
+		// Check timeout.
+		if (count < RCC_TIMEOUT_COUNT) {
+			// Set flash latency.
+			FLASH_SetLatency(0);
+			// Disable HSI and HSE.
+			RCC -> CR &= ~(0b1 << 0); // Disable HSI (HSI16ON='0').
+			RCC -> CR &= ~(0b1 << 16); // Disable HSE (HSEON='0').
+			// Update flag and frequency.
+			sysclk_on_msi = 1;
+			rcc_sysclk_khz = RCC_MSI_FREQUENCY_KHZ;
+		}
+	}
+	return sysclk_on_msi;
 }
 
 /* CONFIGURE AND USE HSI AS SYSTEM CLOCK (16MHz INTERNAL RC).

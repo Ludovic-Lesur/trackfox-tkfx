@@ -102,7 +102,7 @@ void S2LP_ExitShutdown(void) {
 	GPIO_Write(&GPIO_S2LP_SDN, 0);
 #endif
 	// Wait for reset time.
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(100, 1);
 }
 
 /* SEND COMMAND TO S2LP.

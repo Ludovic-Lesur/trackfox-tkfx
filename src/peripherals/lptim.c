@@ -116,10 +116,11 @@ void LPTIM1_Disable(void) {
 }
 
 /* DELAY FUNCTION.
- * @param delay_ms:	Number of milliseconds to wait.
- * @return:			None.
+ * @param delay_ms:		Number of milliseconds to wait.
+ * @param stop_mode:	Enter stop mode during delay if non zero.
+ * @return:				None.
  */
-void LPTIM1_DelayMilliseconds(unsigned int delay_ms) {
+void LPTIM1_DelayMilliseconds(unsigned int delay_ms, unsigned char stop_mode) {
 	// Clamp value if required.
 	unsigned int local_delay_ms = delay_ms;
 	if (local_delay_ms > LPTIM_DELAY_MS_MAX) {
@@ -141,7 +142,9 @@ void LPTIM1_DelayMilliseconds(unsigned int delay_ms) {
 	LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
 	// Enter stop mode.
 	while (lptim_wake_up == 0) {
-		PWR_EnterStopMode();
+		if (stop_mode != 0) {
+			PWR_EnterStopMode();
+		}
 	}
 	// Disable timer.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').

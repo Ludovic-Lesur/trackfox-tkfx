@@ -150,8 +150,9 @@ int main (void) {
 	// Init GPIOs.
 	GPIO_Init();
 	EXTI_Init();
-	// Init clock module.
+	// Init clock and power modules.
 	RCC_Init();
+	PWR_Init();
 	// Init context.
 	tkfx_ctx.tkfx_por_flag = 1;
 	tkfx_ctx.tkfx_state = TKFX_STATE_POR;
@@ -245,7 +246,7 @@ int main (void) {
 			// Get voltages measurements.
 			ADC1_Init();
 			ADC1_PowerOn();
-			ADC1_PerformMeasurements();
+			ADC1_PerformAllMeasurements();
 			ADC1_PowerOff();
 			ADC1_Disable();
 			ADC1_GetSourceVoltage(&tkfx_ctx.tkfx_source_voltage_mv);

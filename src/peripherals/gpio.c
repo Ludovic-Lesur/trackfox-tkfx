@@ -218,7 +218,7 @@ void GPIO_Configure(const GPIO* gpio, GPIO_Mode mode, GPIO_OutputType output_typ
  * @return: None.
  */
 void GPIO_Init(void) {
-	// Enable GPIOA, GPIOB and GPIOC clocks */
+	// Enable GPIOA, GPIOB and GPIOC clocks.
 	RCC -> IOPENR |= (0b111 << 0); // IOPxEN='1'.
 	// Programming pins.
 #ifndef DEBUG

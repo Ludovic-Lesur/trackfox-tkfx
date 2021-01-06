@@ -84,6 +84,28 @@ void LPUART1_Init(unsigned char lpuart_use_lse) {
 	LPUART1 -> CR1 |= (0b1 << 0); // UE='1'.
 }
 
+/* UPDATE LPUART BAUD RATE ACCORDING TO CLOCK FREQUENCY.
+ * @param:	None.
+ * @return:	None.
+ */
+void LPUART1_UpdateBrr(void) {
+	// Local variables.
+	unsigned int lpuart_clock_hz = 0;
+	// Check clock source.
+	if (((RCC -> CCIPR) & (0b11 << 10)) == (0b01 << 10)) {
+		// Disable peripheral.
+		LPUART1 -> CR1 &= ~(0b1 << 0); // UE='0'.
+		// Get current system clock.
+		lpuart_clock_hz = RCC_GetSysclkKhz() * 1000;
+		// Compute BRR value.
+		unsigned int brr = (lpuart_clock_hz * 256);
+		brr /= LPUART_BAUD_RATE;
+		LPUART1 -> BRR = (brr & 0x000FFFFF); // BRR = (256*fCK)/(baud rate). See p.730 of RM0377 datasheet.
+		// Enable peripheral.
+		LPUART1 -> CR1 |= (0b1 << 0); // UE='1'.
+	}
+}
+
 /* ENABLE LPUART TX OPERATION.
  * @param:	None.
  * @return:	None.
@@ -130,7 +152,7 @@ void LPUART1_PowerOn(void) {
 	GPIO_Configure(&GPIO_LPUART1_RX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Turn NEOM8N on.
 	GPIO_Write(&GPIO_GPS_POWER_ENABLE, 1);
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(100, 1);
 }
 
 /* POWER LPUART1 SLAVE OFF.
@@ -144,7 +166,7 @@ void LPUART1_PowerOff(void) {
 	GPIO_Configure(&GPIO_LPUART1_TX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_LPUART1_RX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Delay required if another cycle is requested by applicative layer.
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(100, 1);
 }
 
 /* SEND A BYTE THROUGH LOW POWER UART.

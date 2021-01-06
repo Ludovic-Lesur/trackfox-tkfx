@@ -595,7 +595,7 @@ static void AT_DecodeRxBuffer(void) {
 			unsigned int mcu_supply_voltage_mv = 0;
 			// Perform ADC convertions.
 			ADC1_PowerOn();
-			ADC1_PerformMeasurements();
+			ADC1_PerformAllMeasurements();
 			ADC1_PowerOff();
 			ADC1_GetSourceVoltage(&source_voltage_mv);
 			ADC1_GetSupercapVoltage(&supercap_voltage_mv);

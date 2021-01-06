@@ -122,11 +122,11 @@ static void ADC1_ComputeMcuVoltage(void) {
  * @return:	None.
  */
 static void ADC1_ComputeMcuTemperature(void) {
-	// Set sampling time (see p.89 of STM32L031x4/6 datasheet).
+	// Set sampling time (see p.88 of STM32L031x4/6 datasheet).
 	ADC1 -> SMPR |= (0b111 << 0); // Sampling time for temperature sensor must be greater than 10us, 160.5*(1/ADCCLK) = 20us for ADCCLK = SYSCLK/2 = 8MHz;
-	// Wake-up temperature sensor.
-	ADC1 -> CCR |= (0b1 << 23); // TSEN='1'.
-	LPTIM1_DelayMilliseconds(1); // Wait at least 10µs (see p.89 of STM32L031x4/6 datasheet).
+	// Wake-up VREFINT and temperature sensor.
+	ADC1 -> CCR |= (0b11 << 22); // TSEN='1' and VREFEF='1'.
+	LPTIM1_DelayMilliseconds(10, 0); // Wait internal reference stabilization (max 3ms).
 	// Read raw temperature.
 	int raw_temp_sensor_12bits = 0;
 	ADC1_FilteredConversion(ADC_CHANNEL_TEMPERATURE_SENSOR, &raw_temp_sensor_12bits);
@@ -176,7 +176,7 @@ void ADC1_Init(void) {
 	}
 	// Enable ADC voltage regulator.
 	ADC1 -> CR |= (0b1 << 28);
-	LPTIM1_DelayMilliseconds(5);
+	LPTIM1_DelayMilliseconds(5, 0);
 	// ADC configuration.
 	ADC1 -> CFGR2 &= ~(0b11 << 30); // Reset bits 30-31.
 	ADC1 -> CFGR2 |= (0b01 << 30); // Use (PCLK2/2) as ADCCLK = SYSCLK/2 (see RCC_Init() function).
@@ -218,7 +218,7 @@ void ADC1_Disable(void) {
 void ADC1_PowerOn(void) {
 	// Turn analog blocks on.
 	GPIO_Write(&GPIO_ADC_POWER_ENABLE, 1);
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(100, 0);
 }
 
 /* DISABLE EXTERNAL ANALOG BLOCKS SUPPLY.
@@ -234,7 +234,7 @@ void ADC1_PowerOff(void) {
  * @param:	None.
  * @return:	None.
  */
-void ADC1_PerformMeasurements(void) {
+void ADC1_PerformAllMeasurements(void) {
 	// Enable ADC peripheral.
 	ADC1 -> CR |= (0b1 << 0); // ADEN='1'.
 	unsigned int loop_count = 0;
@@ -249,6 +249,30 @@ void ADC1_PerformMeasurements(void) {
 	ADC1_ComputeSupercapVoltage();
 	ADC1_ComputeMcuVoltage();
 	ADC1_ComputeMcuTemperature();
+	// Clear all flags.
+	ADC1 -> ISR |= 0x0000089F; // Clear all flags.
+	// Disable ADC peripheral.
+	if (((ADC1 -> CR) & (0b1 << 0)) != 0) {
+		ADC1 -> CR |= (0b1 << 1); // ADDIS='1'.
+	}
+}
+
+/* PERFORM SUPERCAP VOLTAGE MEASUREMENTS.
+ * @param:	None.
+ * @return:	None.
+ */
+void ADC1_PerformSupercapMeasurement(void) {
+	// Enable ADC peripheral.
+	ADC1 -> CR |= (0b1 << 0); // ADEN='1'.
+	unsigned int loop_count = 0;
+	while (((ADC1 -> ISR) & (0b1 << 0)) == 0) {
+		// Wait for ADC to be ready (ADRDY='1') or timeout.
+		loop_count++;
+		if (loop_count > ADC_TIMEOUT_COUNT) return;
+	}
+	// Perform measurements.
+	ADC1_FilteredConversion(ADC_CHANNEL_LM4040, &adc_ctx.adc_lm4040_voltage_12bits);
+	ADC1_ComputeSupercapVoltage();
 	// Clear all flags.
 	ADC1 -> ISR |= 0x0000089F; // Clear all flags.
 	// Disable ADC peripheral.

@@ -56,7 +56,7 @@ void SHT3X_PerformMeasurements(void) {
 	unsigned char i2c_access = I2C1_Write(SHT3X_I2C_ADDRESS, measurement_command, 2, 1);
 	if (i2c_access == 0) return;
 	// Wait for conversion to complete (at least 15ms).
-	LPTIM1_DelayMilliseconds(20);
+	LPTIM1_DelayMilliseconds(50, 1);
 	unsigned char measure_buf[6];
 	i2c_access = I2C1_Read(SHT3X_I2C_ADDRESS, measure_buf, 6);
 	if (i2c_access == 0) return;

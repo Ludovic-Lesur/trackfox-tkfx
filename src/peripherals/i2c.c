@@ -27,7 +27,7 @@
 static void I2C_Clear(void) {
 	// Disable peripheral.
 	I2C1 -> CR1 &= ~(0b1 << 0); // PE='0'.
-	LPTIM1_DelayMilliseconds(1);
+	LPTIM1_DelayMilliseconds(1, 1);
 	// Enable peripheral and clear all flags.
 	I2C1 -> CR1 |= (0b1 << 0); // PE='1'.
 	I2C1 -> ICR |= 0x00003F38;
@@ -87,7 +87,7 @@ void I2C1_PowerOn(void) {
 	GPIO_Configure(&GPIO_I2C1_SDA, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Turn SHT3x and pull-up resistors on.
 	GPIO_Write(&GPIO_SENSORS_POWER_ENABLE, 1);
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(100, 1);
 }
 
 /* SWITCH ALL I2C1 SLAVES ON.
@@ -101,7 +101,7 @@ void I2C1_PowerOff(void) {
 	GPIO_Configure(&GPIO_I2C1_SCL, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_I2C1_SDA, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Delay required if another cycle is requested by applicative layer.
-	LPTIM1_DelayMilliseconds(100);
+	LPTIM1_DelayMilliseconds(100, 1);
 }
 
 /* WRITE DATA ON I2C1 BUS (see algorithme on p.607 of RM0377 datasheet).

@@ -403,7 +403,7 @@ static void NEOM8N_SelectNmeaMessages(unsigned int nmea_message_id_mask) {
 		for (neom8n_cfg_msg_idx=0 ; neom8n_cfg_msg_idx<(NEOM8N_MSG_OVERHEAD_LENGTH+NEOM8N_CFG_MSG_PAYLOAD_LENGTH) ; neom8n_cfg_msg_idx++) {
 			LPUART1_SendByte(neom8n_cfg_msg[neom8n_cfg_msg_idx]); // Send command.
 		}
-		LPTIM1_DelayMilliseconds(100);
+		LPTIM1_DelayMilliseconds(100, 1);
 	}
 }
 
@@ -463,6 +463,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	ADC1_Init();
 	// Reset fix duration and start RTC wake-up timer for timeout.
 	(*fix_duration_seconds) = 0;
+	RTC_ClearWakeUpTimerFlag();
 	RTC_StartWakeUpTimer(timeout_seconds);
 	// Select GGA message to get complete position.
 	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
@@ -475,8 +476,12 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	LPUART1_EnableRx();
 	// Loop until data is retrieved or timeout expired.
 	while ((RTC_GetWakeUpTimerFlag() == 0) && (neom8n_ctx.nmea_gga_same_altitude_count < NMEA_GGA_ALT_STABILITY_COUNT) && (neom8n_ctx.nmea_gga_high_quality_flag == 0)) {
-		// Enter low power sleep mode between each NMEA frame.
-		PWR_EnterSleepMode();
+		// Lower clock while waiting for NMEA frame.
+		RCC_SwitchToMsi();
+		LPUART1_UpdateBrr();
+		// Enter low power sleep mode.
+		PWR_EnterLowPowerSleepMode();
+		// Wake-up.
 		(*fix_duration_seconds)++; // NMEA frames are output every seconds.
 		// Check LF flag to trigger parsing process.
 		if (neom8n_ctx.nmea_rx_lf_flag != 0) {
@@ -521,9 +526,11 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 			}
 			// Wait for next message.
 			neom8n_ctx.nmea_rx_lf_flag = 0;
+			// Switch to high speed clock required for ADC operation.
+			RCC_SwitchToHsi();
 			// Check supercap voltage.
 			ADC1_PowerOn();
-			ADC1_PerformMeasurements();
+			ADC1_PerformSupercapMeasurement();
 			ADC1_PowerOff();
 			ADC1_GetSupercapVoltage(&neom8n_ctx.neom8n_supercap_voltage_mv);
 			// Exit if supercap voltage falls below the given threshold.
@@ -537,6 +544,9 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	DMA1_Disable();
 	RTC_StopWakeUpTimer();
 	RTC_ClearWakeUpTimerFlag();
+	// Go back to HSI.
+	RCC_SwitchToHsi();
+	LPUART1_UpdateBrr();
 	// Clamp fix duration.
 	if ((*fix_duration_seconds) > timeout_seconds) {
 		(*fix_duration_seconds) = timeout_seconds;

@@ -22,7 +22,7 @@
 
 /*** RTC local global variables ***/
 
-static volatile unsigned char rtc_wakeup_timer_flag;
+static volatile unsigned char rtc_wakeup_timer_flag = 0;
 
 /*** RTC local functions ***/
 
