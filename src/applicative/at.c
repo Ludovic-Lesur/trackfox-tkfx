@@ -53,6 +53,7 @@
 #define AT_IN_COMMAND_OOB								"AT$SO"
 
 // Input commands with parameters (headers).
+#define AT_IN_HEADER_ACC								"AT$ACC="		// AT$ACC=<enable><CR>.
 #define AT_IN_HEADER_GPS								"AT$GPS=" 		// AT$GPS=<timeout_seconds><CR>.
 #define AT_IN_HEADER_NVM								"AT$NVM="		// AT$NVM=<address_offset><CR>
 #define AT_IN_HEADER_ID									"AT$ID="		// AT$ID=<id><CR>.
@@ -117,6 +118,8 @@ typedef struct {
 	unsigned int start_idx;
 	unsigned int end_idx;
 	unsigned int separator_idx;
+	// Accelero measurement flag.
+	unsigned char accelero_measurement_flag;
 } AT_Context;
 
 /*** AT local global variables ***/
@@ -531,6 +534,44 @@ static void AT_PrintDownlinkData(sfx_u8* sfx_downlink_data) {
 	USART2_SendString("\r\n");
 }
 
+/* PRINT ACCELEROMETER DATA ON USART.
+ * @param:	None.
+ * @return:	None.
+ */
+static void AT_PrintAcceleroData(void) {
+	// Get data.
+	signed int x = 0;
+	signed int y = 0;
+	signed int z = 0;
+	MMA8653FC_GetData(&x, &y, &z);
+	// Print data.
+	USART2_SendString("x=");
+	if (x < 0) {
+		USART2_SendString("-");
+		USART2_SendValue(((-1) * x), USART_FORMAT_DECIMAL, 0);
+	}
+	else {
+		USART2_SendValue(x, USART_FORMAT_DECIMAL, 0);
+	}
+	USART2_SendString(" y=");
+	if (y < 0) {
+		USART2_SendString("-");
+		USART2_SendValue(((-1) * y), USART_FORMAT_DECIMAL, 0);
+	}
+	else {
+		USART2_SendValue(y, USART_FORMAT_DECIMAL, 0);
+	}
+	USART2_SendString(" z=");
+	if (z < 0) {
+		USART2_SendString("-");
+		USART2_SendValue(((-1) * z), USART_FORMAT_DECIMAL, 0);
+	}
+	else {
+		USART2_SendValue(z, USART_FORMAT_DECIMAL, 0);
+	}
+	USART2_SendString("\r\n");
+}
+
 /* PARSE THE CURRENT AT COMMAND BUFFER.
  * @param:	None.
  * @return:	None.
@@ -647,6 +688,33 @@ static void AT_DecodeRxBuffer(void) {
 			USART2_SendString("WhoAmI=");
 			USART2_SendValue(mma8653fc_who_am_i, USART_FORMAT_HEXADECIMAL, 0);
 			USART2_SendString("\r\n");
+		}
+		// Accelerometer data command AT$ACC=<enable><CR>.
+		else if (AT_CompareHeader(AT_IN_HEADER_ACC) == AT_NO_ERROR) {
+			// Get enable parameter.
+			unsigned int enable = 0;
+			get_param_result = AT_GetParameter(AT_PARAM_TYPE_BOOLEAN, 1, &enable);
+			if (get_param_result == AT_NO_ERROR) {
+				// Check enable bit.
+				if (enable == 0) {
+					// Stop measurement.
+					I2C1_PowerOff();
+					I2C1_Disable();
+					at_ctx.accelero_measurement_flag = 0;
+					AT_ReplyOk();
+				}
+				else {
+					// Start measurement.
+					I2C1_Init();
+					I2C1_PowerOn();
+					at_ctx.accelero_measurement_flag = 1;
+					AT_ReplyOk();
+				}
+			}
+			else {
+				// Error in enable parameter.
+				AT_ReplyError(AT_ERROR_SOURCE_AT, get_param_result);
+			}
 		}
 #endif
 #ifdef AT_COMMANDS_NVM
@@ -1016,13 +1084,11 @@ static void AT_DecodeRxBuffer(void) {
 	}
 }
 
-/*** AT functions ***/
-
-/* INIT AT MANAGER.
+/* RESET AT PARSER.
  * @param:	None.
  * @return:	None.
  */
-void AT_Init(void) {
+static void AT_Reset(void) {
 	// Init context.
 	unsigned int idx = 0;
 	for (idx=0 ; idx<AT_BUFFER_SIZE ; idx++) at_ctx.at_rx_buf[idx] = 0;
@@ -1036,6 +1102,19 @@ void AT_Init(void) {
 	NVIC_EnableInterrupt(IT_USART2);
 }
 
+/*** AT functions ***/
+
+/* INIT AT MANAGER.
+ * @param:	None.
+ * @return:	None.
+ */
+void AT_Init(void) {
+	// Init parser.
+	AT_Reset();
+	// Init accelero measurement flag.
+	at_ctx.accelero_measurement_flag = 0;
+}
+
 /* MAIN TASK OF AT COMMAND MANAGER.
  * @param:	None.
  * @return:	None.
@@ -1044,7 +1123,11 @@ void AT_Task(void) {
 	// Trigger decoding function if line end found.
 	if (at_ctx.at_line_end_flag) {
 		AT_DecodeRxBuffer();
-		AT_Init();
+		AT_Reset();
+	}
+	// Perform accelero measurement if required.
+	if (at_ctx.accelero_measurement_flag != 0) {
+		AT_PrintAcceleroData();
 	}
 }
 

@@ -27,7 +27,7 @@
 static void I2C_Clear(void) {
 	// Disable peripheral.
 	I2C1 -> CR1 &= ~(0b1 << 0); // PE='0'.
-	LPTIM1_DelayMilliseconds(1, 1);
+	LPTIM1_DelayMilliseconds(1, 0);
 	// Enable peripheral and clear all flags.
 	I2C1 -> CR1 |= (0b1 << 0); // PE='1'.
 	I2C1 -> ICR |= 0x00003F38;
