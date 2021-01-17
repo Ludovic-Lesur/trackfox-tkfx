@@ -206,7 +206,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	S2LP_WriteFifo(rf_api_ctx.rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	// Enable external GPIO interrupt.
 	EXTI_ClearAllFlags();
-	NVIC_EnableInterrupt(IT_EXTI_4_15);
+	NVIC_EnableInterrupt(NVIC_IT_EXTI_4_15);
 	// Start radio
 	S2LP_SendCommand(S2LP_CMD_TX);
 	// Byte loop.
@@ -229,7 +229,10 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 				}
 			}
 			// Enter stop and wait for S2LP interrupt to transfer next bit buffer.
-			PWR_EnterStopMode();
+			rf_api_ctx.rf_api_s2lp_irq_flag = 0;
+			while (rf_api_ctx.rf_api_s2lp_irq_flag == 0) {
+				PWR_EnterStopMode();
+			}
 			S2LP_WriteFifo(rf_api_ctx.rf_api_s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 		}
 	}
@@ -251,7 +254,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Enter stop and wait for S2LP interrupt.
 	PWR_EnterStopMode();
 	// Disable external GPIO interrupt.
-	NVIC_DisableInterrupt(IT_EXTI_4_15);
+	NVIC_DisableInterrupt(NVIC_IT_EXTI_4_15);
 	// Stop radio.
 	S2LP_SendCommand(S2LP_CMD_SABORT);
 	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
@@ -355,7 +358,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 		S2LP_SendCommand(S2LP_CMD_RX);
 		// Enable external GPIO.
 		EXTI_ClearAllFlags();
-		NVIC_EnableInterrupt(IT_EXTI_4_15);
+		NVIC_EnableInterrupt(NVIC_IT_EXTI_4_15);
 		// Clear watchdog.
 		IWDG_Reload();
 		// Enter stop mode until GPIO interrupt or RTC wake-up.
@@ -375,7 +378,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 		}
 		// Wake-up: disable interrupts.
 		RTC_StopWakeUpTimer();
-		NVIC_DisableInterrupt(IT_EXTI_4_15);
+		NVIC_DisableInterrupt(NVIC_IT_EXTI_4_15);
 		// Check flag.
 		if (rf_api_ctx.rf_api_s2lp_irq_flag != 0) {
 			// Downlink frame received.

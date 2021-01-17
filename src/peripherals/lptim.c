@@ -88,6 +88,8 @@ void LPTIM1_Init(void) {
 	// Enable LPTIM EXTI line.
 	LPTIM1 -> IER |= (0b1 << 1); // ARRMIE='1'.
 	EXTI_ConfigureLine(EXTI_LINE_LPTIM1, EXTI_TRIGGER_RISING_EDGE);
+	// Set interrupt priority.
+	NVIC_SetPriority(NVIC_IT_LPTIM1, 2);
 	// Clear all flags.
 	LPTIM1 -> ICR |= (0b1111111 << 0);
 }
@@ -137,7 +139,7 @@ void LPTIM1_DelayMilliseconds(unsigned int delay_ms, unsigned char stop_mode) {
 	unsigned int arr = ((local_delay_ms * lptim_clock_frequency_hz) / (1000)) & 0x0000FFFF;
 	LPTIM1_WriteArr(arr);
 	// Start timer.
-	NVIC_EnableInterrupt(IT_LPTIM1);
+	NVIC_EnableInterrupt(NVIC_IT_LPTIM1);
 	lptim_wake_up = 0;
 	LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
 	// Enter stop mode.
@@ -148,5 +150,5 @@ void LPTIM1_DelayMilliseconds(unsigned int delay_ms, unsigned char stop_mode) {
 	}
 	// Disable timer.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0').
-	NVIC_DisableInterrupt(IT_LPTIM1);
+	NVIC_DisableInterrupt(NVIC_IT_LPTIM1);
 }

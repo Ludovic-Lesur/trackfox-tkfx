@@ -135,38 +135,51 @@ void RTC_Init(unsigned char* rtc_use_lse) {
 	RTC -> CR |= (0b100 << 0); // Wake-up timer clocked by RTC clock (1Hz).
 	RTC -> CR |= (0b1 << 14); // Enable wake-up timer interrupt.
 	RTC_ExitInitializationMode();
-	// Enable wake-up timer interrupt (line 17).
+	// Enable wake-up timer interrupt.
 	EXTI_ConfigureLine(EXTI_LINE_RTC_WAKEUP_TIMER, EXTI_TRIGGER_RISING_EDGE);
+	// Set interrupt priority.
+	NVIC_SetPriority(NVIC_IT_RTC, 2);
 }
 
+/* START RTC WAKE-UP TIMER.
+ * @param delay_seconds:	Delay in seconds.
+ * @return:					None.
+ */
 void RTC_StartWakeUpTimer(unsigned int delay_seconds) {
 	// Clamp parameter.
 	unsigned int local_delay_seconds = delay_seconds;
 	if (local_delay_seconds > RTC_WAKEUP_TIMER_DELAY_MAX) {
 		local_delay_seconds = RTC_WAKEUP_TIMER_DELAY_MAX;
 	}
-	// Enable RTC and register access.
-	RTC_EnterInitializationMode();
-	// Configure wake-up timer.
-	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
-	RTC -> WUTR = (local_delay_seconds - 1);
-	// Clear flags.
-	RTC -> ISR &= ~(0b1 << 10); // WUTF='0'.
-	EXTI -> PR |= (0b1 << EXTI_LINE_RTC_WAKEUP_TIMER);
-	// Start timer.
-	RTC -> CR |= (0b1 << 10); // Enable wake-up timer.
-	RTC_ExitInitializationMode();
-	// Enable interrupt.
-	NVIC_EnableInterrupt(IT_RTC);
+	// Check if timer si not allready running.
+	if (((RTC -> CR) & (0b1 << 10)) == 0) {
+		// Enable RTC and register access.
+		RTC_EnterInitializationMode();
+		// Configure wake-up timer.
+		RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
+		RTC -> WUTR = (local_delay_seconds - 1);
+		// Clear flags.
+		RTC -> ISR &= ~(0b1 << 10); // WUTF='0'.
+		EXTI -> PR |= (0b1 << EXTI_LINE_RTC_WAKEUP_TIMER);
+		// Start timer.
+		RTC -> CR |= (0b1 << 10); // Enable wake-up timer.
+		RTC_ExitInitializationMode();
+		// Enable interrupt.
+		NVIC_EnableInterrupt(NVIC_IT_RTC);
+	}
 }
 
+/* STOP RTC WAKE-UP TIMER.
+ * @param:	None.
+ * @return:	None.
+ */
 void RTC_StopWakeUpTimer(void) {
 	// Enable RTC and register access.
 	RTC_EnterInitializationMode();
 	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
 	RTC_ExitInitializationMode();
 	// Disable interrupt.
-	NVIC_DisableInterrupt(IT_RTC);
+	NVIC_DisableInterrupt(NVIC_IT_RTC);
 }
 
 /* RETURN THE CURRENT ALARM INTERRUPT STATUS.

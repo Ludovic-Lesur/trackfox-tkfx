@@ -5,7 +5,6 @@
  *      Author: Ludo
  */
 
-
 #include "filter.h"
 
 /*** FILTER local macros ***/

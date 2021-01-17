@@ -12,6 +12,7 @@
 #include "mma8653fc.h"
 #include "nvic.h"
 #include "rcc_reg.h"
+#include "rf_api.h"
 #include "syscfg_reg.h"
 
 /*** EXTI local macros ***/
@@ -49,6 +50,8 @@ void EXTI2_3_IRQHandler(void) {
 void EXTI4_15_IRQHandler(void) {
 	// S2LP GPIO0 (PA12).
 	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.gpio_num))) != 0) {
+		// Set applicative flag.
+		RF_API_SetIrqFlag();
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.gpio_num)); // PIFx='1' (writing '1' clears the bit).
 	}
@@ -67,6 +70,9 @@ void EXTI_Init(void) {
 	EXTI -> IMR = 0;
 	// Clear all flags.
 	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
+	// Set interrupts priority.
+	NVIC_SetPriority(NVIC_IT_EXTI_0_1, 3);
+	NVIC_SetPriority(NVIC_IT_EXTI_4_15, 0);
 }
 
 /* CONFIGURE A GPIO AS EXTERNAL INTERRUPT SOURCE.

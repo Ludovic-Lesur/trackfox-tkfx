@@ -19,11 +19,11 @@ typedef struct {
 	unsigned int RESERVED2[31];			// Reserved 0xE000E204.
 	volatile unsigned int ICPR;    		// Interrupt clear-pending register.
 	unsigned int RESERVED3[95];			// Reserved 0xE000E300.
-	volatile unsigned char IPR[32];		// Interrupt priority registers 0 to 7.
+	volatile unsigned int IPR[8];		// Interrupt priority registers 0 to 7.
 } NVIC_BaseAddress;
 
 /*** NVIC base address ***/
 
 #define NVIC	((NVIC_BaseAddress*) ((unsigned int) 0xE000E100))
 
-#endif /* NVIC_REG_H_ */
+#endif /* NVIC_REG_H */

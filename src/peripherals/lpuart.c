@@ -80,6 +80,8 @@ void LPUART1_Init(unsigned char lpuart_use_lse) {
 	LPUART1 -> CR2 |= (NMEA_LF << 24); // LF character used to trigger CM interrupt.
 	LPUART1 -> CR3 |= (0b1 << 6); // Transfer is performed after each RXNE event (see p.738 of RM0377 datasheet).
 	LPUART1 -> CR1 |= (0b1 << 14); // Enable CM interrupt (CMIE='1').
+	// Set interrupt priority.
+	NVIC_SetPriority(NVIC_IT_LPUART1, 0);
 	// Enable peripheral.
 	LPUART1 -> CR1 |= (0b1 << 0); // UE='1'.
 }
@@ -122,7 +124,7 @@ void LPUART1_EnableTx(void) {
 void LPUART1_EnableRx(void) {
 	// Enable LPUART1 receiver.
 	LPUART1 -> CR1 |= (0b1 << 2); // Enable receiver (RE='1').
-	NVIC_EnableInterrupt(IT_LPUART1);
+	NVIC_EnableInterrupt(NVIC_IT_LPUART1);
 }
 
 /* DISABLE LPUART PERIPHERAL.
@@ -133,7 +135,7 @@ void LPUART1_Disable(void) {
 	// Disable power control pin.
 	GPIO_Configure(&GPIO_GPS_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Disable LPUART1 peripheral.
-	NVIC_DisableInterrupt(IT_LPUART1);
+	NVIC_DisableInterrupt(NVIC_IT_LPUART1);
 	LPUART1 -> CR1 &= ~(0b1 << 2); // Disable transmitter and receiver (TE='0' adnd RE='0').
 	LPUART1 -> CR1 &= ~(0b1 << 0);
 	// Clear all flags.
