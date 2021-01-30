@@ -29,7 +29,7 @@ void NVIC_Init(void) {
  * @return: 		None.
  */
 void NVIC_EnableInterrupt(NVIC_InterruptVector it_num) {
-	NVIC -> ISER = (0b1 << (it_num & 0x0000001F));
+	NVIC -> ISER = (0b1 << (it_num & 0x1F));
 }
 
 /* DISABLE AN INTERRUPT LINE.
@@ -37,7 +37,7 @@ void NVIC_EnableInterrupt(NVIC_InterruptVector it_num) {
  * @return:			None.
  */
 void NVIC_DisableInterrupt(NVIC_InterruptVector it_num) {
-	NVIC -> ICER = (0b1 << (it_num & 0x0000001F));
+	NVIC -> ICER = (0b1 << (it_num & 0x1F));
 }
 
 /* SET THE PRIORITY OF AN INTERRUPT LINE.

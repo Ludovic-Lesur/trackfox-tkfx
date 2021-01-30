@@ -83,7 +83,7 @@ void LPTIM1_Init(void) {
 	// Configure peripheral.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0'), needed to write CFGR.
 	LPTIM1 -> CFGR &= ~(0b1 << 0);
-	LPTIM1 -> CFGR |= (0b111 << 9); // Prescaler = 256.
+	LPTIM1 -> CFGR |= (0b111 << 9); // Prescaler = 128.
 	LPTIM1 -> CNT &= 0xFFFF0000; // Reset counter.
 	// Enable LPTIM EXTI line.
 	LPTIM1 -> IER |= (0b1 << 1); // ARRMIE='1'.
@@ -142,7 +142,7 @@ void LPTIM1_DelayMilliseconds(unsigned int delay_ms, unsigned char stop_mode) {
 	NVIC_EnableInterrupt(NVIC_IT_LPTIM1);
 	lptim_wake_up = 0;
 	LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
-	// Enter stop mode.
+	// Wait for interrupt.
 	while (lptim_wake_up == 0) {
 		if (stop_mode != 0) {
 			PWR_EnterStopMode();

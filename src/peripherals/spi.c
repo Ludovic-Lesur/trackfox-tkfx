@@ -10,7 +10,6 @@
 #include "gpio.h"
 #include "lptim.h"
 #include "mapping.h"
-#include "rcc.h"
 #include "rcc_reg.h"
 #include "spi_reg.h"
 
@@ -38,7 +37,6 @@ void SPI1_Init(void) {
 	// Configure peripheral.
 	SPI1 -> CR1 &= 0xFFFF0000; // Disable peripheral before configuration (SPE='0').
 	SPI1 -> CR1 |= (0b1 << 2); // Master mode (MSTR='1').
-	// Set baud rate according to system clock.
 	SPI1 -> CR1 &= ~(0b111 << 3); // Baud rate = PCLK2/2 = SYSCLK/2 = 8MHz.
 	SPI1 -> CR1 &= ~(0b1 << 11); // 8-bits format (DFF='0').
 	SPI1 -> CR1 &= ~(0b11 << 0); // CPOL='0' and CPHA='0'.
