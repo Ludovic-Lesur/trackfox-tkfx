@@ -7,7 +7,6 @@
 
 #include "nvm.h"
 
-#include "mapping.h"
 #include "flash_reg.h"
 #include "rcc_reg.h"
 

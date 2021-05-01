@@ -18,7 +18,7 @@
 
 /*** LPUART local macros ***/
 
-#define LPUART_BAUD_RATE 		9600 // Baud rate.
+#define LPUART_BAUD_RATE 		9600
 #define LPUART_TIMEOUT_COUNT	100000
 
 /*** LPUART local functions ***/
@@ -149,7 +149,7 @@ void LPUART1_Disable(void) {
  * @return:	None.
  */
 void LPUART1_PowerOn(void) {
-	// Enable GPIOs/
+	// Enable GPIOs.
 	GPIO_Configure(&GPIO_LPUART1_TX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_LPUART1_RX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Turn NEOM8N on.

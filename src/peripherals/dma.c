@@ -20,7 +20,7 @@ static volatile unsigned char dma1_channel3_tcif = 0;
 
 /*** DMA local functions ***/
 
-/* DMA1 CHANNEL 6 INTERRUPT HANDLER.
+/* DMA1 CHANNEL 3 INTERRUPT HANDLER.
  * @param:	None.
  * @return:	None.
  */

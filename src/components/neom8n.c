@@ -9,6 +9,7 @@
 
 #include "adc.h"
 #include "dma.h"
+#include "gpio.h"
 #include "iwdg.h"
 #include "lptim.h"
 #include "lpuart.h"
@@ -194,9 +195,8 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				switch (field) {
 				// Field 1 = address = <ID><message>.
 				case 1:
-
 					if (idx == NMEA_GGA_ADDRESS_FIELD_LENGTH) {
-						/* Check if message = 'GGA' */
+						// Check if message = 'GGA'.
 						if ((nmea_rx_buf[sep_idx+3] != 'G') || (nmea_rx_buf[sep_idx+4] != 'G') || (nmea_rx_buf[sep_idx+5] != 'A')) {
 							error_found = 1;
 						}
@@ -345,8 +345,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				for (idx=0 ; idx<NMEA_RX_BUFFER_SIZE ; idx++) nmea_rx_buf[idx] = 0;
 				break;
 			}
-
-			/* Increment index */
+			// Increment index.
 			idx++;
 		}
 	}

@@ -40,4 +40,4 @@ void EXTI_ConfigureGpio(const GPIO* gpio, EXTI_Trigger edge_trigger);
 void EXTI_ConfigureLine(EXTI_Line line, EXTI_Trigger edge_trigger);
 void EXTI_ClearAllFlags(void);
 
-#endif /* EXTI_H_ */
+#endif /* EXTI_H */

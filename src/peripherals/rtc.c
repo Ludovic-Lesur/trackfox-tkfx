@@ -195,6 +195,6 @@ volatile unsigned char RTC_GetWakeUpTimerFlag(void) {
  * @return:	None.
  */
 void RTC_ClearWakeUpTimerFlag(void) {
-	// Clear ALARM and EXTI flags.
+	// Clear local flag.
 	rtc_wakeup_timer_flag = 0;
 }

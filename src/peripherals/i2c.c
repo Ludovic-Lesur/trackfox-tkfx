@@ -52,8 +52,8 @@ void I2C1_Init(void) {
 	I2C1 -> CR1 &= ~(0b1 << 0); // Disable peripheral before configuration (PE='0').
 	I2C1 -> CR1 &= ~(0b11111 << 8); // Analog filter enabled (ANFOFF='0') and digital filter disabled (DNF='0000').
 	I2C1 -> TIMINGR = 0; // Reset all bits.
-	I2C1 -> TIMINGR |= (7 << 28); // I2CCLK = PCLK1/(PRESC+1) = SYSCLK/(PRESC+1) = 2MHz (HSI) or 3.25MHz (HSE) (PRESC='1000').
-	I2C1 -> TIMINGR |= (99 << 8) + 99; // Set SCL frequency to 10kHz (HSI) or 16kHz (HSE). See p.641 of RM0377 datasheet.
+	I2C1 -> TIMINGR |= (7 << 28); // I2CCLK = PCLK1/(PRESC+1) = SYSCLK/(PRESC+1) = 2MHz (HSI) (PRESC='1000').
+	I2C1 -> TIMINGR |= (99 << 8) + 99; // Set SCL frequency to 10kHz. See p.641 of RM0377 datasheet.
 	I2C1 -> CR1 &= ~(0b1 << 17); // Must be kept cleared in master mode (NOSTRETCH='0').
 	I2C1 -> CR2 &= ~(0b1 << 11); // 7-bits addressing mode (ADD10='0').
 	I2C1 -> CR2 &= ~(0b11 << 24); // AUTOEND='0' and RELOAD='0'.
@@ -74,7 +74,6 @@ void I2C1_Disable(void) {
 	I2C1 -> ICR |= 0x00003F38;
 	// Disable peripheral clock.
 	RCC -> APB1ENR &= ~(0b1 << 21); // I2C1EN='0'.
-
 }
 
 /* SWITCH ALL I2C1 SLAVES ON.

@@ -13,6 +13,7 @@
 #include "i2c.h"
 #include "iwdg.h"
 #include "lptim.h"
+#include "mode.h"
 #include "nvm.h"
 #include "pwr.h"
 #include "rtc.h"

@@ -9,7 +9,6 @@
 
 #include "exti_reg.h"
 #include "flash_reg.h"
-#include "mapping.h"
 #include "nvic_reg.h"
 #include "pwr_reg.h"
 #include "rcc_reg.h"

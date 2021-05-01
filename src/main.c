@@ -10,7 +10,6 @@
 // Peripherals.
 #include "adc.h"
 #include "aes.h"
-#include "dma.h"
 #include "exti.h"
 #include "flash.h"
 #include "gpio.h"

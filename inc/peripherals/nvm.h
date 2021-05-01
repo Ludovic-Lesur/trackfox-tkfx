@@ -8,8 +8,6 @@
 #ifndef NVM_H
 #define NVM_H
 
-#include "mapping.h"
-
 /*** NVM macros ***/
 
 // Sigfox device parameters.
@@ -19,7 +17,6 @@
 #define NVM_SIGFOX_SEQ_ADDRESS_OFFSET				22
 #define NVM_SIGFOX_FH_ADDRESS_OFFSET				24
 #define NVM_SIGFOX_RL_ADDRESS_OFFSET				26
-
 // Device configuration (mapped on downlink frame).
 #define NVM_CONFIG_START_ADDRESS_OFFSET				27
 
