@@ -348,7 +348,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	// Manage call count.
 	rf_api_ctx.rf_api_wait_frame_calls_count++;
 	if (rf_api_ctx.rf_api_wait_frame_calls_count < RF_API_WAIT_FRAME_CALLS_MAX) {
-		// Got to ready state.
+		// Go to ready state.
 		S2LP_SendCommand(S2LP_CMD_READY);
 		S2LP_WaitForStateSwitch(S2LP_STATE_READY);
 		S2LP_SendCommand(S2LP_CMD_FLUSHRXFIFO);

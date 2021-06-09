@@ -306,11 +306,11 @@ int main (void) {
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_degrees = tkfx_ctx.tkfx_geoloc_position.lat_degrees;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_minutes = tkfx_ctx.tkfx_geoloc_position.lat_minutes;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_seconds = tkfx_ctx.tkfx_geoloc_position.lat_seconds;
-				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_north_flag = tkfx_ctx.tkfx_geoloc_position.lat_north;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.latitude_north_flag = tkfx_ctx.tkfx_geoloc_position.lat_north_flag;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_degrees = tkfx_ctx.tkfx_geoloc_position.long_degrees;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_minutes = tkfx_ctx.tkfx_geoloc_position.long_minutes;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_seconds = tkfx_ctx.tkfx_geoloc_position.long_seconds;
-				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_east_flag = tkfx_ctx.tkfx_geoloc_position.long_east;
+				tkfx_ctx.tkfx_sfx_geoloc_data.field.longitude_east_flag = tkfx_ctx.tkfx_geoloc_position.long_east_flag;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.altitude_meters = tkfx_ctx.tkfx_geoloc_position.altitude;
 				tkfx_ctx.tkfx_sfx_geoloc_data.field.gps_fix_duration_seconds = tkfx_ctx.tkfx_geoloc_fix_duration_seconds;
 			}
@@ -409,7 +409,6 @@ int main (void) {
 	IWDG_Init();
 	// Init memory.
 	NVIC_Init();
-	NVM_Enable();
 	// Init GPIOs.
 	GPIO_Init();
 	EXTI_Init();

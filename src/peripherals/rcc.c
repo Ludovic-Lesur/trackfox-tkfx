@@ -20,7 +20,6 @@
 /*** RCC local macros ***/
 
 #define RCC_MSI_RESET_FREQUENCY_KHZ		2100
-#define RCC_TCXO_FREQUENCY_KHZ			26000
 #define RCC_TIMEOUT_COUNT				10
 
 /*** RCC local global variables ***/
@@ -112,7 +111,7 @@ unsigned char RCC_SwitchToMsi(void) {
 	// Init MSI.
 	RCC -> ICSCR &= ~(0b111 << 13); // Set frequency to 65kHz (MSIRANGE='000').
 	RCC -> CR |= (0b1 << 8); // Enable MSI (MSION='1').
-	// Wait for HSI to be stable.
+	// Wait for MSI to be stable.
 	unsigned char sysclk_on_msi = 0;
 	unsigned int count = 0;
 	while ((((RCC -> CR) & (0b1 << 9)) == 0) && (count < RCC_TIMEOUT_COUNT)) {
