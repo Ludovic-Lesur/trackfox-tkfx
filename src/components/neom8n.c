@@ -44,9 +44,7 @@
 #define NMEA_GGA_EO_FIELD_LENGTH			1
 #define NMEA_GGA_EAST						'E'
 #define NMEA_GGA_WEST						'W'
-#define NMEA_GGA_QUALITY_FIELD_LENGTH		1
 #define NMEA_GGA_ALT_UNIT_FIELD_LENGTH		1
-#define NMEA_GGA_ALT_STABILITY_COUNT		10
 #define NMEA_GGA_METERS						'M'
 
 #define NMEA_CHECKSUM_START_CHAR			'*' // To skip '$'.
@@ -60,12 +58,8 @@ typedef struct {
 	volatile unsigned char nmea_rx_fill_buf1;			// 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
 	volatile unsigned char nmea_rx_lf_flag;				// Set to '1' as soon as a complete NMEA message is received.
 	// Parsing.
-	unsigned char nmea_zda_parsing_success;				// Set to '1' as soon an NMEA ZDA message was successfully parsed.
-	unsigned char nmea_zda_data_valid;					// set to '1' if retrieved NMEA ZDA data is valid.
 	unsigned char nmea_gga_parsing_success;				// Set to '1' as soon an NMEA GGA message was successfully parsed.
-	unsigned char nmea_gga_same_altitude_count;			// Number of consecutive same altitudes.
-	unsigned int nmea_gga_previous_altitude;
-	unsigned char nmea_gga_high_quality_flag;			// Set to '1' when fix quality indicator is > 1.
+	unsigned char nmea_gga_data_valid;					// set to '1' if retrieved NMEA GGA data is valid.
 	// Energy monitoring.
 	unsigned int neom8n_supercap_voltage_mv;			// Supercap voltage in mV.
 } NEOM8N_Context;
@@ -276,17 +270,6 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 						error_found = 1;
 					}
 					break;
-				// Field 7 = quality indicator.
-				case 7:
-					if ((idx - sep_idx) == (NMEA_GGA_QUALITY_FIELD_LENGTH + 1)) {
-						if (NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+1]) > 1) {
-							neom8n_ctx.nmea_gga_high_quality_flag = 1;
-						}
-						else {
-							neom8n_ctx.nmea_gga_high_quality_flag = 0;
-						}
-					}
-					break;
 				// Field 10 = altitude.
 				case 10:
 					alt_field_length = (idx - sep_idx) - 1;
@@ -423,12 +406,8 @@ void NEOM8N_Init(void) {
 	for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) neom8n_ctx.nmea_rx_buf1[byte_idx] = 0;
 	for (byte_idx=0 ; byte_idx<NMEA_RX_BUFFER_SIZE ; byte_idx++) neom8n_ctx.nmea_rx_buf2[byte_idx] = 0;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
-	neom8n_ctx.nmea_zda_parsing_success = 0;
-	neom8n_ctx.nmea_zda_data_valid = 0;
 	neom8n_ctx.nmea_gga_parsing_success = 0;
-	neom8n_ctx.nmea_gga_same_altitude_count = 0;
-	neom8n_ctx.nmea_gga_previous_altitude = 0;
-	neom8n_ctx.nmea_gga_high_quality_flag = 0;
+	neom8n_ctx.nmea_gga_data_valid = 0;
 	neom8n_ctx.neom8n_supercap_voltage_mv = 0;
 }
 
@@ -454,9 +433,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	Position local_gps_position;
 	// Reset flags.
 	neom8n_ctx.nmea_gga_parsing_success = 0;
-	neom8n_ctx.nmea_gga_same_altitude_count = 0;
-	neom8n_ctx.nmea_gga_previous_altitude = 0;
-	neom8n_ctx.nmea_gga_high_quality_flag = 0;
+	neom8n_ctx.nmea_gga_data_valid = 0;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
 	// Init ADC to monitor supercap voltage.
 	ADC1_Init();
@@ -474,7 +451,7 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	DMA1_StartChannel6();
 	LPUART1_EnableRx();
 	// Loop until data is retrieved or timeout expired.
-	while ((RTC_GetWakeUpTimerFlag() == 0) && (neom8n_ctx.nmea_gga_same_altitude_count < NMEA_GGA_ALT_STABILITY_COUNT) && (neom8n_ctx.nmea_gga_high_quality_flag == 0)) {
+	while ((RTC_GetWakeUpTimerFlag() == 0) && (neom8n_ctx.nmea_gga_data_valid == 0)) {
 		// Lower clock while waiting for NMEA frame.
 		RCC_SwitchToMsi();
 		LPUART1_UpdateBrr();
@@ -505,23 +482,13 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 					(*gps_position).long_seconds = local_gps_position.long_seconds;
 					(*gps_position).long_east_flag = local_gps_position.long_east_flag;
 					(*gps_position).altitude = local_gps_position.altitude;
-					// Manage altitude stability count.
-					if (local_gps_position.altitude == neom8n_ctx.nmea_gga_previous_altitude) {
-						neom8n_ctx.nmea_gga_same_altitude_count++;
-					}
-					else {
-						neom8n_ctx.nmea_gga_same_altitude_count = 0;
-					}
-					// Update previous altitude.
-					neom8n_ctx.nmea_gga_previous_altitude = local_gps_position.altitude;
+					// Set flag.
+					neom8n_ctx.nmea_gga_data_valid = 1;
 				}
 				else {
+					neom8n_ctx.nmea_gga_data_valid = 0;
 					neom8n_ctx.nmea_gga_parsing_success = 0;
-					neom8n_ctx.nmea_gga_same_altitude_count = 0;
 				}
-			}
-			else {
-				neom8n_ctx.nmea_gga_same_altitude_count = 0;
 			}
 			// Wait for next message.
 			neom8n_ctx.nmea_rx_lf_flag = 0;
