@@ -11,6 +11,9 @@
 #include "gpio.h"
 #include "i2c.h"
 #include "mapping.h"
+#include "mode.h"
+
+#ifdef SSM
 
 /*** MMA8653 local macros ***/
 
@@ -174,3 +177,5 @@ void MMA8653FC_ClearMotionInterruptFlag(void) {
 unsigned char MMA8653FC_GetMotionInterruptFlag(void) {
 	return mma8653fc_motion_interrupt_flag;
 }
+
+#endif

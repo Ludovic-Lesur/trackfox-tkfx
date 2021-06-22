@@ -10,6 +10,7 @@
 #include "exti_reg.h"
 #include "mapping.h"
 #include "mma8653fc.h"
+#include "mode.h"
 #include "nvic.h"
 #include "rcc_reg.h"
 #include "rf_api.h"
@@ -30,8 +31,10 @@ void EXTI0_1_IRQHandler(void) {
 	if (((EXTI -> PR) & (0b1 << (GPIO_ACCELERO_IRQ.gpio_num))) != 0) {
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.gpio_num)); // PIFx='1' (writing '1' clears the bit).
+#ifdef SSM
 		// Set motion interrupt flag.
 		MMA8653FC_SetMotionInterruptFlag();
+#endif
 	}
 }
 

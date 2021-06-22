@@ -41,22 +41,27 @@
 #ifdef SSM
 #define TKFX_STOP_CONDITION_THRESHOLD_SECONDS			300
 #define TKFX_KEEP_ALIVE_PERIOD_SECONDS					3600
-#define TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES		8
-#define TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES			11
-#define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_LENGTH_BYTES	1
-#define TKFX_SIGFOX_DOWNLINK_DATA_LENGTH_BYTES			8
+#endif
+#ifdef PM
+#define TKFX_GEOLOC_PERIOD_SECONDS						120
 #endif
 #define TKFX_GEOLOC_TIMEOUT_SECONDS						180
 #define TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV				1500
+#define TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES			11
+#define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_LENGTH_BYTES	1
+#define TKFX_SIGFOX_DOWNLINK_DATA_LENGTH_BYTES			8
+#define TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES		8
 
 /*** MAIN structures ***/
 
-#ifdef SSM
+#ifndef ATM
 // State machine.
 typedef enum {
 	TKFX_STATE_POR,
 	TKFX_STATE_INIT,
+#ifdef SSM
 	TKFX_STATE_ACCELERO,
+#endif
 	TKFX_STATE_OOB,
 	TKFX_STATE_MEASURE,
 	TKFX_STATE_MONITORING,
@@ -110,8 +115,13 @@ typedef struct {
 	// State machine.
 	TKFX_State tkfx_state;
 	unsigned char tkfx_por_flag;
+#ifdef SSM
 	unsigned int tkfx_stop_timer_seconds;
 	unsigned int tkfx_keep_alive_timer_seconds;
+#endif
+#ifdef PM
+	unsigned int tkfx_geoloc_timer_seconds;
+#endif
 	unsigned char tkfx_status_byte;
 	// Monitoring data.
 	unsigned char tkfx_temperature_degrees;
@@ -138,7 +148,7 @@ static TKFX_Context tkfx_ctx;
 
 /*** MAIN functions ***/
 
-#ifdef SSM
+#ifndef ATM
 /* MAIN FUNCTION FOR START/STOP MODE.
  * @param: 	None.
  * @return: 0.
@@ -155,8 +165,13 @@ int main (void) {
 	// Init context.
 	tkfx_ctx.tkfx_por_flag = 1;
 	tkfx_ctx.tkfx_state = TKFX_STATE_POR;
+#ifdef SSM
 	tkfx_ctx.tkfx_stop_timer_seconds = 0;
 	tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
+#endif
+#ifdef PM
+	tkfx_ctx.tkfx_geoloc_timer_seconds = 0;
+#endif
 	tkfx_ctx.tkfx_status_byte = 0; // Reset all flags and tracker mode='00'.
 	// Local variables.
 	unsigned char tkfx_use_lse = 0;
@@ -187,7 +202,12 @@ int main (void) {
 		case TKFX_STATE_INIT:
 			IWDG_Reload();
 			// Reset keep-alive timer.
+#ifdef SSM
 			tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
+#endif
+#ifdef PM
+			tkfx_ctx.tkfx_geoloc_timer_seconds = 0;
+#endif
 			// Disable RTC and accelerometer interrupts.
 			RTC_StopWakeUpTimer();
 			NVIC_DisableInterrupt(NVIC_IT_EXTI_0_1);
@@ -202,15 +222,22 @@ int main (void) {
 			// Init components.
 			NEOM8N_Init();
 			SHT3X_Init();
+#ifdef SSM
 			MMA8653FC_Init();
+#endif
 			// Compute next state.
 			if (tkfx_ctx.tkfx_por_flag == 0) {
 				tkfx_ctx.tkfx_state = TKFX_STATE_MEASURE;
 			}
 			else {
+#ifdef SSM
 				tkfx_ctx.tkfx_state = TKFX_STATE_ACCELERO;
+#else
+				tkfx_ctx.tkfx_state = TKFX_STATE_OOB;
+#endif
 			}
 			break;
+#ifdef SSM
 		case TKFX_STATE_ACCELERO:
 			IWDG_Reload();
 			// Configure accelerometer once for motion detection.
@@ -222,6 +249,7 @@ int main (void) {
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_OOB;
 			break;
+#endif
 		case TKFX_STATE_OOB:
 			IWDG_Reload();
 			// Send OOB frame.
@@ -231,7 +259,11 @@ int main (void) {
 			}
 			SIGFOX_API_close();
 			// Compute next state.
+#ifdef SSM
 			tkfx_ctx.tkfx_state = TKFX_STATE_OFF;
+#else
+			tkfx_ctx.tkfx_state = TKFX_STATE_GEOLOC;
+#endif
 			break;
 		case TKFX_STATE_MEASURE:
 			IWDG_Reload();
@@ -271,6 +303,7 @@ int main (void) {
 			}
 			SIGFOX_API_close();
 			// Compute next state.
+#ifdef SSM
 			if (((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) == 0) && ((tkfx_ctx.tkfx_status_byte & (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX)) != 0)) {
 				// Stop condition.
 				tkfx_ctx.tkfx_state = TKFX_STATE_GEOLOC;
@@ -279,6 +312,9 @@ int main (void) {
 				// Moving condition.
 				tkfx_ctx.tkfx_state = TKFX_STATE_OFF;
 			}
+#else
+			tkfx_ctx.tkfx_state = TKFX_STATE_GEOLOC;
+#endif
 			break;
 		case TKFX_STATE_GEOLOC:
 			IWDG_Reload();
@@ -338,7 +374,9 @@ int main (void) {
 			// Clear EXTI flags.
 			EXTI_ClearAllFlags();
 			RTC_ClearWakeUpTimerFlag();
+#ifdef SSM
 			MMA8653FC_ClearMotionInterruptFlag();
+#endif
 			// Enable RTC and accelerometer interrupts.
 			NVIC_EnableInterrupt(NVIC_IT_EXTI_0_1);
 			RTC_StartWakeUpTimer(RTC_WAKEUP_PERIOD_SECONDS);
@@ -351,11 +389,19 @@ int main (void) {
 			PWR_EnterStopMode();
 			// Check wake-up source.
 			if (RTC_GetWakeUpTimerFlag() != 0) {
+#ifdef SSM
 				// Increment timers.
 				tkfx_ctx.tkfx_keep_alive_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
 				tkfx_ctx.tkfx_stop_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
-				// Check periods.
+				// Check keep-alive period.
 				if (tkfx_ctx.tkfx_keep_alive_timer_seconds >= TKFX_KEEP_ALIVE_PERIOD_SECONDS) {
+#endif
+#ifdef PM
+				// Increment timer.
+				tkfx_ctx.tkfx_geoloc_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
+				// Check geolocation period.
+				if (tkfx_ctx.tkfx_geoloc_timer_seconds >= TKFX_GEOLOC_PERIOD_SECONDS) {
+#endif
 					// Reset alarm flag.
 					tkfx_ctx.tkfx_status_byte &= ~(0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
 					// Turn tracker on to send keep-alive.
@@ -364,6 +410,7 @@ int main (void) {
 				// Clear RTC flags.
 				RTC_ClearWakeUpTimerFlag();
 			}
+#ifdef SSM
 			if (MMA8653FC_GetMotionInterruptFlag() != 0) {
 				// Reset stop timer.
 				tkfx_ctx.tkfx_stop_timer_seconds = 0;
@@ -387,6 +434,7 @@ int main (void) {
 					tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
 				}
 			}
+#endif
 			break;
 		default:
 			// Unknown state.

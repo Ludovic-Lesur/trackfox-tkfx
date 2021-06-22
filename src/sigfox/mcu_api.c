@@ -9,11 +9,13 @@
 
 #include "adc.h"
 #include "aes.h"
+#include "exti.h"
 #include "i2c.h"
 #include "iwdg.h"
 #include "lptim.h"
 #include "mode.h"
 #include "nvm.h"
+#include "pwr.h"
 #include "rtc.h"
 #include "sht3x.h"
 #include "sigfox_types.h"

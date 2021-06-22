@@ -9,6 +9,9 @@
 #define MMA8653FC_H
 
 #include "mma8653fc_reg.h"
+#include "mode.h"
+
+#ifdef SSM
 
 /*** MMA8653FC structures ***/
 
@@ -43,5 +46,7 @@ void MMA8653FC_GetData(signed int* x, signed int* y, signed int* z);
 void MMA8653FC_SetMotionInterruptFlag(void);
 void MMA8653FC_ClearMotionInterruptFlag(void);
 unsigned char MMA8653FC_GetMotionInterruptFlag(void);
+
+#endif
 
 #endif /* MMA8653FC_H */
