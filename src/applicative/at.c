@@ -502,7 +502,7 @@ static void AT_PrintPosition(Position* gps_position, unsigned int gps_fix_durati
 	USART2_SendString("'");
 	USART2_SendValue((gps_position -> lat_seconds), USART_FORMAT_DECIMAL, 0);
 	USART2_SendString("''-");
-	USART2_SendString(((gps_position -> lat_north) == 1) ? "N" : "S");
+	USART2_SendString(((gps_position -> lat_north_flag) == 1) ? "N" : "S");
 	// Longitude.
 	USART2_SendString(" Long=");
 	USART2_SendValue((gps_position -> long_degrees), USART_FORMAT_DECIMAL, 0);
@@ -511,7 +511,7 @@ static void AT_PrintPosition(Position* gps_position, unsigned int gps_fix_durati
 	USART2_SendString("'");
 	USART2_SendValue((gps_position -> long_seconds), USART_FORMAT_DECIMAL, 0);
 	USART2_SendString("''-");
-	USART2_SendString(((gps_position -> long_east) == 1) ? "E" : "W");
+	USART2_SendString(((gps_position -> long_east_flag) == 1) ? "E" : "W");
 	// Altitude.
 	USART2_SendString(" Alt=");
 	USART2_SendValue((gps_position -> altitude), USART_FORMAT_DECIMAL, 0);

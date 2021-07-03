@@ -25,6 +25,7 @@ unsigned int RCC_GetSysclkKhz(void);
 unsigned char RCC_SwitchToMsi(void);
 unsigned char RCC_SwitchToHsi(void);
 unsigned char RCC_EnableLsi(void);
+void RCC_GetLsiFrequency(unsigned int* lsi_frequency_hz);
 unsigned char RCC_EnableLse(void);
 
 #endif /* RCC_H */

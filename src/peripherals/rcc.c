@@ -16,11 +16,16 @@
 #include "pwr_reg.h"
 #include "rcc_reg.h"
 #include "scb_reg.h"
+#include "tim.h"
 
 /*** RCC local macros ***/
 
-#define RCC_MSI_RESET_FREQUENCY_KHZ		2100
 #define RCC_TIMEOUT_COUNT				10
+#define RCC_MSI_RESET_FREQUENCY_KHZ		2100
+
+#define RCC_LSI_AVERAGING_COUNT			5
+#define RCC_LSI_FREQUENCY_MIN_HZ		26000
+#define RCC_LSI_FREQUENCY_MAX_HZ		56000
 
 /*** RCC local global variables ***/
 
@@ -113,23 +118,23 @@ unsigned char RCC_SwitchToMsi(void) {
 	RCC -> CR |= (0b1 << 8); // Enable MSI (MSION='1').
 	// Wait for MSI to be stable.
 	unsigned char sysclk_on_msi = 0;
-	unsigned int count = 0;
-	while ((((RCC -> CR) & (0b1 << 9)) == 0) && (count < RCC_TIMEOUT_COUNT)) {
+	unsigned int loop_count = 0;
+	while ((((RCC -> CR) & (0b1 << 9)) == 0) && (loop_count < RCC_TIMEOUT_COUNT)) {
 		RCC_Delay();
-		count++; // Wait for MSIRDYF='1' or timeout.
+		loop_count++; // Wait for MSIRDYF='1' or timeout.
 	}
 	// Check timeout.
-	if (count < RCC_TIMEOUT_COUNT) {
+	if (loop_count < RCC_TIMEOUT_COUNT) {
 		// Switch SYSCLK.
 		RCC -> CFGR &= ~(0b11 << 0); // Use MSI as system clock (SW='00').
 		// Wait for clock switch.
-		count = 0;
-		while ((((RCC -> CFGR) & (0b11 << 2)) != (0b00 << 2)) && (count < RCC_TIMEOUT_COUNT)) {
+		loop_count = 0;
+		while ((((RCC -> CFGR) & (0b11 << 2)) != (0b00 << 2)) && (loop_count < RCC_TIMEOUT_COUNT)) {
 			RCC_Delay();
-			count++; // Wait for SWS='00' or timeout.
+			loop_count++; // Wait for SWS='00' or timeout.
 		}
 		// Check timeout.
-		if (count < RCC_TIMEOUT_COUNT) {
+		if (loop_count < RCC_TIMEOUT_COUNT) {
 			// Set flash latency.
 			FLASH_SetLatency(0);
 			// Disable HSI and HSE.
@@ -154,24 +159,24 @@ unsigned char RCC_SwitchToHsi(void) {
 	RCC -> CR |= (0b1 << 0); // Enable HSI (HSI16ON='1').
 	// Wait for HSI to be stable.
 	unsigned char sysclk_on_hsi = 0;
-	unsigned int count = 0;
-	while ((((RCC -> CR) & (0b1 << 2)) == 0) && (count < RCC_TIMEOUT_COUNT)) {
+	unsigned int loop_count = 0;
+	while ((((RCC -> CR) & (0b1 << 2)) == 0) && (loop_count < RCC_TIMEOUT_COUNT)) {
 		RCC_Delay();
-		count++; // Wait for HSIRDYF='1' or timeout.
+		loop_count++; // Wait for HSIRDYF='1' or timeout.
 	}
 	// Check timeout.
-	if (count < RCC_TIMEOUT_COUNT) {
+	if (loop_count < RCC_TIMEOUT_COUNT) {
 		// Switch SYSCLK.
 		RCC -> CFGR &= ~(0b11 << 0); // Reset bits 0-1.
 		RCC -> CFGR |= (0b01 << 0); // Use HSI as system clock (SW='01').
 		// Wait for clock switch.
-		count = 0;
-		while ((((RCC -> CFGR) & (0b11 << 2)) != (0b01 << 2)) && (count < RCC_TIMEOUT_COUNT)) {
+		loop_count = 0;
+		while ((((RCC -> CFGR) & (0b11 << 2)) != (0b01 << 2)) && (loop_count < RCC_TIMEOUT_COUNT)) {
 			RCC_Delay();
-			count++; // Wait for SWS='01' or timeout.
+			loop_count++; // Wait for SWS='01' or timeout.
 		}
 		// Check timeout.
-		if (count < RCC_TIMEOUT_COUNT) {
+		if (loop_count < RCC_TIMEOUT_COUNT) {
 			// Disable MSI and HSE.
 			RCC -> CR &= ~(0b1 << 8); // Disable MSI (MSION='0').
 			RCC -> CR &= ~(0b1 << 16); // Disable HSE (HSEON='0').
@@ -192,17 +197,41 @@ unsigned char RCC_EnableLsi(void) {
 	RCC -> CSR |= (0b1 << 0); // LSION='1'.
 	// Wait for LSI to be stable.
 	unsigned char lsi_available = 0;
-	unsigned int count = 0;
-	while ((((RCC -> CSR) & (0b1 << 1)) == 0) && (count < RCC_TIMEOUT_COUNT)) {
+	unsigned int loop_count = 0;
+	while ((((RCC -> CSR) & (0b1 << 1)) == 0) && (loop_count < RCC_TIMEOUT_COUNT)) {
 		RCC_Delay();
-		count++; // Wait for LSIRDY='1'.
+		loop_count++; // Wait for LSIRDY='1'.
 	}
 	// Check timeout.
-	if (count < RCC_TIMEOUT_COUNT) {
+	if (loop_count < RCC_TIMEOUT_COUNT) {
 		// Update flag.
 		lsi_available = 1;
 	}
 	return lsi_available;
+}
+
+/* COMPUTE EFFECTIVE LSI OSCILLATOR FREQUENCY.
+ * @param lsi_frequency_hz:		Pointer that will contain measured LSI frequency in Hz.
+ * @return:						None.
+ */
+void RCC_GetLsiFrequency(unsigned int* lsi_frequency_hz) {
+	// Reset result.
+	(*lsi_frequency_hz) = 0;
+	unsigned int lsi_frequency_sample = 0;
+	unsigned char sample_idx = 0;
+	// Init measurement timer.
+	TIM21_Init();
+	// Compute average.
+	for (sample_idx=0 ; sample_idx<RCC_LSI_AVERAGING_COUNT ; sample_idx++) {
+		// Perform measurement.
+		TIM21_GetLsiFrequency(&lsi_frequency_sample);
+		(*lsi_frequency_hz) = (((*lsi_frequency_hz) * sample_idx) + lsi_frequency_sample) / (sample_idx + 1);
+	}
+	TIM21_Disable();
+	// Return default value in case of error.
+	if (((*lsi_frequency_hz) < RCC_LSI_FREQUENCY_MIN_HZ) || ((*lsi_frequency_hz) > RCC_LSI_FREQUENCY_MAX_HZ)) {
+		(*lsi_frequency_hz) = RCC_LSI_FREQUENCY_HZ;
+	}
 }
 
 /* ENABLE LSE OSCILLATOR (32kHz EXTERNAL QUARTZ).
@@ -216,13 +245,13 @@ unsigned char RCC_EnableLse(void) {
 	RCC -> CSR |= (0b1 << 8); // LSEON='1'.
 	// Wait for LSE to be stable.
 	unsigned char lse_available = 0;
-	unsigned int count = 0;
-	while ((((RCC -> CSR) & (0b1 << 9)) == 0) && (count < RCC_TIMEOUT_COUNT)) {
+	unsigned int loop_count = 0;
+	while ((((RCC -> CSR) & (0b1 << 9)) == 0) && (loop_count < RCC_TIMEOUT_COUNT)) {
 		RCC_Delay();
-		count++; // Wait for LSERDY='1'.
+		loop_count++; // Wait for LSERDY='1'.
 	}
 	// Check timeout.
-	if (count < RCC_TIMEOUT_COUNT) {
+	if (loop_count < RCC_TIMEOUT_COUNT) {
 		// Update flag.
 		lse_available = 1;
 	}

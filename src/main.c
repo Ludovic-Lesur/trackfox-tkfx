@@ -115,6 +115,7 @@ typedef struct {
 	// State machine.
 	TKFX_State tkfx_state;
 	unsigned char tkfx_por_flag;
+	unsigned int tkfx_lsi_frequency_hz;
 #ifdef SSM
 	unsigned int tkfx_stop_timer_seconds;
 	unsigned int tkfx_keep_alive_timer_seconds;
@@ -164,6 +165,7 @@ int main (void) {
 	PWR_Init();
 	// Init context.
 	tkfx_ctx.tkfx_por_flag = 1;
+	tkfx_ctx.tkfx_lsi_frequency_hz = 0;
 	tkfx_ctx.tkfx_state = TKFX_STATE_POR;
 #ifdef SSM
 	tkfx_ctx.tkfx_stop_timer_seconds = 0;
@@ -193,8 +195,13 @@ int main (void) {
 			// Low speed oscillators.
 			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
 			tkfx_use_lse = RCC_EnableLse();
+			// Switch to HSI clock.
+			RCC_SwitchToHsi();
+			// Get LSI effective frequency (must be called after HSI initialization and before RTC inititialization).
+			RCC_GetLsiFrequency(&tkfx_ctx.tkfx_lsi_frequency_hz);
+			IWDG_Reload();
 			// Init RTC.
-			RTC_Init(&tkfx_use_lse);
+			RTC_Init(&tkfx_use_lse, tkfx_ctx.tkfx_lsi_frequency_hz);
 			tkfx_ctx.tkfx_status_byte |= (tkfx_use_lse << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_INIT;
@@ -218,7 +225,7 @@ int main (void) {
 			RCC_EnableGpio();
 			RCC_SwitchToHsi();
 			// Init delay timer.
-			LPTIM1_Init();
+			LPTIM1_Init(tkfx_ctx.tkfx_lsi_frequency_hz);
 			// Unused communication interfaces.
 			USART2_Init();
 			// Init components.
@@ -463,15 +470,19 @@ int main (void) {
 	// Init GPIOs.
 	GPIO_Init();
 	EXTI_Init();
-	// Init clock.
-	RCC_Init();
-	RCC_SwitchToHsi();
 	// Reset RTC before starting oscillators.
 	RTC_Reset();
-	// Init RTC and timers.
+	// Init clocks.
+	RCC_Init();
 	unsigned char tkfx_use_lse = RCC_EnableLse();
-	RTC_Init(&tkfx_use_lse);
-	LPTIM1_Init();
+	RCC_SwitchToHsi();
+	// Get LSI effective frequency (must be called after HSI initialization and before RTC inititialization).
+	unsigned int tkfx_lsi_frequency_hz = 0;
+	RCC_GetLsiFrequency(&tkfx_lsi_frequency_hz);
+	IWDG_Reload();
+	// Init RTC and timers.
+	RTC_Init(&tkfx_use_lse, tkfx_lsi_frequency_hz);
+	LPTIM1_Init(tkfx_lsi_frequency_hz);
 	// Init peripherals.
 	ADC1_Init();
 	USART2_Init();

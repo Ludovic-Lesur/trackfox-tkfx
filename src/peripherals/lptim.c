@@ -34,11 +34,11 @@ static volatile unsigned char lptim_wake_up = 0;
 void __attribute__((optimize("-O0"))) LPTIM1_IRQHandler(void) {
 	// Check flag.
 	if (((LPTIM1 -> ISR) & (0b1 << 1)) != 0) {
-		// Set wake-up flag.
+		// Set local flag.
 		if (((LPTIM1 -> IER) & (0b1 << 1)) != 0) {
 			lptim_wake_up = 1;
 		}
-		// Clear all flags.
+		// Clear flag.
 		LPTIM1 -> ICR |= (0b1 << 1);
 	}
 }
@@ -71,16 +71,16 @@ static void LPTIM1_WriteArr(unsigned int arr_value) {
 /*** LPTIM functions ***/
 
 /* INIT LPTIM FOR DELAY OPERATION.
- * @param:	None.
- * @return:	None.
+ * @param lsi_freq_hz:	Effective LSI oscillator frequency.
+ * @return:				None.
  */
-void LPTIM1_Init(void) {
+void LPTIM1_Init(unsigned int lsi_freq_hz) {
 	// Disable peripheral.
 	RCC -> APB1ENR &= ~(0b1 << 31); // LPTIM1EN='0'.
 	// Enable peripheral clock.
 	RCC -> CCIPR &= ~(0b11 << 18); // Reset bits 18-19.
 	RCC -> CCIPR |= (0b01 << 18); // LPTIMSEL='01' (LSI clock selected).
-	lptim_clock_frequency_hz = (RCC_LSI_FREQUENCY_HZ >> 5);
+	lptim_clock_frequency_hz = (lsi_freq_hz >> 5);
 	RCC -> APB1ENR |= (0b1 << 31); // LPTIM1EN='1'.
 	// Configure peripheral.
 	LPTIM1 -> CR &= ~(0b1 << 0); // Disable LPTIM1 (ENABLE='0'), needed to write CFGR.
