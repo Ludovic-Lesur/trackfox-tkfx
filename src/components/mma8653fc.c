@@ -13,7 +13,7 @@
 #include "mapping.h"
 #include "mode.h"
 
-#ifdef SSM
+#if (defined SSM) || (defined ATM)
 
 /*** MMA8653 local macros ***/
 

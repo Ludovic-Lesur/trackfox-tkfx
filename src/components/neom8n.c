@@ -429,18 +429,19 @@ void NEOM8N_SetVbckp(unsigned char vbckp_on) {
  * @return return_code:			See NEOM8N_ReturnCode structure in neom8n.h.
  */
 NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int supercap_voltage_min_mv, unsigned int* fix_duration_seconds) {
+	// Local variables.
 	NEOM8N_ReturnCode return_code = NEOM8N_TIMEOUT;
 	Position local_gps_position;
 	// Reset flags.
 	neom8n_ctx.nmea_gga_parsing_success = 0;
 	neom8n_ctx.nmea_gga_data_valid = 0;
 	neom8n_ctx.nmea_rx_lf_flag = 0;
-	// Init ADC to monitor supercap voltage.
-	ADC1_Init();
 	// Reset fix duration and start RTC wake-up timer for timeout.
 	(*fix_duration_seconds) = 0;
 	RTC_ClearWakeUpTimerFlag();
 	RTC_StartWakeUpTimer(timeout_seconds);
+	// Init ADC to monitor supercap voltage.
+	ADC1_Init();
 	// Select GGA message to get complete position.
 	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
 	// Start DMA.
@@ -504,19 +505,20 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 		}
 		IWDG_Reload();
 	}
-	// Stop ADC, DMA and RTC wake-up timer.
+	// Stop ADC and DMA.
 	ADC1_Disable();
 	DMA1_StopChannel6();
 	DMA1_Disable();
-	RTC_StopWakeUpTimer();
-	RTC_ClearWakeUpTimerFlag();
 	// Go back to HSI.
 	RCC_SwitchToHsi();
 	LPUART1_UpdateBrr();
+	// Stop RTC wake-up timer
+	RTC_StopWakeUpTimer();
 	// Clamp fix duration.
-	if ((*fix_duration_seconds) > timeout_seconds) {
+	if ((RTC_GetWakeUpTimerFlag() > 0) || ((*fix_duration_seconds) > timeout_seconds)) {
 		(*fix_duration_seconds) = timeout_seconds;
 	}
+	RTC_ClearWakeUpTimerFlag();
 	// Return result.
 	return return_code;
 }

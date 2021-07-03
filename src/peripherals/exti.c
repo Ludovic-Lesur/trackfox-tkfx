@@ -26,15 +26,17 @@
  * @param:	None.
  * @return:	None.
  */
-void EXTI0_1_IRQHandler(void) {
+void __attribute__((optimize("-O0"))) EXTI0_1_IRQHandler(void) {
 	// Accelero IRQ (PA0 or PA1).
 	if (((EXTI -> PR) & (0b1 << (GPIO_ACCELERO_IRQ.gpio_num))) != 0) {
-		// Clear flag.
-		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.gpio_num)); // PIFx='1' (writing '1' clears the bit).
 #ifdef SSM
 		// Set motion interrupt flag.
-		MMA8653FC_SetMotionInterruptFlag();
+		if (((EXTI -> IMR) & (0b1 << (GPIO_ACCELERO_IRQ.gpio_num))) != 0) {
+			MMA8653FC_SetMotionInterruptFlag();
+		}
 #endif
+		// Clear flag.
+		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.gpio_num)); // PIFx='1' (writing '1' clears the bit).
 	}
 }
 
@@ -42,7 +44,7 @@ void EXTI0_1_IRQHandler(void) {
  * @param:	None.
  * @return:	None.
  */
-void EXTI2_3_IRQHandler(void) {
+void __attribute__((optimize("-O0"))) EXTI2_3_IRQHandler(void) {
 	// Can be used for TP2 (PA4).
 }
 
@@ -50,11 +52,13 @@ void EXTI2_3_IRQHandler(void) {
  * @param:	None.
  * @return:	None.
  */
-void EXTI4_15_IRQHandler(void) {
+void __attribute__((optimize("-O0"))) EXTI4_15_IRQHandler(void) {
 	// S2LP GPIO0 (PA12).
 	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.gpio_num))) != 0) {
 		// Set applicative flag.
-		RF_API_SetIrqFlag();
+		if (((EXTI -> IMR) & (0b1 << (GPIO_S2LP_GPIO0.gpio_num))) != 0) {
+			RF_API_SetIrqFlag();
+		}
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.gpio_num)); // PIFx='1' (writing '1' clears the bit).
 	}

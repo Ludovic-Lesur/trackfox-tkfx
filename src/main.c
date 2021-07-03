@@ -201,16 +201,18 @@ int main (void) {
 			break;
 		case TKFX_STATE_INIT:
 			IWDG_Reload();
-			// Reset keep-alive timer.
+			// Disable RTC interrupt.
+			RTC_StopWakeUpTimer();
 #ifdef SSM
+			// Reset keep-alive timer.
 			tkfx_ctx.tkfx_keep_alive_timer_seconds = 0;
+			// Disable accelerometer interrupt.
+			NVIC_DisableInterrupt(NVIC_IT_EXTI_0_1);
 #endif
 #ifdef PM
+			// Reset geoloc timer.
 			tkfx_ctx.tkfx_geoloc_timer_seconds = 0;
 #endif
-			// Disable RTC and accelerometer interrupts.
-			RTC_StopWakeUpTimer();
-			NVIC_DisableInterrupt(NVIC_IT_EXTI_0_1);
 			// High speed oscillator.
 			IWDG_Reload();
 			RCC_EnableGpio();
@@ -375,10 +377,11 @@ int main (void) {
 			EXTI_ClearAllFlags();
 			RTC_ClearWakeUpTimerFlag();
 #ifdef SSM
+			// Enable accelerometer interrupt.
 			MMA8653FC_ClearMotionInterruptFlag();
-#endif
-			// Enable RTC and accelerometer interrupts.
 			NVIC_EnableInterrupt(NVIC_IT_EXTI_0_1);
+#endif
+			// Enable RTC interrupt.
 			RTC_StartWakeUpTimer(RTC_WAKEUP_PERIOD_SECONDS);
 			// Enter stop mode.
 			tkfx_ctx.tkfx_state = TKFX_STATE_SLEEP;

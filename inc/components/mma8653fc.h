@@ -11,9 +11,9 @@
 #include "mma8653fc_reg.h"
 #include "mode.h"
 
-#ifdef SSM
-
 /*** MMA8653FC structures ***/
+
+#if (defined SSM) || (defined ATM)
 
 typedef struct {
 	unsigned char mma8653fc_reg_addr;

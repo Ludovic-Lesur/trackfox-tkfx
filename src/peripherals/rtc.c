@@ -30,11 +30,13 @@ static volatile unsigned char rtc_wakeup_timer_flag = 0;
  * @param:	None.
  * @return:	None.
  */
-void RTC_IRQHandler(void) {
+void __attribute__((optimize("-O0"))) RTC_IRQHandler(void) {
 	// Wake-up timer interrupt.
 	if (((RTC -> ISR) & (0b1 << 10)) != 0) {
-		// Update flag
-		rtc_wakeup_timer_flag = 1;
+		// Set local flag.
+		if (((RTC -> CR) & (0b1 << 14)) != 0) {
+			rtc_wakeup_timer_flag = 1;
+		}
 		// Clear flag.
 		RTC -> ISR &= ~(0b1 << 10); // WUTF='0'.
 	}
