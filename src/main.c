@@ -222,7 +222,6 @@ int main (void) {
 #endif
 			// High speed oscillator.
 			IWDG_Reload();
-			RCC_EnableGpio();
 			RCC_SwitchToHsi();
 			// Init delay timer.
 			LPTIM1_Init(tkfx_ctx.tkfx_lsi_frequency_hz);

@@ -180,10 +180,15 @@ typedef struct {
 
 /*** S2LP functions ***/
 
-// Common functions.
-void S2LP_DisableGpio(void);
+// GPIOs functions.
+void S2LP_Init(void);
+void S2LP_Disable(void);
+void S2LP_SetGpio0(unsigned char pull_resistor_config);
+void S2LP_Tcxo(unsigned char tcxo_enable);
 void S2LP_EnterShutdown(void);
 void S2LP_ExitShutdown(void);
+
+// Common functions.
 void S2LP_SendCommand(S2LP_Command command);
 void S2LP_WaitForStateSwitch(S2LP_State new_state);
 void S2LP_WaitForXo(void);

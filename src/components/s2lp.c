@@ -68,16 +68,59 @@ static void S2LP_ReadRegister(unsigned char addr, unsigned char* value) {
 
 /*** S2LP functions ***/
 
-/* DISABLE S2LP GPIOs.
+/* INIT S2LP INTERFACE.
  * @param:	None.
  * @return:	None.
  */
-void S2LP_DisableGpio(void) {
+void S2LP_Init(void) {
+	// Configure TCXO power control pin.
+	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
+}
+
+/* DISABLE S2LP INTERFACE.
+ * @param:	None.
+ * @return:	None.
+ */
+void S2LP_Disable(void) {
 	// Configure GPIOs as analog inputs.
+	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #ifdef HW1_1
 	GPIO_Configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
+}
+
+/* CONFIGURE S2LP GPIO0.
+ * @param pull_resistor_config:	0 for pull-down, pull_up otherwise.
+ * @return:						None.
+ */
+void S2LP_SetGpio0(unsigned char pull_resistor_config) {
+	if (pull_resistor_config == 0) {
+		// Uplink configuration (pull-down + rising edge).
+		GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+		EXTI_ConfigureGpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
+	}
+	else {
+		// Downlink configuration -pull_up + falling edge).
+		GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_UP);
+		EXTI_ConfigureGpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_FALLING_EDGE);
+	}
+}
+
+/* CONTROL EXTERNAL TCXO.
+ * @param:	None.
+ * @return:	None.
+ */
+void S2LP_Tcxo(unsigned char tcxo_enable) {
+	// Turn TCXO on or off.
+	if (tcxo_enable != 0) {
+		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 1);
+		LPTIM1_DelayMilliseconds(100, 1);
+	}
+	else {
+		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
+	}
 }
 
 /* PUT S2LP IN SHUTDOWN MODE.

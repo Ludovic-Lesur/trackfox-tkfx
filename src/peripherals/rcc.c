@@ -66,40 +66,6 @@ void RCC_Init(void) {
 	rcc_sysclk_khz = RCC_MSI_RESET_FREQUENCY_KHZ;
 }
 
-/* CONTROL EXTERNAL TCXO.
- * @param:	None.
- * @return:	None.
- */
-void RCC_Tcxo(unsigned char tcxo_enable) {
-	// Turn TCXO on or off.
-	if (tcxo_enable != 0) {
-		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 1);
-		RCC_Delay();
-	}
-	else {
-		GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
-	}
-}
-
-/* ENABLE TCXO CONTROL PIN.
- * @param:	None.
- * @return:	None.
- */
-void RCC_EnableGpio(void) {
-	// Configure TCXO power control pin.
-	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Write(&GPIO_TCXO_POWER_ENABLE, 0);
-}
-
-/* DISABLE TCXO CONTROL PIN.
- * @param:	None.
- * @return:	None.
- */
-void RCC_DisableGpio(void) {
-	// Disable TCXO power control pin.
-	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-}
-
 /* RETURN THE CURRENT SYSTEM CLOCK FREQUENCY.
  * @param:					None.
  * @return rcc_sysclk_khz:	Current system clock frequency in kHz.

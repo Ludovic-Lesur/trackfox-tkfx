@@ -9,7 +9,6 @@
 
 #include "dma.h"
 #include "exti.h"
-#include "gpio.h"
 #include "iwdg.h"
 #include "mapping.h"
 #include "mode.h"
@@ -91,8 +90,8 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	// Turn transceiver on.
 	SPI1_PowerOn();
 	// Turn TCXO on.
-	RCC_EnableGpio();
-	RCC_Tcxo(1);
+	S2LP_Init();
+	S2LP_Tcxo(1);
 	// Exit shutdown.
 	S2LP_ExitShutdown();
 	// TX/RX common init.
@@ -105,8 +104,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	switch (rf_mode) {
 	case SFX_RF_MODE_TX:
 		// Configure GPIO.
-		GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
-		EXTI_ConfigureGpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
+		S2LP_SetGpio0(0);
 		// Uplink.
 		S2LP_ConfigureSmps(S2LP_SMPS_TX);
 		S2LP_ConfigurePa();
@@ -121,8 +119,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		// Reset call counter.
 		rf_api_ctx.rf_api_wait_frame_calls_count = 0;
 		// Configure GPIO.
-		GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_UP);
-		EXTI_ConfigureGpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_FALLING_EDGE);
+		S2LP_SetGpio0(1);
 		// Downlink.
 		S2LP_ConfigureSmps(S2LP_SMPS_RX);
 		S2LP_SetModulation(S2LP_MODULATION_2GFSK_BT1);
@@ -162,9 +159,8 @@ sfx_u8 RF_API_stop(void) {
 	// Turn transceiver and TCXO off.
 	S2LP_EnterShutdown();
 	SPI1_PowerOff();
-	RCC_Tcxo(0);
-	RCC_DisableGpio();
-	S2LP_DisableGpio();
+	S2LP_Tcxo(0);
+	S2LP_Disable();
 	// Turn peripherals off.
 	DMA1_Disable();
 	SPI1_Disable();

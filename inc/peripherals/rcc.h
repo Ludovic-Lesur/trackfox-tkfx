@@ -18,9 +18,6 @@
 /*** RCC functions ***/
 
 void RCC_Init(void);
-void RCC_Tcxo(unsigned char tcxo_enable);
-void RCC_EnableGpio(void);
-void RCC_DisableGpio(void);
 unsigned int RCC_GetSysclkKhz(void);
 unsigned char RCC_SwitchToMsi(void);
 unsigned char RCC_SwitchToHsi(void);
