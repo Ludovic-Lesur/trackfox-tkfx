@@ -46,7 +46,7 @@
 #define TKFX_GEOLOC_PERIOD_SECONDS						120
 #endif
 #define TKFX_GEOLOC_TIMEOUT_SECONDS						180
-#define TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV				1500
+#define TKFX_GEOLOC_VCAP_MIN_MV							1500
 #define TKFX_SIGFOX_GEOLOC_DATA_LENGTH_BYTES			11
 #define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_LENGTH_BYTES	1
 #define TKFX_SIGFOX_DOWNLINK_DATA_LENGTH_BYTES			8
@@ -74,11 +74,11 @@ typedef enum {
 typedef union {
 	unsigned char raw_frame[TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES];
 	struct {
-		unsigned temperature_degrees : 8;
-		unsigned mcu_temperature_degrees : 8;
-		unsigned source_voltage_mv : 16;
-		unsigned supercap_voltage_mv : 12;
-		unsigned mcu_voltage_mv : 12;
+		unsigned tamb_degrees : 8;
+		unsigned tmcu_degrees : 8;
+		unsigned vsrc_mv : 16;
+		unsigned vcap_mv : 12;
+		unsigned vmcu_mv : 12;
 		unsigned status_byte : 8;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) field;
 } TKFX_SigfoxMonitoringData;
@@ -125,11 +125,11 @@ typedef struct {
 #endif
 	unsigned char tkfx_status_byte;
 	// Monitoring data.
-	unsigned char tkfx_temperature_degrees;
-	unsigned char tkfx_mcu_temperature_degrees;
-	unsigned int tkfx_source_voltage_mv;
-	unsigned int tkfx_supercap_voltage_mv;
-	unsigned int tkfx_mcu_voltage_mv;
+	unsigned char tkfx_tamb_degrees;
+	unsigned char tkfx_tmcu_degrees;
+	unsigned int tkfx_vsrc_mv;
+	unsigned int tkfx_vcap_mv;
+	unsigned int tkfx_vmcu_mv;
 	// Geoloc.
 	Position tkfx_geoloc_position;
 	unsigned int tkfx_geoloc_fix_duration_seconds;
@@ -188,7 +188,9 @@ int main (void) {
 		switch (tkfx_ctx.tkfx_state) {
 		case TKFX_STATE_POR:
 			// Init watchdog.
+#ifndef DEBUG
 			IWDG_Init();
+#endif
 			IWDG_Reload();
 			// Reset RTC before starting oscillators.
 			RTC_Reset();
@@ -281,28 +283,28 @@ int main (void) {
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
 			I2C1_Disable();
-			SHT3X_GetTemperatureComp1(&tkfx_ctx.tkfx_temperature_degrees);
+			SHT3X_GetTemperatureComp1(&tkfx_ctx.tkfx_tamb_degrees);
 			// Get voltages measurements.
 			ADC1_Init();
 			ADC1_PowerOn();
-			ADC1_PerformAllMeasurements();
+			ADC1_PerformMeasurements();
 			ADC1_PowerOff();
 			ADC1_Disable();
-			ADC1_GetSourceVoltage(&tkfx_ctx.tkfx_source_voltage_mv);
-			ADC1_GetSupercapVoltage(&tkfx_ctx.tkfx_supercap_voltage_mv);
-			ADC1_GetMcuVoltage(&tkfx_ctx.tkfx_mcu_voltage_mv);
-			ADC1_GetMcuTemperatureComp1(&tkfx_ctx.tkfx_mcu_temperature_degrees);
+			ADC1_GetData(ADC_DATA_IDX_VSRC_MV, &tkfx_ctx.tkfx_vsrc_mv);
+			ADC1_GetData(ADC_DATA_IDX_VCAP_MV, &tkfx_ctx.tkfx_vcap_mv);
+			ADC1_GetData(ADC_DATA_IDX_VMCU_MV, &tkfx_ctx.tkfx_vmcu_mv);
+			ADC1_GetTmcuComp1(&tkfx_ctx.tkfx_tmcu_degrees);
 			// Compute next state.
 			tkfx_ctx.tkfx_state = TKFX_STATE_MONITORING;
 			break;
 		case TKFX_STATE_MONITORING:
 			IWDG_Reload();
 			// Build Sigfox frame.
-			tkfx_ctx.tkfx_sfx_monitoring_data.field.temperature_degrees = tkfx_ctx.tkfx_temperature_degrees;
-			tkfx_ctx.tkfx_sfx_monitoring_data.field.mcu_temperature_degrees = tkfx_ctx.tkfx_mcu_temperature_degrees;
-			tkfx_ctx.tkfx_sfx_monitoring_data.field.source_voltage_mv = tkfx_ctx.tkfx_source_voltage_mv;
-			tkfx_ctx.tkfx_sfx_monitoring_data.field.supercap_voltage_mv = tkfx_ctx.tkfx_supercap_voltage_mv;
-			tkfx_ctx.tkfx_sfx_monitoring_data.field.mcu_voltage_mv = tkfx_ctx.tkfx_mcu_voltage_mv;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.tamb_degrees = tkfx_ctx.tkfx_tamb_degrees;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.tmcu_degrees = tkfx_ctx.tkfx_tmcu_degrees;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.vsrc_mv = tkfx_ctx.tkfx_vsrc_mv;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.vcap_mv = tkfx_ctx.tkfx_vcap_mv;
+			tkfx_ctx.tkfx_sfx_monitoring_data.field.vmcu_mv = tkfx_ctx.tkfx_vmcu_mv;
 			tkfx_ctx.tkfx_sfx_monitoring_data.field.status_byte = tkfx_ctx.tkfx_status_byte;
 			// Send uplink monitoring frame.
 			sfx_error = SIGFOX_API_open(&tkfx_sigfox_rc);
@@ -327,7 +329,7 @@ int main (void) {
 		case TKFX_STATE_GEOLOC:
 			IWDG_Reload();
 			// Check supercap voltage.
-			if (tkfx_ctx.tkfx_supercap_voltage_mv < TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV) {
+			if (tkfx_ctx.tkfx_vcap_mv < TKFX_GEOLOC_VCAP_MIN_MV) {
 				// Do not perform GPS fix.
 				tkfx_ctx.tkfx_geoloc_fix_duration_seconds = 0;
 				tkfx_ctx.tkfx_geoloc_timeout = 1;
@@ -336,7 +338,7 @@ int main (void) {
 				// Get position from GPS.
 				LPUART1_Init(tkfx_use_lse);
 				LPUART1_PowerOn();
-				neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_GEOLOC_SUPERCAP_VOLTAGE_MIN_MV, &tkfx_ctx.tkfx_geoloc_fix_duration_seconds);
+				neom8n_return_code = NEOM8N_GetPosition(&tkfx_ctx.tkfx_geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_GEOLOC_VCAP_MIN_MV, &tkfx_ctx.tkfx_geoloc_fix_duration_seconds);
 				LPUART1_PowerOff();
 				LPUART1_Disable();
 				// Parse result.
@@ -463,7 +465,9 @@ int main (void) {
 int main (void) {
 	// Start LSI clock and watchdog.
 	RCC_EnableLsi();
+#ifndef DEBUG
 	IWDG_Init();
+#endif
 	// Init memory.
 	NVIC_Init();
 	// Init GPIOs.

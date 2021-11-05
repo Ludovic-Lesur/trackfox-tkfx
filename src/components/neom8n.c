@@ -61,7 +61,7 @@ typedef struct {
 	unsigned char nmea_gga_parsing_success;				// Set to '1' as soon an NMEA GGA message was successfully parsed.
 	unsigned char nmea_gga_data_valid;					// set to '1' if retrieved NMEA GGA data is valid.
 	// Energy monitoring.
-	unsigned int neom8n_supercap_voltage_mv;			// Supercap voltage in mV.
+	unsigned int neom8n_vcap_mv;			// Supercap voltage in mV.
 } NEOM8N_Context;
 
 /*** NEOM8N local global variables ***/
@@ -408,7 +408,7 @@ void NEOM8N_Init(void) {
 	neom8n_ctx.nmea_rx_lf_flag = 0;
 	neom8n_ctx.nmea_gga_parsing_success = 0;
 	neom8n_ctx.nmea_gga_data_valid = 0;
-	neom8n_ctx.neom8n_supercap_voltage_mv = 0;
+	neom8n_ctx.neom8n_vcap_mv = 0;
 }
 
 #if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
@@ -425,10 +425,11 @@ void NEOM8N_SetVbckp(unsigned char vbckp_on) {
 /* GET CURRENT GPS POSITION VIA NMEA GGA MESSAGES.
  * @param gps_position:			Pointer to GPS position structure that will contain the data.
  * @param timeout_seconds:		Timeout in seconds.
+ * @param vcap_min_mv:			Minimum supercap voltage to ensure GPS operation.
  * @param fix_duration_seconds:	Pointer that will contain effective fix duration.
  * @return return_code:			See NEOM8N_ReturnCode structure in neom8n.h.
  */
-NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int supercap_voltage_min_mv, unsigned int* fix_duration_seconds) {
+NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int vcap_min_mv, unsigned int* fix_duration_seconds) {
 	// Local variables.
 	NEOM8N_ReturnCode return_code = NEOM8N_TIMEOUT;
 	Position local_gps_position;
@@ -497,11 +498,11 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 			RCC_SwitchToHsi();
 			// Check supercap voltage.
 			ADC1_PowerOn();
-			ADC1_PerformSupercapMeasurement();
+			ADC1_PerformVcapMeasurement();
 			ADC1_PowerOff();
-			ADC1_GetSupercapVoltage(&neom8n_ctx.neom8n_supercap_voltage_mv);
+			ADC1_GetData(ADC_DATA_IDX_VCAP_MV, &neom8n_ctx.neom8n_vcap_mv);
 			// Exit if supercap voltage falls below the given threshold.
-			if (neom8n_ctx.neom8n_supercap_voltage_mv < supercap_voltage_min_mv) break;
+			if (neom8n_ctx.neom8n_vcap_mv < vcap_min_mv) break;
 		}
 		IWDG_Reload();
 	}

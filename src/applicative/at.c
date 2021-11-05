@@ -631,23 +631,23 @@ static void AT_DecodeRxBuffer(void) {
 #ifdef AT_COMMANDS_SENSORS
 		// ADC command AT$ADC?<CR>.
 		else if (AT_CompareCommand(AT_IN_COMMAND_ADC) == AT_NO_ERROR) {
-			unsigned int source_voltage_mv = 0;
-			unsigned int supercap_voltage_mv = 0;
-			unsigned int mcu_supply_voltage_mv = 0;
+			unsigned int vsrc_mv = 0;
+			unsigned int vcap_mv = 0;
+			unsigned int vcmu_mv = 0;
 			// Perform ADC convertions.
 			ADC1_PowerOn();
-			ADC1_PerformAllMeasurements();
+			ADC1_PerformMeasurements();
 			ADC1_PowerOff();
-			ADC1_GetSourceVoltage(&source_voltage_mv);
-			ADC1_GetSupercapVoltage(&supercap_voltage_mv);
-			ADC1_GetMcuVoltage(&mcu_supply_voltage_mv);
+			ADC1_GetData(ADC_DATA_IDX_VSRC_MV, &vsrc_mv);
+			ADC1_GetData(ADC_DATA_IDX_VCAP_MV, &vcap_mv);
+			ADC1_GetData(ADC_DATA_IDX_VMCU_MV, &vcmu_mv);
 			// Print results.
 			USART2_SendString("Vsrc=");
-			USART2_SendValue(source_voltage_mv, USART_FORMAT_DECIMAL, 0);
+			USART2_SendValue(vsrc_mv, USART_FORMAT_DECIMAL, 0);
 			USART2_SendString("mV Vcap=");
-			USART2_SendValue(supercap_voltage_mv, USART_FORMAT_DECIMAL, 0);
+			USART2_SendValue(vcap_mv, USART_FORMAT_DECIMAL, 0);
 			USART2_SendString("mV Vmcu=");
-			USART2_SendValue(mcu_supply_voltage_mv, USART_FORMAT_DECIMAL, 0);
+			USART2_SendValue(vcmu_mv, USART_FORMAT_DECIMAL, 0);
 			USART2_SendString("mV\r\n");
 		}
 		// Temperature and humidity sensor command AT$THS?<CR>.
