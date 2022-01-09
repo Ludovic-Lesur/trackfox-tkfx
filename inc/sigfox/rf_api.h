@@ -247,4 +247,15 @@ sfx_u8 RF_API_get_version(sfx_u8** version, sfx_u8* size);
  *******************************************************************/
 void RF_API_SetIrqFlag(void);
 
+/*!******************************************************************
+ * \fn sfx_u8 RF_API_SetCwOutputPower(void)
+ * \brief Store TX output power for CW mode.
+ *
+ * \param[in] tx_output_power: RF output power in dBm.
+ * \param[out] none
+ *
+ * \retval none
+ *******************************************************************/
+void RF_API_SetCwOutputPower(signed char tx_output_power);
+
 #endif /* RF_API_H */

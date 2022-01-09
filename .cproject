@@ -58,6 +58,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/components}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/sigfox}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/applicative}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/utils}&quot;"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.329651159" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
 							</tool>
@@ -69,6 +70,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/components}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/sigfox}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/applicative}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/utils}&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.1151670218" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="HW1_0"/>
@@ -198,6 +200,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/components}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/sigfox}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/applicative}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/utils}&quot;"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input.19944108" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.input"/>
 							</tool>
@@ -209,6 +212,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/components}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/sigfox}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/applicative}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/TKFX/inc/utils}&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.261075066" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__START=main"/>

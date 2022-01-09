@@ -27,8 +27,6 @@
 
 #define S2LP_SYNC_WORD_LENGTH_BITS_MAX		32
 #define S2LP_RSSI_OFFSET_DB					146
-#define S2LP_RF_OUTPUT_POWER_MIN			-30
-#define S2LP_RF_OUTPUT_POWER_MAX			14
 
 #define S2LP_TX_FIFO_USE_DMA // Use DMA to fill TX FIFO, standard SPI access otherwise.
 
@@ -86,9 +84,7 @@ void S2LP_Disable(void) {
 	// Configure GPIOs as analog inputs.
 	GPIO_Configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Configure(&GPIO_S2LP_GPIO0, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#ifdef HW1_1
 	GPIO_Configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#endif
 }
 
 /* CONFIGURE S2LP GPIO0.
@@ -129,9 +125,7 @@ void S2LP_Tcxo(unsigned char tcxo_enable) {
  */
 void S2LP_EnterShutdown(void) {
 	// Put SDN in high impedance (pull-up resistor used).
-#ifdef HW1_1
 	GPIO_Configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#endif
 }
 
 /* PUT S2LP IN ACTIVE MODE.
@@ -140,10 +134,8 @@ void S2LP_EnterShutdown(void) {
  */
 void S2LP_ExitShutdown(void) {
 	// Put SDN low.
-#ifdef HW1_1
 	GPIO_Configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Write(&GPIO_S2LP_SDN, 0);
-#endif
 	// Wait for reset time.
 	LPTIM1_DelayMilliseconds(100, 1);
 }
@@ -457,13 +449,38 @@ void S2LP_DisableCrc(void) {
  * @return:	None.
  */
 void S2LP_ConfigurePa(void) {
-	// Disable PA power ramping.
+	// Disable PA power ramping and select slot 0.
 	unsigned char reg_value = 0;
-	S2LP_WriteRegister(S2LP_REG_PA_POWER0, 0x07);
+	S2LP_WriteRegister(S2LP_REG_PA_POWER0, 0x00);
 	// Disable FIR.
 	S2LP_ReadRegister(S2LP_REG_PA_CONFIG1,  &reg_value);
 	reg_value &= 0xFD;
 	S2LP_WriteRegister(S2LP_REG_PA_CONFIG1, reg_value);
+}
+
+/* CONFIGURE TX OUTPUT POWER.
+ * @param output_power_dbm:	RF output power in dBm.
+ * @return:					None.
+ */
+void S2LP_SetTxOutputPower(signed char output_power_dbm) {
+	// local variables.
+	unsigned char reg_value = 0;
+	unsigned char pa_reg_value = 0;
+	signed char local_power_dbm = output_power_dbm;
+	// Clamp power.
+	if (local_power_dbm < S2LP_RF_OUTPUT_POWER_MIN) {
+		local_power_dbm = S2LP_RF_OUTPUT_POWER_MIN;
+	}
+	if (local_power_dbm > S2LP_RF_OUTPUT_POWER_MAX) {
+		local_power_dbm = S2LP_RF_OUTPUT_POWER_MAX;
+	}
+	// Compute register value.
+	pa_reg_value = (unsigned char) (29 - 2 * local_power_dbm);
+	// Program register.
+	S2LP_ReadRegister(S2LP_REG_PA_POWER1, &reg_value);
+	reg_value &= 0x80;
+	reg_value |= (pa_reg_value & 0x7F);
+	S2LP_WriteRegister(S2LP_REG_PA_POWER1, reg_value);
 }
 
 /* SET S2LP TX DATA SOURCE.

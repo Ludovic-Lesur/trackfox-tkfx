@@ -14,10 +14,12 @@
 #include "lptim.h"
 #include "lpuart.h"
 #include "mapping.h"
+#include "math.h"
 #include "mode.h"
 #include "pwr.h"
 #include "rcc.h"
 #include "rtc.h"
+#include "string.h"
 #include "usart.h"
 
 /*** NEOM8N local macros ***/
@@ -70,36 +72,6 @@ static NEOM8N_Context neom8n_ctx;
 
 /*** NEOM8N local functions ***/
 
-/* CONVERTS THE ASCII CODE OF AN HEXADECIMAL CHARACTER TO THE CORRESPONDING VALUE.
- * @param c:			Hexadecimal character to convert.
- * @return hexa_value:	Result of conversion.
- */
-static unsigned char NEOM8N_AsciiToHexa(unsigned char c) {
-	unsigned char value = 0;
-	if ((c >= '0') && (c <= '9')) {
-		value = c - '0';
-	}
-	else {
-		if ((c >= 'A') && (c <= 'F')) {
-			value = c - 'A' + 10;
-		}
-	}
-	return value;
-}
-
-/* COMPUTE A POWER A 10.
- * @param power:	The desired power.
- * @return result:	Result of computation.
- */
-static unsigned int NEOM8N_Pow10(unsigned char n) {
-	unsigned int result = 0;
-	unsigned int pow10_buf[9] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
-	if (n <= 9) {
-		result = pow10_buf[n];
-	}
-	return result;
-}
-
 /* COMPUTE AND APPEND CHECKSUM TO AN NEOM8N MESSAGE.
  * @param neom8n_command:		Complete NEOM8N message for which checksum must be computed.
  * @param payload_length:	Length of the payload (in bytes) for this message.
@@ -132,7 +104,7 @@ static unsigned char NEOM8N_GetNmeaChecksum(unsigned char* nmea_rx_buf) {
 		checksum_start_char_idx++;
 	}
 	if (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE) {
-		ck = (NEOM8N_AsciiToHexa(nmea_rx_buf[checksum_start_char_idx+1]) << 4) + NEOM8N_AsciiToHexa(nmea_rx_buf[checksum_start_char_idx+2]);
+		ck = (STRING_AsciiToHexa(nmea_rx_buf[checksum_start_char_idx+1]) << 4) + STRING_AsciiToHexa(nmea_rx_buf[checksum_start_char_idx+2]);
 	}
 	return ck;
 }
@@ -191,7 +163,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				case 1:
 					if (idx == NMEA_GGA_ADDRESS_FIELD_LENGTH) {
 						// Check if message = 'GGA'.
-						if ((nmea_rx_buf[sep_idx+3] != 'G') || (nmea_rx_buf[sep_idx+4] != 'G') || (nmea_rx_buf[sep_idx+5] != 'A')) {
+						if ((nmea_rx_buf[sep_idx + 3] != 'G') || (nmea_rx_buf[sep_idx + 4] != 'G') || (nmea_rx_buf[sep_idx + 5] != 'A')) {
 							error_found = 1;
 						}
 					}
@@ -202,11 +174,11 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				// Field 3 = latitude = <ddmm.mmmmm>.
 				case 3:
 					if ((idx - sep_idx) == (NMEA_GGA_LAT_FIELD_LENGTH + 1)) {
-						(*gps_position).lat_degrees = NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+1]) * 10 + NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+2]);
-						(*gps_position).lat_minutes = NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+3]) * 10 + NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+4]);
+						(*gps_position).lat_degrees = STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 1]) * 10 + STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 2]);
+						(*gps_position).lat_minutes = STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 3]) * 10 + STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 4]);
 						(*gps_position).lat_seconds = 0;
 						for (k=0 ; k<5 ; k++) {
-							(*gps_position).lat_seconds += NEOM8N_Pow10(4-k) * NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+6+k]);
+							(*gps_position).lat_seconds += MATH_Pow10(4 - k) * STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 6 + k]);
 						}
 					}
 					else {
@@ -216,7 +188,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				// Field 4 = <N> or <S>.
 				case 4:
 					if ((idx - sep_idx) == (NMEA_GGA_NS_FIELD_LENGTH + 1)) {
-						switch (nmea_rx_buf[sep_idx+1]) {
+						switch (nmea_rx_buf[sep_idx + 1]) {
 						case NMEA_GGA_NORTH:
 							(*gps_position).lat_north_flag = 1;
 							break;
@@ -238,12 +210,12 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 					if ((idx - sep_idx) == (NMEA_GGA_LONG_FIELD_LENGTH + 1)) {
 						(*gps_position).long_degrees = 0;
 						for (k=0 ; k<3 ; k++) {
-							(*gps_position).long_degrees += NEOM8N_Pow10(2-k) * NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+1+k]);
+							(*gps_position).long_degrees += MATH_Pow10(2 - k) * STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 1 + k]);
 						}
-						(*gps_position).long_minutes = NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+4]) * 10 + NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+5]);
+						(*gps_position).long_minutes = STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 4]) * 10 + STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 5]);
 						(*gps_position).long_seconds = 0;
 						for (k=0 ; k<5 ; k++) {
-							(*gps_position).long_seconds += NEOM8N_Pow10(4-k) * NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+7+k]);
+							(*gps_position).long_seconds += MATH_Pow10(4 - k) * STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 7 + k]);
 						}
 					}
 					else {
@@ -253,7 +225,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				// Field 6 = <E> or <O>.
 				case 6:
 					if ((idx - sep_idx) == (NMEA_GGA_EO_FIELD_LENGTH + 1)) {
-						switch (nmea_rx_buf[sep_idx+1]) {
+						switch (nmea_rx_buf[sep_idx + 1]) {
 						case NMEA_GGA_EAST:
 							(*gps_position).long_east_flag = 1;
 							break;
@@ -276,7 +248,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 					if (alt_field_length >= 1) {
 						// Get number of digits of integer part (search dot).
 						for (alt_number_of_digits=0 ; alt_number_of_digits<alt_field_length ; alt_number_of_digits++) {
-							if (nmea_rx_buf[sep_idx+1+alt_number_of_digits] == NMEA_DOT) {
+							if (nmea_rx_buf[sep_idx + 1 + alt_number_of_digits] == NMEA_DOT) {
 								break; // Dot found, stop counting integer part length.
 							}
 						}
@@ -284,11 +256,11 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 						if (alt_number_of_digits > 0) {
 							(*gps_position).altitude = 0;
 							for (k=0 ; k<alt_number_of_digits ; k++) {
-								(*gps_position).altitude += NEOM8N_Pow10(alt_number_of_digits-1-k) * NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+1+k]);
+								(*gps_position).altitude += MATH_Pow10(alt_number_of_digits - 1 - k) * STRING_AsciiToHexa(nmea_rx_buf[sep_idx + 1 + k]);
 							}
 							// Rounding operation if fractionnal part exists (not required for success).
-							if ((idx-(sep_idx+alt_number_of_digits)-1) >= 2) {
-								if (NEOM8N_AsciiToHexa(nmea_rx_buf[sep_idx+alt_number_of_digits+2]) >= 5) {
+							if ((idx - (sep_idx + alt_number_of_digits) - 1) >= 2) {
+								if (STRING_AsciiToHexa(nmea_rx_buf[sep_idx + alt_number_of_digits + 2]) >= 5) {
 									(*gps_position).altitude++; // Add '1' to altitude.
 								}
 							}
@@ -304,7 +276,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 				// Field 11 = altitude unit.
 				case 11:
 					if ((idx - sep_idx) == (NMEA_GGA_ALT_UNIT_FIELD_LENGTH + 1)) {
-						if (nmea_rx_buf[sep_idx+1] == NMEA_GGA_METERS) {
+						if (nmea_rx_buf[sep_idx + 1] == NMEA_GGA_METERS) {
 							// Last field retrieved, parsing process succeeded.
 							neom8n_ctx.nmea_gga_parsing_success = 1;
 						}

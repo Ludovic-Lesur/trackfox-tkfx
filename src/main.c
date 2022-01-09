@@ -187,15 +187,15 @@ int main (void) {
 		// Perform state machine.
 		switch (tkfx_ctx.tkfx_state) {
 		case TKFX_STATE_POR:
+			// Reset RTC before starting oscillators.
+			RTC_Reset();
+			// Low speed oscillators.
+			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
 			// Init watchdog.
 #ifndef DEBUG
 			IWDG_Init();
 #endif
 			IWDG_Reload();
-			// Reset RTC before starting oscillators.
-			RTC_Reset();
-			// Low speed oscillators.
-			tkfx_ctx.tkfx_status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
 			tkfx_use_lse = RCC_EnableLse();
 			// Switch to HSI clock.
 			RCC_SwitchToHsi();

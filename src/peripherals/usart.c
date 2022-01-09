@@ -20,13 +20,10 @@
 #ifdef ATM
 /*** USART local macros ***/
 
-// If defined, use TXE interrupt for sending data.
 //#define USE_TXE_INTERRUPT
-// Baud rate.
-#define USART_BAUD_RATE 		9600
-// TX buffer size.
+#define USART_BAUD_RATE			9600
 #define USART_TX_BUFFER_SIZE	128
-#define USART2_TIMEOUT_COUNT	100000
+#define USART_TIMEOUT_COUNT		100000
 
 /*** USART local structures ***/
 
@@ -102,34 +99,9 @@ static void USART2_FillTxBuffer(unsigned char tx_byte) {
 	while (((USART2 -> ISR) & (0b1 << 7)) == 0) {
 		// Wait for TXE='1' or timeout.
 		loop_count++;
-		if (loop_count > USART2_TIMEOUT_COUNT) break;
+		if (loop_count > USART_TIMEOUT_COUNT) break;
 	}
 #endif
-}
-
-/* CONVERTS A 4-BIT WORD TO THE ASCII CODE OF THE CORRESPONDING HEXADECIMAL CHARACTER.
- * @param n:	The word to converts.
- * @return:		The results of conversion.
- */
-static char USART2_HexaToAscii(unsigned char hexa_value) {
-	char hexa_ascii = 0;
-	if (hexa_value <= 15) {
-		hexa_ascii = (hexa_value <= 9 ? (char) (hexa_value + '0') : (char) (hexa_value + ('A' - 10)));
-	}
-	return hexa_ascii;
-}
-
-/* COMPUTE A POWER A 10.
- * @param power:	The desired power.
- * @return result:	Result of computation.
- */
-static unsigned int USART2_Pow10(unsigned char power) {
-	unsigned int result = 0;
-	unsigned int pow10_buf[10] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
-	if (power <= 9) {
-		result = pow10_buf[power];
-	}
-	return result;
 }
 #endif
 
@@ -173,98 +145,6 @@ void USART2_Init(void) {
 }
 
 #ifdef ATM
-/* SEND A BYTE THROUGH USART.
- * @param byte_to_send:	The byte to send.
- * @param format:		Display format (see ByteDisplayFormat enumeration in usart.h).
- * @param print_prexix	Print '0b' or '0x' prefix is non zero.
- * @return: 			None.
- */
-void USART2_SendValue(unsigned int tx_value, USART_Format format, unsigned char print_prefix) {
-	// Disable interrupt.
-	NVIC_DisableInterrupt(NVIC_IT_USART2);
-	// Local variables.
-	unsigned char first_non_zero_found = 0;
-	unsigned int idx;
-	unsigned char current_value = 0;
-	unsigned int current_power = 0;
-	unsigned int previous_decade = 0;
-	// Fill TX buffer according to format.
-	switch (format) {
-	case USART_FORMAT_BINARY:
-		if (print_prefix != 0) {
-			// Print "0b" prefix.
-			USART2_FillTxBuffer('0');
-			USART2_FillTxBuffer('b');
-		}
-		// Maximum 32 bits.
-		for (idx=31 ; idx>=0 ; idx--) {
-			if (tx_value & (0b1 << idx)) {
-				USART2_FillTxBuffer('1'); // = '1'.
-				first_non_zero_found = 1;
-			}
-			else {
-				if ((first_non_zero_found != 0) || (idx == 0)) {
-					USART2_FillTxBuffer('0'); // = '0'.
-				}
-			}
-			if (idx == 0) {
-				break;
-			}
-		}
-		break;
-	case USART_FORMAT_HEXADECIMAL:
-		if (print_prefix != 0) {
-			// Print "0x" prefix.
-			USART2_FillTxBuffer('0');
-			USART2_FillTxBuffer('x');
-		}
-		// Maximum 4 bytes.
-		for (idx=3 ; idx>=0 ; idx--) {
-			current_value = (tx_value & (0xFF << (8*idx))) >> (8*idx);
-			if (current_value != 0) {
-				first_non_zero_found = 1;
-			}
-			if ((first_non_zero_found != 0) || (idx == 0)) {
-				USART2_FillTxBuffer(USART2_HexaToAscii((current_value & 0xF0) >> 4));
-				USART2_FillTxBuffer(USART2_HexaToAscii(current_value & 0x0F));
-			}
-			if (idx == 0) {
-				break;
-			}
-		}
-		break;
-	case USART_FORMAT_DECIMAL:
-		// Maximum 10 digits.
-		for (idx=9 ; idx>=0 ; idx--) {
-			current_power = USART2_Pow10(idx);
-			current_value = (tx_value - previous_decade) / current_power;
-			previous_decade += current_value * current_power;
-			if (current_value != 0) {
-				first_non_zero_found = 1;
-			}
-			if ((first_non_zero_found != 0) || (idx == 0)) {
-				USART2_FillTxBuffer(current_value + '0');
-			}
-			if (idx == 0) {
-				break;
-			}
-		}
-		break;
-	case USART_FORMAT_ASCII:
-		// Raw byte.
-		if (tx_value <= 0xFF) {
-			USART2_FillTxBuffer(tx_value);
-		}
-		break;
-	}
-
-	/* Enable interrupt */
-#ifdef USE_TXE_INTERRUPT
-	USART2 -> CR1 |= (0b1 << 7); // (TXEIE = '1').
-#endif
-	NVIC_EnableInterrupt(NVIC_IT_USART2);
-}
-
 /* SEND A BYTE ARRAY THROUGH USART2.
  * @param tx_string:	Byte array to send.
  * @return:				None.

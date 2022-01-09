@@ -22,14 +22,12 @@
 #define AT_COMMANDS_CW
 #define AT_COMMANDS_TEST_MODES
 
-/*** AT user functions ***/
+/*** AT functions ***/
 
 void AT_Init(void);
 void AT_Task(void);
-
-/*** AT utility functions ***/
-
 void AT_FillRxBuffer(unsigned char rx_byte);
+void AT_PrintTestResult(unsigned char status, int rssi);
 
 #endif
 

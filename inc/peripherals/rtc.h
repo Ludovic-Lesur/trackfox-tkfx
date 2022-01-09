@@ -8,9 +8,6 @@
 #ifndef RTC_H
 #define RTC_H
 
-#include "mode.h"
-#include "neom8n.h"
-
 /*** RTC macros ***/
 
 // RTC wake-up timer period.

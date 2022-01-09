@@ -19,11 +19,13 @@
 #include "rtc.h"
 #include "sht3x.h"
 #include "sigfox_types.h"
-#include "usart.h"
+#ifdef ATM
+#include "at.h"
+#endif
 
 /*** MCU API local macros ***/
 
-#define MCU_API_MALLOC_BUFFER_SIZE		200
+#define MCU_API_MALLOC_BUFFER_SIZE	200
 
 /*** MCU API local structures ***/
 
@@ -412,16 +414,7 @@ sfx_u8 MCU_API_timer_wait_for_end(void) {
  *******************************************************************/
 sfx_u8 MCU_API_report_test_result(sfx_bool status, sfx_s16 rssi) {
 #ifdef ATM
-	// Print test result on UART.
-	if (status == SFX_TRUE) {
-		USART2_SendString("Test passed. RSSI=-");
-		USART2_SendValue(((unsigned int) ((-1) * rssi)), USART_FORMAT_DECIMAL, 0);
-		USART2_SendString("dBm");
-	}
-	else {
-		USART2_SendString("Test failed. ");
-	}
-	USART2_SendString("\r\n");
+	AT_PrintTestResult(status, rssi);
 #endif
 	return SFX_ERR_NONE;
 }

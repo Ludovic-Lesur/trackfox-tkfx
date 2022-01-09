@@ -62,6 +62,7 @@ typedef struct {
 /*** RF API local global variables ***/
 
 static RF_API_Context rf_api_ctx;
+signed char rf_api_cw_output_power = S2LP_RF_OUTPUT_POWER_MAX;
 
 /*** RF API functions ***/
 
@@ -273,6 +274,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
 	// Disable modulation.
 	S2LP_SetModulation(S2LP_MODULATION_NONE);
+	S2LP_SetTxOutputPower(rf_api_cw_output_power);
 	// Start radio.
 	S2LP_SendCommand(S2LP_CMD_READY);
 	S2LP_WaitForStateSwitch(S2LP_STATE_READY);
@@ -443,4 +445,17 @@ sfx_u8 RF_API_get_version(sfx_u8 **version, sfx_u8 *size) {
  *******************************************************************/
 void RF_API_SetIrqFlag(void) {
 	rf_api_ctx.rf_api_s2lp_irq_flag = 1;
+}
+
+/*!******************************************************************
+ * \fn sfx_u8 RF_API_SetCwOutputPower(void)
+ * \brief Store TX output power for CW mode.
+ *
+ * \param[in] tx_output_power: RF output power in dBm.
+ * \param[out] none
+ *
+ * \retval none
+ *******************************************************************/
+void RF_API_SetCwOutputPower(signed char tx_output_power) {
+	rf_api_cw_output_power = tx_output_power;
 }

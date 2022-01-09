@@ -12,7 +12,10 @@
 
 /*** S2LP macros ***/
 
-#define S2LP_FIFO_SIZE_BYTES	128
+#define S2LP_RF_OUTPUT_POWER_MIN	-49
+#define S2LP_RF_OUTPUT_POWER_MAX	14
+
+#define S2LP_FIFO_SIZE_BYTES		128
 
 /*** S2LP structures ***/
 
@@ -212,6 +215,7 @@ void S2LP_DisableCrc(void);
 
 // TX functions.
 void S2LP_ConfigurePa(void);
+void S2LP_SetTxOutputPower(signed char output_power_dbm);
 void S2LP_SetTxSource(S2LP_TxSource tx_source);
 void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
 
