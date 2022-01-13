@@ -31,10 +31,9 @@
 
 #define NMEA_RX_BUFFER_SIZE					128
 
-#define NMEA_MESSAGE_START_CHAR				'$'
-
-#define NMEA_SEP							','
-#define NMEA_DOT							'.'
+#define NMEA_CHAR_MESSAGE_START				'$'
+#define NMEA_CHAR_CHECKSUM_START			'*' // To skip '$'.
+#define NMEA_CHAR_SEPARATOR					','
 
 #define NMEA_GGA_MASK						0x00000008 // Provided to NEOM8N_SelectNmeaMessages() function.
 #define NMEA_GGA_ADDRESS_FIELD_LENGTH		6
@@ -48,8 +47,6 @@
 #define NMEA_GGA_WEST						'W'
 #define NMEA_GGA_ALT_UNIT_FIELD_LENGTH		1
 #define NMEA_GGA_METERS						'M'
-
-#define NMEA_CHECKSUM_START_CHAR			'*' // To skip '$'.
 
 /*** NEOM8N local structures ***/
 
@@ -100,7 +97,7 @@ static unsigned char NEOM8N_GetNmeaChecksum(unsigned char* nmea_rx_buf) {
 	unsigned char ck = 0;
 	// Get checksum start index.
 	unsigned char checksum_start_char_idx = 0;
-	while ((nmea_rx_buf[checksum_start_char_idx] != NMEA_CHECKSUM_START_CHAR) && (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
+	while ((nmea_rx_buf[checksum_start_char_idx] != NMEA_CHAR_CHECKSUM_START) && (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
 		checksum_start_char_idx++;
 	}
 	if (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE) {
@@ -118,12 +115,12 @@ static unsigned char NEOM8N_ComputeNmeaChecksum(unsigned char* nmea_rx_buf) {
 	unsigned char ck = 0;
 	// Get message start index.
 	unsigned char message_start_char_idx = 0;
-	while ((nmea_rx_buf[message_start_char_idx] != NMEA_MESSAGE_START_CHAR) && (message_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
+	while ((nmea_rx_buf[message_start_char_idx] != NMEA_CHAR_MESSAGE_START) && (message_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
 		message_start_char_idx++;
 	}
 	// Get checksum start index.
 	unsigned char checksum_start_char_idx = message_start_char_idx;
-	while ((nmea_rx_buf[checksum_start_char_idx] != NMEA_CHECKSUM_START_CHAR) && (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
+	while ((nmea_rx_buf[checksum_start_char_idx] != NMEA_CHAR_CHECKSUM_START) && (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
 		checksum_start_char_idx++;
 	}
 	if (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE) {
@@ -148,14 +145,14 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 	if (computed_checksum == received_checksum) {
 		// Extract NMEA data (see GGA message format on p.114 of NEO-M8 programming manual).
 		unsigned char sep_idx = 0;
-		while ((nmea_rx_buf[sep_idx] != NMEA_MESSAGE_START_CHAR) && (sep_idx < NMEA_RX_BUFFER_SIZE)) {
+		while ((nmea_rx_buf[sep_idx] != NMEA_CHAR_MESSAGE_START) && (sep_idx < NMEA_RX_BUFFER_SIZE)) {
 			sep_idx++;
 		}
 		unsigned char field = 0;
 		unsigned char alt_field_length = 0;
 		unsigned char alt_number_of_digits = 0;
 		while ((nmea_rx_buf[idx] != NMEA_LF) && (idx < NMEA_RX_BUFFER_SIZE)) {
-			if (nmea_rx_buf[idx] == NMEA_SEP) {
+			if (nmea_rx_buf[idx] == NMEA_CHAR_SEPARATOR) {
 				field++;
 				unsigned int k = 0; // Generic index used in local for loops.
 				switch (field) {
@@ -248,7 +245,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 					if (alt_field_length >= 1) {
 						// Get number of digits of integer part (search dot).
 						for (alt_number_of_digits=0 ; alt_number_of_digits<alt_field_length ; alt_number_of_digits++) {
-							if (nmea_rx_buf[sep_idx + 1 + alt_number_of_digits] == NMEA_DOT) {
+							if (nmea_rx_buf[sep_idx + 1 + alt_number_of_digits] == STRING_CHAR_DOT) {
 								break; // Dot found, stop counting integer part length.
 							}
 						}

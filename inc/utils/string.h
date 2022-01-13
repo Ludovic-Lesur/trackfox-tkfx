@@ -14,6 +14,7 @@
 #define STRING_CHAR_CR		'\r'
 #define STRING_CHAR_LF		'\n'
 #define STRING_CHAR_MINUS	'-'
+#define STRING_CHAR_DOT		'.'
 
 /*** STRING structures ***/
 

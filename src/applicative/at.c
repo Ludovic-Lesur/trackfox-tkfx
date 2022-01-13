@@ -34,37 +34,45 @@
 
 /*** AT local macros ***/
 
-#define AT_COMMAND_MIN_SIZE			2
-#define AT_RX_BUFFER_SIZE			64
-#define AT_RESPONSE_BUFFER_SIZE		128
-#define AT_STRING_VALUE_BUFFER_SIZE	16
+// Enabled commands.
+#define AT_COMMANDS_GPS
+#define AT_COMMANDS_SENSORS
+#define AT_COMMANDS_NVM
+#define AT_COMMANDS_SIGFOX
+#define AT_COMMANDS_CW
+#define AT_COMMANDS_TEST_MODES
+// Common macros.
+#define AT_COMMAND_LENGTH_MIN			2
+#define AT_COMMAND_BUFFER_LENGTH		128
+#define AT_RESPONSE_BUFFER_LENGTH		128
+#define AT_STRING_VALUE_BUFFER_LENGTH	16
 // Input commands without parameter.
-#define AT_COMMAND_TEST				"AT"
-#define AT_COMMAND_ADC				"AT$ADC?"
-#define AT_COMMAND_THS				"AT$THS?"
-#define AT_COMMAND_ACC				"AT$ACC?"
-#define AT_COMMAND_ID				"AT$ID?"
-#define AT_COMMAND_KEY				"AT$KEY?"
-#define AT_COMMAND_NVMR				"AT$NVMR"
-#define AT_COMMAND_OOB				"AT$SO"
+#define AT_COMMAND_TEST					"AT"
+#define AT_COMMAND_ADC					"AT$ADC?"
+#define AT_COMMAND_THS					"AT$THS?"
+#define AT_COMMAND_ACC					"AT$ACC?"
+#define AT_COMMAND_ID					"AT$ID?"
+#define AT_COMMAND_KEY					"AT$KEY?"
+#define AT_COMMAND_NVMR					"AT$NVMR"
+#define AT_COMMAND_OOB					"AT$SO"
 // Input commands with parameters (headers).
-#define AT_HEADER_ACC				"AT$ACC="
-#define AT_HEADER_GPS				"AT$GPS="
-#define AT_HEADER_NVM				"AT$NVM="
-#define AT_HEADER_ID				"AT$ID="
-#define AT_HEADER_KEY				"AT$KEY="
-#define AT_HEADER_SF				"AT$SF="
-#define AT_HEADER_SB				"AT$SB="
-#define AT_HEADER_CW				"AT$CW="
-#define AT_HEADER_TM				"AT$TM="
+#define AT_HEADER_ACC					"AT$ACC="
+#define AT_HEADER_GPS					"AT$GPS="
+#define AT_HEADER_NVM					"AT$NVM="
+#define AT_HEADER_ID					"AT$ID="
+#define AT_HEADER_KEY					"AT$KEY="
+#define AT_HEADER_SF					"AT$SF="
+#define AT_HEADER_SB					"AT$SB="
+#define AT_HEADER_CW					"AT$CW="
+#define AT_HEADER_TM					"AT$TM="
 // Parameters separator.
-#define AT_CHAR_SEPARATOR			','
+#define AT_CHAR_SEPARATOR				','
 // Responses.
-#define AT_RESPONSE_OK				"OK"
-#define AT_RESPONSE_END				"\r\n"
-#define AT_RESPONSE_ERROR_PSR		"PSR_ERROR_"
-#define AT_RESPONSE_ERROR_SFX		"SFX_ERROR_"
-#define AT_RESPONSE_ERROR_APP		"APP_ERROR_"
+#define AT_RESPONSE_OK					"OK"
+#define AT_RESPONSE_END					"\r\n"
+#define AT_RESPONSE_ERROR_PSR			"PSR_ERROR_"
+#define AT_RESPONSE_ERROR_SFX			"SFX_ERROR_"
+#define AT_RESPONSE_ERROR_APP			"APP_ERROR_"
 
 /*** AT local structures ***/
 
@@ -87,11 +95,11 @@ typedef enum {
 
 typedef struct {
 	// AT command buffer.
-	volatile unsigned char at_rx_buf[AT_RX_BUFFER_SIZE];
-	volatile unsigned int at_rx_buf_idx;
+	volatile unsigned char at_command_buf[AT_COMMAND_BUFFER_LENGTH];
+	volatile unsigned int at_command_buf_idx;
 	volatile unsigned char at_line_end_flag;
 	PARSER_Context at_parser;
-	char at_response_buf[AT_RESPONSE_BUFFER_SIZE];
+	char at_response_buf[AT_RESPONSE_BUFFER_LENGTH];
 	unsigned int at_response_buf_idx;
 	unsigned char accelero_measurement_flag;
 } AT_Context;
@@ -111,7 +119,7 @@ static void AT_ResponseAddString(char* tx_string) {
 	while (*tx_string) {
 		at_ctx.at_response_buf[at_ctx.at_response_buf_idx++] = *(tx_string++);
 		// Manage rollover.
-		if (at_ctx.at_response_buf_idx >= AT_RESPONSE_BUFFER_SIZE) {
+		if (at_ctx.at_response_buf_idx >= AT_RESPONSE_BUFFER_LENGTH) {
 			at_ctx.at_response_buf_idx = 0;
 		}
 	}
@@ -125,10 +133,10 @@ static void AT_ResponseAddString(char* tx_string) {
  */
 static void AT_ResponseAddValue(int tx_value, STRING_Format format, unsigned char print_prefix) {
 	// Local variables.
-	char str_value[AT_STRING_VALUE_BUFFER_SIZE];
+	char str_value[AT_STRING_VALUE_BUFFER_LENGTH];
 	unsigned char idx = 0;
 	// Reset string.
-	for (idx=0 ; idx<AT_STRING_VALUE_BUFFER_SIZE ; idx++) str_value[idx] = '\0';
+	for (idx=0 ; idx<AT_STRING_VALUE_BUFFER_LENGTH ; idx++) str_value[idx] = '\0';
 	// Convert value to string.
 	STRING_ConvertValue(tx_value, format, print_prefix, str_value);
 	// Add string.
@@ -251,29 +259,11 @@ static void AT_PrintAcceleroData(void) {
 	MMA8653FC_GetData(&x, &y, &z);
 	// Print data.
 	AT_ResponseAddString("x=");
-	if (x < 0) {
-		AT_ResponseAddString("-");
-		AT_ResponseAddValue(((-1) * x), STRING_FORMAT_DECIMAL, 0);
-	}
-	else {
-		AT_ResponseAddValue(x, STRING_FORMAT_DECIMAL, 0);
-	}
+	AT_ResponseAddValue(x, STRING_FORMAT_DECIMAL, 0);
 	AT_ResponseAddString(" y=");
-	if (y < 0) {
-		AT_ResponseAddString("-");
-		AT_ResponseAddValue(((-1) * y), STRING_FORMAT_DECIMAL, 0);
-	}
-	else {
-		AT_ResponseAddValue(y, STRING_FORMAT_DECIMAL, 0);
-	}
+	AT_ResponseAddValue(y, STRING_FORMAT_DECIMAL, 0);
 	AT_ResponseAddString(" z=");
-	if (z < 0) {
-		AT_ResponseAddString("-");
-		AT_ResponseAddValue(((-1) * z), STRING_FORMAT_DECIMAL, 0);
-	}
-	else {
-		AT_ResponseAddValue(z, STRING_FORMAT_DECIMAL, 0);
-	}
+	AT_ResponseAddValue(z, STRING_FORMAT_DECIMAL, 0);
 	AT_ResponseAddString(AT_RESPONSE_END);
 }
 
@@ -286,21 +276,32 @@ static void AT_DecodeRxBuffer(void) {
 	PARSER_Status parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
 	int generic_int_1 = 0;
 	int generic_int_2 = 0;
-	int generic_int_3 = 0;
 	unsigned char generic_byte = 0;
 	unsigned char generic_byte_array_1[AES_BLOCK_SIZE];
-	unsigned char generic_byte_array_2[AES_BLOCK_SIZE];
 	unsigned char idx = 0;
 	unsigned char extracted_length = 0;
+#ifdef AT_COMMANDS_GPS
+	Position gps_position;
+	NEOM8N_ReturnCode get_position_result;
+#endif
+#ifdef AT_COMMANDS_SENSORS
+	signed char generic_signed_byte = 0;
+#endif
+#ifdef AT_COMMANDS_SIGFOX
 	sfx_error_t sfx_error = 0;
 	sfx_rc_t rc1 = RC1;
+	unsigned char generic_byte_array_2[AES_BLOCK_SIZE];
+#endif
+#ifdef AT_COMMANDS_CW
+	int generic_int_3 = 0;
+#endif
 	// Empty or too short command.
-	if (at_ctx.at_rx_buf_idx < AT_COMMAND_MIN_SIZE) {
+	if (at_ctx.at_command_buf_idx < AT_COMMAND_LENGTH_MIN) {
 		AT_ReplyError(AT_ERROR_SOURCE_PSR, PARSER_ERROR_UNKNOWN_COMMAND);
 	}
 	else {
 		// Update parser length.
-		at_ctx.at_parser.rx_buf_length = (at_ctx.at_rx_buf_idx - 1); // To ignore line end.
+		at_ctx.at_parser.rx_buf_length = (at_ctx.at_command_buf_idx - 1); // To ignore line end.
 		// Test command AT<CR>.
 		if (PARSER_CompareCommand(&at_ctx.at_parser, AT_COMMAND_TEST) == PARSER_SUCCESS) {
 			AT_ReplyOk();
@@ -308,19 +309,16 @@ static void AT_DecodeRxBuffer(void) {
 #ifdef AT_COMMANDS_GPS
 		// GPS command AT$GPS=<timeout_seconds><CR>.
 		else if (PARSER_CompareHeader(&at_ctx.at_parser, AT_HEADER_GPS) == PARSER_SUCCESS) {
-			unsigned int timeout_seconds = 0;
 			// Search timeout parameter.
-			parser_status = PARSER_GetParameter(&at_ctx.at_parser, PARSER_PARAMETER_TYPE_DECIMAL, AT_CHAR_SEPARATOR, 1, &timeout_seconds);
+			parser_status = PARSER_GetParameter(&at_ctx.at_parser, PARSER_PARAMETER_TYPE_DECIMAL, AT_CHAR_SEPARATOR, 1, &generic_int_1);
 			if (parser_status == PARSER_SUCCESS) {
 				// Start GPS fix.
-				Position gps_position;
-				unsigned int gps_fix_duration = 0;
 				LPUART1_PowerOn();
-				NEOM8N_ReturnCode get_position_result = NEOM8N_GetPosition(&gps_position, timeout_seconds, 0, &gps_fix_duration);
+				get_position_result = NEOM8N_GetPosition(&gps_position, generic_int_1, 0, &generic_int_2);
 				LPUART1_PowerOff();
 				switch (get_position_result) {
 				case NEOM8N_SUCCESS:
-					AT_PrintPosition(&gps_position, gps_fix_duration);
+					AT_PrintPosition(&gps_position, generic_int_2);
 					break;
 				case NEOM8N_TIMEOUT:
 					AT_ReplyError(AT_ERROR_SOURCE_APP, APP_ERROR_GPS_TIMEOUT);
@@ -330,15 +328,14 @@ static void AT_DecodeRxBuffer(void) {
 				}
 			}
 			else {
-				// Error in timeout parameter.
-				AT_ReplyError(AT_ERROR_SOURCE_PSR, parser_status);
+				AT_ReplyError(AT_ERROR_SOURCE_PSR, parser_status); // Error in timeout parameter.
 			}
 		}
 #endif
 #ifdef AT_COMMANDS_SENSORS
 		// ADC command AT$ADC?<CR>.
 		else if (PARSER_CompareCommand(&at_ctx.at_parser, AT_COMMAND_ADC) == PARSER_SUCCESS) {
-			// Perform ADC convertions.
+			// Perform ADC measurements.
 			ADC1_PowerOn();
 			ADC1_PerformMeasurements();
 			ADC1_PowerOff();
@@ -346,21 +343,19 @@ static void AT_DecodeRxBuffer(void) {
 		}
 		// Temperature and humidity sensor command AT$THS?<CR>.
 		else if (PARSER_CompareCommand(&at_ctx.at_parser, AT_COMMAND_THS) == PARSER_SUCCESS) {
-			signed char sht3x_temperature_degrees = 0;
-			unsigned char sht3x_humidity_percent = 0;
 			// Perform measurements.
 			I2C1_Init();
 			I2C1_PowerOn();
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
 			I2C1_Disable();
-			SHT3X_GetTemperatureComp2(&sht3x_temperature_degrees);
-			SHT3X_GetHumidity(&sht3x_humidity_percent);
+			SHT3X_GetTemperatureComp2(&generic_signed_byte);
+			SHT3X_GetHumidity(&generic_byte);
 			// Print results.
 			AT_ResponseAddString("T=");
-			AT_ResponseAddValue(sht3x_temperature_degrees, STRING_FORMAT_DECIMAL, 0);
+			AT_ResponseAddValue(generic_signed_byte, STRING_FORMAT_DECIMAL, 0);
 			AT_ResponseAddString("dC H=");
-			AT_ResponseAddValue(sht3x_humidity_percent, STRING_FORMAT_DECIMAL, 0);
+			AT_ResponseAddValue(generic_byte, STRING_FORMAT_DECIMAL, 0);
 			AT_ResponseAddString("%");
 			AT_ResponseAddString(AT_RESPONSE_END);
 		}
@@ -369,22 +364,21 @@ static void AT_DecodeRxBuffer(void) {
 			// Get sensor ID.
 			I2C1_Init();
 			I2C1_PowerOn();
-			unsigned char mma8653fc_who_am_i = MMA8653FC_GetId();
+			generic_byte = MMA8653FC_GetId();
 			I2C1_PowerOff();
 			I2C1_Disable();
 			// Print results.
 			AT_ResponseAddString("WhoAmI=");
-			AT_ResponseAddValue(mma8653fc_who_am_i, STRING_FORMAT_HEXADECIMAL, 0);
+			AT_ResponseAddValue(generic_byte, STRING_FORMAT_HEXADECIMAL, 0);
 			AT_ResponseAddString(AT_RESPONSE_END);
 		}
 		// Accelerometer data command AT$ACC=<enable><CR>.
 		else if (PARSER_CompareHeader(&at_ctx.at_parser, AT_HEADER_ACC) == PARSER_SUCCESS) {
 			// Get enable parameter.
-			unsigned int enable = 0;
-			parser_status = PARSER_GetParameter(&at_ctx.at_parser, PARSER_PARAMETER_TYPE_BOOLEAN, AT_CHAR_SEPARATOR, 1, &enable);
+			parser_status = PARSER_GetParameter(&at_ctx.at_parser, PARSER_PARAMETER_TYPE_BOOLEAN, AT_CHAR_SEPARATOR, 1, &generic_int_1);
 			if (parser_status == PARSER_SUCCESS) {
 				// Check enable bit.
-				if (enable == 0) {
+				if (generic_int_1 == 0) {
 					// Stop measurement.
 					I2C1_PowerOff();
 					I2C1_Disable();
@@ -726,14 +720,14 @@ static void AT_DecodeRxBuffer(void) {
 void AT_Init(void) {
 	// Init context.
 	unsigned int idx = 0;
-	for (idx=0 ; idx<AT_RX_BUFFER_SIZE ; idx++) at_ctx.at_rx_buf[idx] = '\0';
-	at_ctx.at_rx_buf_idx = 0;
+	for (idx=0 ; idx<AT_COMMAND_BUFFER_LENGTH ; idx++) at_ctx.at_command_buf[idx] = '\0';
+	at_ctx.at_command_buf_idx = 0;
 	at_ctx.at_line_end_flag = 0;
-	for (idx=0 ; idx<AT_RESPONSE_BUFFER_SIZE ; idx++) at_ctx.at_response_buf[idx] = '\0';
+	for (idx=0 ; idx<AT_RESPONSE_BUFFER_LENGTH ; idx++) at_ctx.at_response_buf[idx] = '\0';
 	at_ctx.at_response_buf_idx = 0;
 	at_ctx.accelero_measurement_flag = 0;
 	// Parsing variables.
-	at_ctx.at_parser.rx_buf = (unsigned char*) at_ctx.at_rx_buf;
+	at_ctx.at_parser.rx_buf = (unsigned char*) at_ctx.at_command_buf;
 	at_ctx.at_parser.rx_buf_length = 0;
 	at_ctx.at_parser.separator_idx = 0;
 	at_ctx.at_parser.start_idx = 0;
@@ -756,35 +750,24 @@ void AT_Task(void) {
 	}
 }
 
-/* FILL AT COMMAND BUFFER WITH A NEW BYTE FROM USART.
- * @param rx_byte:	New byte to store.
+/* FILL AT COMMAND BUFFER WITH A NEW BYTE (CALLED BY USART INTERRUPT).
+ * @param rx_byte:	Incoming byte.
  * @return:			None.
  */
 void AT_FillRxBuffer(unsigned char rx_byte) {
-	unsigned char increment_idx = 1;
-	// Append incoming byte to buffer.
+	// Append byte if LF flag is not allready set.
+	if (at_ctx.at_line_end_flag == 0) {
+		// Store new byte.
+		at_ctx.at_command_buf[at_ctx.at_command_buf_idx] = rx_byte;
+		// Manage index.
+		at_ctx.at_command_buf_idx++;
+		if (at_ctx.at_command_buf_idx >= AT_COMMAND_BUFFER_LENGTH) {
+			at_ctx.at_command_buf_idx = 0;
+		}
+	}
+	// Set LF flag to trigger decoding.
 	if ((rx_byte == STRING_CHAR_CR) || (rx_byte == STRING_CHAR_LF)) {
-		// Append line end only if the previous byte was not allready a line end and if other characters are allready presents.
-		if (((at_ctx.at_rx_buf[at_ctx.at_rx_buf_idx - 1] != STRING_CHAR_CR) && (at_ctx.at_rx_buf[at_ctx.at_rx_buf_idx - 1] != STRING_CHAR_LF)) && (at_ctx.at_rx_buf_idx > 0)) {
-			at_ctx.at_rx_buf[at_ctx.at_rx_buf_idx] = rx_byte;
-			// Set line end flag to trigger decoding.
-			at_ctx.at_line_end_flag = 1;
-		}
-		else {
-			// No byte stored, do not increment buffer index.
-			increment_idx = 0;
-		}
-	}
-	else {
-		// Append byte in all cases.
-		at_ctx.at_rx_buf[at_ctx.at_rx_buf_idx] = rx_byte;
-	}
-	// Increment index and manage rollover.
-	if (increment_idx != 0) {
-		at_ctx.at_rx_buf_idx++;
-		if (at_ctx.at_rx_buf_idx >= AT_RX_BUFFER_SIZE) {
-			at_ctx.at_rx_buf_idx = 0;
-		}
+		at_ctx.at_line_end_flag = 1;
 	}
 }
 
