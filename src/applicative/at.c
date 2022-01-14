@@ -344,11 +344,9 @@ static void AT_DecodeRxBuffer(void) {
 		// Temperature and humidity sensor command AT$THS?<CR>.
 		else if (PARSER_CompareCommand(&at_ctx.at_parser, AT_COMMAND_THS) == PARSER_SUCCESS) {
 			// Perform measurements.
-			I2C1_Init();
 			I2C1_PowerOn();
 			SHT3X_PerformMeasurements();
 			I2C1_PowerOff();
-			I2C1_Disable();
 			SHT3X_GetTemperatureComp2(&generic_signed_byte);
 			SHT3X_GetHumidity(&generic_byte);
 			// Print results.
@@ -362,11 +360,9 @@ static void AT_DecodeRxBuffer(void) {
 		// Accelerometer check command AT$ACC?<CR>.
 		else if (PARSER_CompareCommand(&at_ctx.at_parser, AT_COMMAND_ACC) == PARSER_SUCCESS) {
 			// Get sensor ID.
-			I2C1_Init();
 			I2C1_PowerOn();
 			generic_byte = MMA8653FC_GetId();
 			I2C1_PowerOff();
-			I2C1_Disable();
 			// Print results.
 			AT_ResponseAddString("WhoAmI=");
 			AT_ResponseAddValue(generic_byte, STRING_FORMAT_HEXADECIMAL, 0);
@@ -381,13 +377,11 @@ static void AT_DecodeRxBuffer(void) {
 				if (generic_int_1 == 0) {
 					// Stop measurement.
 					I2C1_PowerOff();
-					I2C1_Disable();
 					at_ctx.accelero_measurement_flag = 0;
 					AT_ReplyOk();
 				}
 				else {
 					// Start measurement.
-					I2C1_Init();
 					I2C1_PowerOn();
 					at_ctx.accelero_measurement_flag = 1;
 					AT_ReplyOk();

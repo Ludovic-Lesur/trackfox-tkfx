@@ -100,17 +100,13 @@ sfx_u8 MCU_API_free(sfx_u8* ptr) {
  *******************************************************************/
 sfx_u8 MCU_API_get_voltage_temperature(sfx_u16* voltage_idle, sfx_u16* voltage_tx, sfx_s16* temperature) {
 	// Perform temperature measurement.
-	I2C1_Init();
 	I2C1_PowerOn();
 	SHT3X_PerformMeasurements();
 	I2C1_PowerOff();
-	I2C1_Disable();
 	// Perform voltage measurement.
-	ADC1_Init();
 	ADC1_PowerOn();
 	ADC1_PerformMeasurements();
 	ADC1_PowerOff();
-	ADC1_Disable();
 	// Get MCU supply voltage.
 	unsigned int mcu_supply_voltage_mv = 0;
 	ADC1_GetData(ADC_DATA_IDX_VMCU_MV, &mcu_supply_voltage_mv);

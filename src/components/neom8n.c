@@ -151,7 +151,7 @@ static void NEOM8N_ParseNmeaGgaMessage(unsigned char* nmea_rx_buf, Position* gps
 		unsigned char field = 0;
 		unsigned char alt_field_length = 0;
 		unsigned char alt_number_of_digits = 0;
-		while ((nmea_rx_buf[idx] != NMEA_LF) && (idx < NMEA_RX_BUFFER_SIZE)) {
+		while ((nmea_rx_buf[idx] != STRING_CHAR_LF) && (idx < NMEA_RX_BUFFER_SIZE)) {
 			if (nmea_rx_buf[idx] == NMEA_CHAR_SEPARATOR) {
 				field++;
 				unsigned int k = 0; // Generic index used in local for loops.
@@ -366,7 +366,7 @@ static void NEOM8N_SelectNmeaMessages(unsigned int nmea_message_id_mask) {
  */
 void NEOM8N_Init(void) {
 	// Init backup pin if required.
-#if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
+#ifdef HW1_1
 	GPIO_Configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_Write(&GPIO_GPS_VBCKP, 0);
 #endif
@@ -380,16 +380,16 @@ void NEOM8N_Init(void) {
 	neom8n_ctx.neom8n_vcap_mv = 0;
 }
 
-#if (defined HW1_1) && (defined NEOM8N_USE_VBCKP)
 /* CONTROL BACKUP PIN.
  * @param vbckp_on:	Turn on (1) or off (0) GPS backup pin.
  * @return:			None.
  */
 void NEOM8N_SetVbckp(unsigned char vbckp_on) {
 	// Set backup pin.
+#ifdef HW1_1
 	GPIO_Write(&GPIO_GPS_VBCKP, vbckp_on);
-}
 #endif
+}
 
 /* GET CURRENT GPS POSITION VIA NMEA GGA MESSAGES.
  * @param gps_position:			Pointer to GPS position structure that will contain the data.
@@ -410,8 +410,6 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 	(*fix_duration_seconds) = 0;
 	RTC_ClearWakeUpTimerFlag();
 	RTC_StartWakeUpTimer(timeout_seconds);
-	// Init ADC to monitor supercap voltage.
-	ADC1_Init();
 	// Select GGA message to get complete position.
 	NEOM8N_SelectNmeaMessages(NMEA_GGA_MASK);
 	// Start DMA.
@@ -476,7 +474,6 @@ NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeou
 		IWDG_Reload();
 	}
 	// Stop ADC and DMA.
-	ADC1_Disable();
 	DMA1_StopChannel6();
 	DMA1_Disable();
 	// Go back to HSI.

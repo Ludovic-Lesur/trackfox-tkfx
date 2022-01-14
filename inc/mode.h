@@ -13,7 +13,6 @@
 //#define ATM 		// AT command mode.
 #define SSM 		// Start/stop mode.
 //#define PM		// Periodic mode.
-//#define MM 		// Manual mode.
 
 /*** Debug mode ***/
 
@@ -23,10 +22,7 @@
 
 #if ((defined ATM && defined SSM) || \
 	 (defined ATM && defined PM) || \
-	 (defined ATM && defined MM) || \
-	 (defined SSM && defined PM) || \
-	 (defined SSM && defined MM)) || \
-	 (defined PM && defined MM)
+	 (defined SSM && defined PM))
 #error "Only 1 tracker mode must be selected."
 #endif
 

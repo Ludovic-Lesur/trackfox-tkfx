@@ -11,16 +11,21 @@
 #include "mma8653fc_reg.h"
 #include "mode.h"
 
-/*** MMA8653FC structures ***/
-
 #if (defined SSM) || (defined ATM)
+
+/*** MMA8653FC macros ***/
+
+#define MMA8653FC_ACTIVE_CONFIG_LENGTH	10
+#define MMA8653FC_SLEEP_CONFIG_LENGTH	3
+
+/*** MMA8653FC structures ***/
 
 typedef struct {
 	unsigned char mma8653fc_reg_addr;
 	unsigned char mma8653fc_reg_value;
 } MMA8653FC_RegisterSetting;
 
-static const MMA8653FC_RegisterSetting mma8653_tkfx_config[] = {
+static const MMA8653FC_RegisterSetting mma8653_active_config[MMA8653FC_ACTIVE_CONFIG_LENGTH] = {
 	{MMA8653FC_REG_CTRL_REG1, 0x00}, // ACTIVE='0' (standby mode required to program registers).
 	{MMA8653FC_REG_XYZ_DATA_CFG, 0x00}, // Full scale = +/-2g.
 	{MMA8653FC_REG_CTRL_REG2, 0x1B}, // (S)MODS='11' (low power operation) and SLPE='0' (Auto sleep disabled).
@@ -33,9 +38,11 @@ static const MMA8653FC_RegisterSetting mma8653_tkfx_config[] = {
 	{MMA8653FC_REG_CTRL_REG1, 0x39} // DR='111' (1Hz) and ACTIVE='1'.
 };
 
-/*** MMA8653 macros ***/
-
-#define MMA8653FC_TKFX_CONFIG_SIZE	(sizeof(mma8653_tkfx_config) / sizeof(MMA8653FC_RegisterSetting))
+static const MMA8653FC_RegisterSetting mma8653_sleep_config[MMA8653FC_SLEEP_CONFIG_LENGTH] = {
+	{MMA8653FC_REG_CTRL_REG2, 0x5B}, // RESET='1'.
+	{MMA8653FC_REG_CTRL_REG2, 0x1B}, // RESET='0', (S)MODS='11' (low power operation) and SLPE='0' (auto sleep disabled).
+	{MMA8653FC_REG_CTRL_REG3, 0x02}, // IPOL='1' (interrupt pin active high).
+};
 
 /*** MMA8653FC functions ***/
 
