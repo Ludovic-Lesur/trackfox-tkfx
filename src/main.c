@@ -64,6 +64,19 @@ typedef enum {
 	TKFX_STATE_SLEEP
 } TKFX_State;
 
+typedef union {
+	unsigned char raw_byte;
+	struct {
+		unsigned gps_backup_status : 1;
+		unsigned accelerometer_status : 1;
+		unsigned lse_status : 1;
+		unsigned lsi_status : 1;
+		unsigned moving_flag : 1;
+		unsigned alarm_flag : 1;
+		unsigned tracker_mode : 2;
+	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) field;
+} TKFX_Status;
+
 // Sigfox monitoring frame data format.
 typedef union {
 	unsigned char raw_frame[TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES];
@@ -73,7 +86,7 @@ typedef union {
 		unsigned vsrc_mv : 16;
 		unsigned vcap_mv : 12;
 		unsigned vmcu_mv : 12;
-		unsigned status_byte : 8;
+		unsigned status : 8;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) field;
 } TKFX_SigfoxMonitoringData;
 
@@ -93,16 +106,6 @@ typedef union {
 		unsigned gps_fix_duration_seconds : 8;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) field;
 } TKFX_SigfoxGeolocData;
-
-// Status byte bit indexes.
-typedef enum {
-	TKFX_STATUS_BYTE_TRACKER_MODE0_BIT_IDX,
-	TKFX_STATUS_BYTE_TRACKER_MODE1_BIT_IDX,
-	TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX,
-	TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX,
-	TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX,
-	TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX
-} TKFX_StatusBitsIndex;
 
 typedef struct {
 	unsigned int vcap_min_mv;
@@ -132,7 +135,7 @@ typedef struct {
 	unsigned int keep_alive_timer_seconds;
 #endif
 	unsigned int geoloc_timer_seconds;
-	unsigned char status_byte;
+	TKFX_Status status;
 	// Monitoring data.
 	unsigned char tamb_degrees;
 	unsigned char tmcu_degrees;
@@ -153,7 +156,7 @@ typedef struct {
 
 static TKFX_Context tkfx_ctx;
 #ifdef SSM
-static const TKFX_Config tkfx_config = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
+static const TKFX_Config tkfx_config = {1500, 180, 0, 300, 3660, 1, 86400}; // Car tracking configuration.
 //static const TKFX_Config tkfx_config = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
 #endif
 #ifdef PM
@@ -180,7 +183,14 @@ int main (void) {
 	tkfx_ctx.lsi_frequency_hz = 0;
 	tkfx_ctx.state = TKFX_STATE_POR;
 	tkfx_ctx.config = &tkfx_config;
-	tkfx_ctx.status_byte = 0; // Reset all flags and tracker mode='00'.
+	tkfx_ctx.status.raw_byte = 0x00; // Reset all status flags.
+	// Set tracker mode.
+#ifdef SSM
+	tkfx_ctx.status.field.tracker_mode = 0b00;
+#endif
+#ifdef PM
+	tkfx_ctx.status.field.tracker_mode = 0b01;
+#endif
 	// Local variables.
 	unsigned char lse_success = 0;
 	unsigned char hse_success = 0;
@@ -195,7 +205,7 @@ int main (void) {
 			// Reset RTC before starting oscillators.
 			RTC_Reset();
 			// Low speed oscillators.
-			tkfx_ctx.status_byte |= (RCC_EnableLsi() << TKFX_STATUS_BYTE_LSI_STATUS_BIT_IDX);
+			tkfx_ctx.status.field.lsi_status = RCC_EnableLsi();
 			// Init watchdog.
 #ifndef DEBUG
 			IWDG_Init();
@@ -209,7 +219,7 @@ int main (void) {
 			IWDG_Reload();
 			// Init RTC.
 			RTC_Init(&lse_success, tkfx_ctx.lsi_frequency_hz);
-			tkfx_ctx.status_byte |= (lse_success << TKFX_STATUS_BYTE_LSE_STATUS_BIT_IDX);
+			tkfx_ctx.status.field.lse_status = lse_success;
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_INIT;
 			break;
@@ -275,6 +285,8 @@ int main (void) {
 			ADC1_GetData(ADC_DATA_IDX_VCAP_MV, &tkfx_ctx.vcap_mv);
 			ADC1_GetData(ADC_DATA_IDX_VMCU_MV, &tkfx_ctx.vmcu_mv);
 			ADC1_GetTmcuComp1(&tkfx_ctx.tmcu_degrees);
+			// Get GPS backup status.
+			tkfx_ctx.status.field.gps_backup_status = NEOM8N_GetVbckp();
 			// Compute next state.
 			tkfx_ctx.state = (tkfx_ctx.por_flag != 0) ? TKFX_STATE_VCAP_CHECK : TKFX_STATE_MONITORING;
 			break;
@@ -286,13 +298,15 @@ int main (void) {
 			tkfx_ctx.sigfox_monitoring_data.field.vsrc_mv = tkfx_ctx.vsrc_mv;
 			tkfx_ctx.sigfox_monitoring_data.field.vcap_mv = tkfx_ctx.vcap_mv;
 			tkfx_ctx.sigfox_monitoring_data.field.vmcu_mv = tkfx_ctx.vmcu_mv;
-			tkfx_ctx.sigfox_monitoring_data.field.status_byte = tkfx_ctx.status_byte;
+			tkfx_ctx.sigfox_monitoring_data.field.status = tkfx_ctx.status.raw_byte;
 			// Send uplink monitoring frame.
 			sfx_error = SIGFOX_API_open(&tkfx_sigfox_rc);
 			if (sfx_error == SFX_ERR_NONE) {
 				sfx_error = SIGFOX_API_send_frame(tkfx_ctx.sigfox_monitoring_data.raw_frame, TKFX_SIGFOX_MONITORING_DATA_LENGTH_BYTES, tkfx_ctx.sigfox_downlink_data, 2, 0);
 			}
 			SIGFOX_API_close();
+			// Reset accelerometer flag (must be done after monitoring frame sending).
+			tkfx_ctx.status.field.accelerometer_status = 0;
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_VCAP_CHECK;
 			break;
@@ -310,7 +324,7 @@ int main (void) {
 		case TKFX_GEOLOC_CHECK:
 #ifdef SSM
 			// Check stop detection.
-			if (((tkfx_ctx.status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) == 0) && ((tkfx_ctx.status_byte & (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX)) != 0)) {
+			if ((tkfx_ctx.status.field.moving_flag == 0) && (tkfx_ctx.status.field.alarm_flag != 0)) {
 				tkfx_ctx.state = TKFX_STATE_GEOLOC;
 			}
 			else {
@@ -388,6 +402,8 @@ int main (void) {
 			tkfx_ctx.start_detection_irq_count = 0;
 			MMA8653FC_ClearMotionInterruptFlag();
 			NVIC_EnableInterrupt(NVIC_IT_EXTI_0_1);
+			// Set status flag.
+			tkfx_ctx.status.field.accelerometer_status = 1;
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_OFF;
 			break;
@@ -428,7 +444,7 @@ int main (void) {
 				// Check keep-alive period.
 				if (tkfx_ctx.keep_alive_timer_seconds >= ((tkfx_ctx.config) -> keep_alive_period_seconds)) {
 					// Reset alarm flag.
-					tkfx_ctx.status_byte &= ~(0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
+					tkfx_ctx.status.field.alarm_flag = 0;
 					// Turn tracker on to send keep-alive.
 					tkfx_ctx.state = TKFX_STATE_INIT;
 				}
@@ -437,7 +453,7 @@ int main (void) {
 				// Check geoloc period.
 				if (tkfx_ctx.geoloc_timer_seconds >= ((tkfx_ctx.config) -> geoloc_period_seconds)) {
 					// Reset alarm flag.
-					tkfx_ctx.status_byte &= ~(0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
+					tkfx_ctx.status.field.alarm_flag = 0;
 					// Turn tracker on to send keep-alive.
 					tkfx_ctx.state = TKFX_STATE_INIT;
 				}
@@ -451,10 +467,10 @@ int main (void) {
 				tkfx_ctx.start_detection_irq_count++;
 				tkfx_ctx.stop_detection_timer_seconds = 0;
 				// Wake-up from accelerometer interrupt.
-				if (((tkfx_ctx.status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) == 0) && ((tkfx_ctx.start_detection_irq_count) > ((tkfx_ctx.config) -> start_detection_threshold_irq))) {
+				if ((tkfx_ctx.status.field.moving_flag == 0) && ((tkfx_ctx.start_detection_irq_count) > ((tkfx_ctx.config) -> start_detection_threshold_irq))) {
 					// Start condition detected.
-					tkfx_ctx.status_byte |= (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX);
-					tkfx_ctx.status_byte |= (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
+					tkfx_ctx.status.field.moving_flag = 1;
+					tkfx_ctx.status.field.alarm_flag = 1;
 					// Turn tracker on to send start alarm.
 					tkfx_ctx.state = TKFX_STATE_INIT;
 				}
@@ -462,10 +478,10 @@ int main (void) {
 			}
 			else {
 				// No movement detected.
-				if ((tkfx_ctx.stop_detection_timer_seconds >= ((tkfx_ctx.config) -> stop_detection_threshold_seconds)) && ((tkfx_ctx.status_byte & (0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX)) != 0)) {
+				if ((tkfx_ctx.stop_detection_timer_seconds >= ((tkfx_ctx.config) -> stop_detection_threshold_seconds)) && (tkfx_ctx.status.field.moving_flag != 0)) {
 					// Stop condition detected.
-					tkfx_ctx.status_byte &= ~(0b1 << TKFX_STATUS_BYTE_MOVING_FLAG_BIT_IDX);
-					tkfx_ctx.status_byte |= (0b1 << TKFX_STATUS_BYTE_ALARM_FLAG_BIT_IDX);
+					tkfx_ctx.status.field.moving_flag = 0;
+					tkfx_ctx.status.field.alarm_flag = 1;
 					// Turn tracker on to send stop alarm.
 					tkfx_ctx.state = TKFX_STATE_INIT;
 				}

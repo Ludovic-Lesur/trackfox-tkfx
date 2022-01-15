@@ -34,6 +34,7 @@ typedef enum {
 
 void NEOM8N_Init(void);
 void NEOM8N_SetVbckp(unsigned char vbckp_on);
+unsigned char NEOM8N_GetVbckp(void);
 NEOM8N_ReturnCode NEOM8N_GetPosition(Position* gps_position, unsigned int timeout_seconds, unsigned int vcap_min_mv, unsigned int* fix_duration_seconds);
 
 /*** NEOM8N utility functions ***/

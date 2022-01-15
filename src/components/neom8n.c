@@ -368,7 +368,6 @@ void NEOM8N_Init(void) {
 	// Init backup pin if required.
 #ifdef HW1_1
 	GPIO_Configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Write(&GPIO_GPS_VBCKP, 0);
 #endif
 	// Init context.
 	unsigned int byte_idx = 0;
@@ -389,6 +388,20 @@ void NEOM8N_SetVbckp(unsigned char vbckp_on) {
 #ifdef HW1_1
 	GPIO_Write(&GPIO_GPS_VBCKP, vbckp_on);
 #endif
+}
+
+/* GET BACKUP PIN STATE.
+ * @param:	None.
+ * @return:	1 if the backup is active, 0 otherwise.
+ */
+unsigned char NEOM8N_GetVbckp(void) {
+	// Local variables.
+	unsigned char backup = 0;
+	// Get backup pin.
+#ifdef HW1_1
+	backup = GPIO_Read(&GPIO_GPS_VBCKP);
+#endif
+	return backup;
 }
 
 /* GET CURRENT GPS POSITION VIA NMEA GGA MESSAGES.
