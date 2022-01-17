@@ -49,7 +49,6 @@
 
 // State machine.
 typedef enum {
-	TKFX_STATE_POR,
 	TKFX_STATE_INIT,
 	TKFX_STATE_OOB,
 	TKFX_STATE_MEASURE,
@@ -156,7 +155,7 @@ typedef struct {
 
 static TKFX_Context tkfx_ctx;
 #ifdef SSM
-static const TKFX_Config tkfx_config = {1500, 180, 0, 300, 3660, 1, 86400}; // Car tracking configuration.
+static const TKFX_Config tkfx_config = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
 //static const TKFX_Config tkfx_config = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
 #endif
 #ifdef PM
@@ -178,51 +177,46 @@ int main (void) {
 	// Init clock and power modules.
 	RCC_Init();
 	PWR_Init();
+	// Reset RTC before starting oscillators.
+	RTC_Reset();
+	// Start LSI.
+	unsigned char lsi_success = RCC_EnableLsi();
+	// Init watchdog.
+#ifndef DEBUG
+	IWDG_Init();
+#endif
+	IWDG_Reload();
+	// Start LSE.
+	unsigned char lse_success = RCC_EnableLse();
+	// Switch to HSI clock.
+	RCC_SwitchToHsi();
+	// Get LSI effective frequency (must be called after HSI initialization and before RTC inititialization).
+	RCC_GetLsiFrequency(&tkfx_ctx.lsi_frequency_hz);
+	IWDG_Reload();
+	// Init RTC.
+	RTC_Init(&lse_success, tkfx_ctx.lsi_frequency_hz);
+	// Local variables.
+	sfx_error_t sfx_error = 0;
+	sfx_rc_t tkfx_sigfox_rc = (sfx_rc_t) RC1;
+	NEOM8N_ReturnCode neom8n_return_code = NEOM8N_TIMEOUT;
 	// Init context.
+	tkfx_ctx.state = TKFX_STATE_INIT;
 	tkfx_ctx.por_flag = 1;
-	tkfx_ctx.lsi_frequency_hz = 0;
-	tkfx_ctx.state = TKFX_STATE_POR;
 	tkfx_ctx.config = &tkfx_config;
+	tkfx_ctx.geoloc_timer_seconds = 0;
 	tkfx_ctx.status.raw_byte = 0x00; // Reset all status flags.
-	// Set tracker mode.
+	tkfx_ctx.status.field.lsi_status = lsi_success;
+	tkfx_ctx.status.field.lse_status = lse_success;
 #ifdef SSM
 	tkfx_ctx.status.field.tracker_mode = 0b00;
 #endif
 #ifdef PM
 	tkfx_ctx.status.field.tracker_mode = 0b01;
 #endif
-	// Local variables.
-	unsigned char lse_success = 0;
-	unsigned char hse_success = 0;
-	sfx_error_t sfx_error = 0;
-	sfx_rc_t tkfx_sigfox_rc = (sfx_rc_t) RC1;
-	NEOM8N_ReturnCode neom8n_return_code = NEOM8N_TIMEOUT;
 	// Main loop.
 	while (1) {
 		// Perform state machine.
 		switch (tkfx_ctx.state) {
-		case TKFX_STATE_POR:
-			// Reset RTC before starting oscillators.
-			RTC_Reset();
-			// Low speed oscillators.
-			tkfx_ctx.status.field.lsi_status = RCC_EnableLsi();
-			// Init watchdog.
-#ifndef DEBUG
-			IWDG_Init();
-#endif
-			IWDG_Reload();
-			lse_success = RCC_EnableLse();
-			// Switch to HSI clock.
-			RCC_SwitchToHsi();
-			// Get LSI effective frequency (must be called after HSI initialization and before RTC inititialization).
-			RCC_GetLsiFrequency(&tkfx_ctx.lsi_frequency_hz);
-			IWDG_Reload();
-			// Init RTC.
-			RTC_Init(&lse_success, tkfx_ctx.lsi_frequency_hz);
-			tkfx_ctx.status.field.lse_status = lse_success;
-			// Compute next state.
-			tkfx_ctx.state = TKFX_STATE_INIT;
-			break;
 		case TKFX_STATE_INIT:
 			IWDG_Reload();
 			// Disable RTC interrupt.
@@ -233,7 +227,6 @@ int main (void) {
 			tkfx_ctx.stop_detection_timer_seconds = 0;
 			tkfx_ctx.keep_alive_timer_seconds = 0;
 #endif
-			tkfx_ctx.geoloc_timer_seconds = 0;
 			// High speed oscillator.
 			IWDG_Reload();
 			RCC_SwitchToHsi();
