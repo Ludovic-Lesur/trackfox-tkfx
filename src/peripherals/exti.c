@@ -32,7 +32,7 @@ void __attribute__((optimize("-O0"))) EXTI0_1_IRQHandler(void) {
 #ifdef SSM
 		// Set motion interrupt flag.
 		if (((EXTI -> IMR) & (0b1 << (GPIO_ACCELERO_IRQ.gpio_num))) != 0) {
-			MMA8653FC_SetMotionInterruptFlag();
+			MMA8653FC_set_motion_interrupt_flag();
 		}
 #endif
 		// Clear flag.
@@ -70,7 +70,7 @@ void __attribute__((optimize("-O0"))) EXTI4_15_IRQHandler(void) {
  * @param:	None.
  * @return:	None.
  */
-void EXTI_Init(void) {
+void EXTI_init(void) {
 	// Enable peripheral clock.
 	RCC -> APB2ENR |= (0b1 << 0); // SYSCFEN='1'.
 	// Mask all sources by default.
@@ -78,16 +78,16 @@ void EXTI_Init(void) {
 	// Clear all flags.
 	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
 	// Set interrupts priority.
-	NVIC_SetPriority(NVIC_IT_EXTI_0_1, 3);
-	NVIC_SetPriority(NVIC_IT_EXTI_4_15, 0);
+	NVIC_set_priority(NVIC_IT_EXTI_0_1, 3);
+	NVIC_set_priority(NVIC_IT_EXTI_4_15, 0);
 }
 
 /* CONFIGURE A GPIO AS EXTERNAL INTERRUPT SOURCE.
  * @param gpio:		GPIO to be attached to EXTI peripheral.
- * @edge_trigger:	Interrupt edge trigger (see EXTI_Trigger egpio_numeration in exti.h).
+ * @edge_trigger:	Interrupt edge trigger (see EXTI_trigger_t egpio_numeration in exti.h).
  * @return:			None.
  */
-void EXTI_ConfigureGpio(const GPIO* gpio, EXTI_Trigger edge_trigger) {
+void EXTI_configure_gpio(const GPIO_pin_t* gpio, EXTI_trigger_t edge_trigger) {
 	// Select GPIO port.
 	SYSCFG -> EXTICR[((gpio -> gpio_num) / 4)] &= ~(0b1111 << (4 * ((gpio -> gpio_num) % 4)));
 	SYSCFG -> EXTICR[((gpio -> gpio_num) / 4)] |= ((gpio -> gpio_port_index) << (4 * ((gpio -> gpio_num) % 4)));
@@ -123,11 +123,11 @@ void EXTI_ConfigureGpio(const GPIO* gpio, EXTI_Trigger edge_trigger) {
 }
 
 /* CONFIGURE A LINE AS INTERNAL INTERRUPT SOURCE.
- * @param line:		Line to configure (see EXTI_Line enum).
- * @edge_trigger:	Interrupt edge trigger (see EXTI_Trigger enum).
+ * @param line:		Line to configure (see EXTI_line_t enum).
+ * @edge_trigger:	Interrupt edge trigger (see EXTI_trigger_t enum).
  * @return:			None.
  */
-void EXTI_ConfigureLine(EXTI_Line line, EXTI_Trigger edge_trigger) {
+void EXTI_configure_line(EXTI_line_t line, EXTI_trigger_t edge_trigger) {
 	// Select triggers.
 	switch (edge_trigger) {
 	// Rising edge only.
@@ -168,7 +168,7 @@ void EXTI_ConfigureLine(EXTI_Line line, EXTI_Trigger edge_trigger) {
  * @param:	None.
  * @return:	None.
  */
-void EXTI_ClearAllFlags(void) {
+void EXTI_clear_all_flags(void) {
 	// Clear all flags.
 	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
 }

@@ -41,10 +41,10 @@ typedef struct {
 
 /*** PARSER functions ***/
 
-PARSER_Status PARSER_CompareCommand(PARSER_Context* parser_ctx, char* command);
-PARSER_Status PARSER_CompareHeader(PARSER_Context* parser_ctx, char* header);
-PARSER_Status PARSER_GetParameter(PARSER_Context* parser_ctx, PARSER_ParameterType param_type, char separator, unsigned char last_param, int* param);
-PARSER_Status PARSER_GetByteArray(PARSER_Context* parser_ctx, char separator, unsigned char last_param, unsigned char max_length, unsigned char* param, unsigned char* extracted_length);
+PARSER_Status PARSER_compare_command(PARSER_Context* parser_ctx, char* command);
+PARSER_Status PARSER_compare_header(PARSER_Context* parser_ctx, char* header);
+PARSER_Status PARSER_get_parameter(PARSER_Context* parser_ctx, PARSER_ParameterType param_type, char separator, unsigned char last_param, int* param);
+PARSER_Status PARSER_get_byte_array(PARSER_Context* parser_ctx, char separator, unsigned char last_param, unsigned char max_length, unsigned char* param, unsigned char* extracted_length);
 
 #endif	/* PARSER_H */
 

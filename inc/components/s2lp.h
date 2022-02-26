@@ -28,14 +28,16 @@ typedef enum {
 	S2LP_STATE_LOCK = 0x0C,
 	S2LP_STATE_RX = 0x30,
 	S2LP_STATE_SYNTH_SETUP = 0x50,
-	S2LP_STATE_TX = 0x5C
-} S2LP_State;
+	S2LP_STATE_TX = 0x5C,
+	S2LP_STATE_LAST
+} S2LP_state_t;
 
 // Oscillator.
 typedef enum {
 	S2LP_OSCILLATOR_QUARTZ = 0x00,
-	S2LP_OSCILLATOR_TCXO
-} S2LP_Oscillator;
+	S2LP_OSCILLATOR_TCXO,
+	S2LP_OSCILLATOR_LAST
+} S2LP_oscillator_t;
 
 // Modulations.
 typedef enum {
@@ -47,15 +49,17 @@ typedef enum {
 	S2LP_MODULATION_POLAR,
 	S2LP_MODULATION_NONE,
 	S2LP_MODULATION_2GFSK_BT05 = 0x0A,
-	S2LP_MODULATION_4GFSK_BT05
-} S2LP_Modulation;
+	S2LP_MODULATION_4GFSK_BT05,
+	S2LP_MODULATION_LAST
+} S2LP_modulation_t;
 
 // GPIOs modes.
 typedef enum {
 	S2LP_GPIO_MODE_IN = 0x01,
 	S2LP_GPIO_MODE_OUT_LOW_POWER,
 	S2LP_GPIO_MODE_OUT_HIGH_POWER,
-} S2LP_GPIO_Mode;
+	S2LP_GPIO_MODE_LAST
+} S2LP_GPIO_mode_t;
 
 // GPIOs output functions.
 typedef enum {
@@ -89,7 +93,8 @@ typedef enum {
 	S2LP_GPIO_OUTPUT_FUNCTION_PM,
 	S2LP_GPIO_OUTPUT_FUNCTION_VCO,
 	S2LP_GPIO_OUTPUT_FUNCTION_SYNTH,
-} S2LP_GPIO_OutputFunction;
+	S2LP_GPIO_OUTPUT_FUNCTION_LAST
+} S2LP_gpio_output_function_t;
 
 // GPIO input functions.
 typedef enum {
@@ -98,27 +103,31 @@ typedef enum {
 	S2LP_GPIO_INPUT_FUNCTION_TX_DATA,
 	S2LP_GPIO_INPUT_FUNCTION_WAKE_UP,
 	S2LP_GPIO_INPUT_FUNCTION_EXT_CLOCK,
-} S2LP_GPIO_InputFunction;
+	S2LP_GPIO_INPUT_FUNCTION_LAST
+} S2LP_gpio_input_function_t;
 
 typedef enum {
 	S2LP_FIFO_THRESHOLD_RX_FULL = 0x3C,
 	S2LP_FIFO_THRESHOLD_RX_EMPTY,
 	S2LP_FIFO_THRESHOLD_TX_FULL,
 	S2LP_FIFO_THRESHOLD_TX_EMPTY,
-} S2LP_FifoThreshold;
+	S2LP_FIFO_THRESHOLD_LAST
+} S2LP_fifo_threshold_t;
 
 typedef enum {
 	S2LP_TX_SOURCE_NORMAL = 0x00,
 	S2LP_TX_SOURCE_FIFO,
 	S2LP_TX_SOURCE_GPIO,
-	S2LP_TX_SOURCE_PN9
-} S2LP_TxSource;
+	S2LP_TX_SOURCE_PN9,
+	S2LP_TX_SOURCE_LAST
+} S2LP_tx_source_t;
 
 typedef enum {
 	S2LP_RX_SOURCE_NORMAL = 0x00,
 	S2LP_RX_SOURCE_FIFO,
-	S2LP_RX_SOURCE_GPIO
-} S2LP_RxSource;
+	S2LP_RX_SOURCE_GPIO,
+	S2LP_RX_SOURCE_LAST
+} S2LP_rx_source_t;
 
 // Interrupts.
 typedef enum {
@@ -143,87 +152,85 @@ typedef enum {
 	S2LP_IRQ_LOW_BATT_LVL_IDX,
 	S2LP_IRQ_POR_IDX,
 	S2LP_IRQ_RX_TIMEOUT_IDX = 28,
-	S2LP_IRQ_RX_SNIFF_TIMEOUT_IDX
-} S2LP_IrqIndex;
+	S2LP_IRQ_RX_SNIFF_TIMEOUT_IDX,
+	S2LP_IRQ_LAST
+} S2LP_irq_index_t;
 
 // Generic structure for mantissa and exponent setting.
 typedef struct {
 	unsigned short mantissa;
 	unsigned char exponent;
-} S2LP_MantissaExponent;
+} S2LP_mantissa_exponent_t;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
-#define S2LP_FDEV_2KHZ			((S2LP_MantissaExponent) {67, 1}) // Setting for uplink 100bps and fXO=26MHz.
-#define S2LP_FDEV_800HZ			((S2LP_MantissaExponent) {129, 0}) // Setting for downlink 600bps and fXO=26MHz.
+#define S2LP_FDEV_2KHZ			((S2LP_mantissa_exponent_t) {67, 1}) // Setting for uplink 100bps and fXO=26MHz.
+#define S2LP_FDEV_800HZ			((S2LP_mantissa_exponent_t) {129, 0}) // Setting for downlink 600bps and fXO=26MHz.
 
 // Data rates.
-#define S2LP_DATARATE_500BPS	((S2LP_MantissaExponent) {17059, 1}) // Setting for uplink 100bps and fXO=26MHz.
-#define S2LP_DATARATE_600BPS	((S2LP_MantissaExponent) {33579, 1}) // Setting for downlink 600bps and fXO=26MHz.
+#define S2LP_DATARATE_500BPS	((S2LP_mantissa_exponent_t) {17059, 1}) // Setting for uplink 100bps and fXO=26MHz.
+#define S2LP_DATARATE_600BPS	((S2LP_mantissa_exponent_t) {33579, 1}) // Setting for downlink 600bps and fXO=26MHz.
 
 // RX bandwidths.
-#define S2LP_RXBW_2KHZ1			((S2LP_MantissaExponent) {8, 8})
+#define S2LP_RXBW_2KHZ1			((S2LP_mantissa_exponent_t) {8, 8})
 
 // Preamble patterns.
 typedef enum {
 	S2LP_PREAMBLE_PATTERN_0101 = 0x00,
 	S2LP_PREAMBLE_PATTERN_1010,
 	S2LP_PREAMBLE_PATTERN_1100,
-	S2LP_PREAMBLE_PATTERN_0011
-} S2LP_PreamblePattern;
+	S2LP_PREAMBLE_PATTERN_0011,
+	S2LP_PREAMBLE_LAST
+} S2LP_preamble_pattern_t;
 
 // SMPS setting.
 typedef struct {
 	unsigned char s2lp_smps_reg_pm_conf3;
 	unsigned char s2lp_smps_reg_pm_conf2;
-} S2LP_SmpsSetting;
+} S2LP_smps_setting;
 
 // SMPS frequencies.
-#define S2LP_SMPS_TX			((S2LP_SmpsSetting) {0x9C, 0x28})
-#define S2LP_SMPS_RX			((S2LP_SmpsSetting) {0x87, 0xFC})
+#define S2LP_SMPS_TX			((S2LP_smps_setting) {0x9C, 0x28})
+#define S2LP_SMPS_RX			((S2LP_smps_setting) {0x87, 0xFC})
 
 /*** S2LP functions ***/
 
 // GPIOs functions.
-void S2LP_Init(void);
-void S2LP_Disable(void);
-void S2LP_SetGpio0(unsigned char pull_resistor_config);
-void S2LP_Tcxo(unsigned char tcxo_enable);
-void S2LP_EnterShutdown(void);
-void S2LP_ExitShutdown(void);
-
+void S2LP_init(void);
+void S2LP_disable(void);
+void S2LP_set_gpio0(unsigned char pull_resistor_config);
+void S2LP_tcxo(unsigned char tcxo_enable);
+void S2LP_enter_shutdown(void);
+void S2LP_exit_shutdown(void);
 // Common functions.
-void S2LP_SendCommand(S2LP_Command command);
-void S2LP_WaitForStateSwitch(S2LP_State new_state);
-void S2LP_WaitForXo(void);
-void S2LP_SetOscillator(S2LP_Oscillator s2lp_oscillator);
-void S2LP_ConfigureSmps(S2LP_SmpsSetting smps_setting);
-void S2LP_ConfigureChargePump(void);
-void S2LP_SetModulation(S2LP_Modulation modulation);
-void S2LP_SetRfFrequency(unsigned int rf_frequency_hz);
-void S2LP_SetFskDeviation(S2LP_MantissaExponent fsk_deviation_setting);
-void S2LP_SetBitRate(S2LP_MantissaExponent bit_rate_setting);
-void S2LP_ConfigureGpio(unsigned char gpio_number, S2LP_GPIO_Mode gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction);
-void S2LP_SetFifoThreshold(S2LP_FifoThreshold fifo_threshold, unsigned char threshold_value);
-void S2LP_ConfigureIrq(S2LP_IrqIndex irq_idx, unsigned irq_enable);
-void S2LP_ClearIrqFlags(void);
-
+void S2LP_send_command(S2LP_command_t command);
+void S2LP_wait_for_state(S2LP_state_t new_state);
+void S2LP_wait_for_oscillator(void);
+void S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator);
+void S2LP_configure_smps(S2LP_smps_setting smps_setting);
+void S2LP_configure_charge_pump(void);
+void S2LP_set_modulation(S2LP_modulation_t modulation);
+void S2LP_set_rf_frequency(unsigned int rf_frequency_hz);
+void S2LP_set_fsk_deviation(S2LP_mantissa_exponent_t fsk_deviation_setting);
+void S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting);
+void S2LP_configure_gpio(unsigned char gpio_number, S2LP_GPIO_mode_t gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction);
+void S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, unsigned char threshold_value);
+void S2LP_configure_irq(S2LP_irq_index_t irq_idx, unsigned irq_enable);
+void S2LP_clear_irq_flags(void);
 // Packet functions.
-void S2LP_SetPacketlength(unsigned char packet_length_bytes);
-void S2LP_SetPreambleDetector(unsigned char preamble_length_2bits, S2LP_PreamblePattern preamble_pattern);
-void S2LP_SetSyncWord(unsigned char* sync_word, unsigned char sync_word_length_bits);
-void S2LP_DisableCrc(void);
-
+void S2LP_set_packet_length(unsigned char packet_length_bytes);
+void S2LP_set_preamble_detector(unsigned char preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern);
+void S2LP_set_sync_word(unsigned char* sync_word, unsigned char sync_word_length_bits);
+void S2LP_disable_crc(void);
 // TX functions.
-void S2LP_ConfigurePa(void);
-void S2LP_SetTxOutputPower(signed char output_power_dbm);
-void S2LP_SetTxSource(S2LP_TxSource tx_source);
-void S2LP_WriteFifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
-
+void S2LP_configure_pa(void);
+void S2LP_set_rf_output_power(signed char output_power_dbm);
+void S2LP_set_tx_source(S2LP_tx_source_t tx_source);
+void S2LP_write_fifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
 // RX functions.
-void S2LP_SetRxSource(S2LP_RxSource rx_source);
-void S2LP_SetRxBandwidth(S2LP_MantissaExponent rxbw_setting);
-void S2LP_DisableEquaCsAntSwitch(void);
-signed int S2LP_GetRssi(void);
-void S2LP_ReadFifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
+void S2LP_set_rx_source(S2LP_rx_source_t rx_source);
+void S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
+void S2LP_disable_equa_cs_ant_switch(void);
+signed int S2LP_get_rssi(void);
+void S2LP_read_fifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
 
 #endif /* S2LP_H */

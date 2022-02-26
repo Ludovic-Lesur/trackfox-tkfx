@@ -14,10 +14,10 @@
 
 /*** AT functions ***/
 
-void AT_Init(void);
-void AT_Task(void);
-void AT_FillRxBuffer(unsigned char rx_byte);
-void AT_PrintTestResult(unsigned char status, int rssi);
+void AT_init(void);
+void AT_task(void);
+void AT_fill_rx_buffer(unsigned char rx_byte);
+void AT_print_test_result(unsigned char status, int rssi);
 
 #endif
 

@@ -46,7 +46,7 @@ void __attribute__((optimize("-O0"))) RTC_IRQHandler(void) {
  * @param:						None.
  * @return rtc_initf_success:	1 if RTC entered initialization mode, 0 otherwise.
  */
-static unsigned char RTC_EnterInitializationMode(void) {
+static unsigned char RTC_enter_initialization_mode(void) {
 	// Local variables.
 	unsigned char rtc_initf_success = 1;
 	// Enter key.
@@ -69,7 +69,7 @@ static unsigned char RTC_EnterInitializationMode(void) {
  * @param:	None.
  * @return:	None.
  */
-static void RTC_ExitInitializationMode(void) {
+static void RTC_exit_initialization_mode(void) {
 	RTC -> ISR &= ~(0b1 << 7); // INIT='0'.
 }
 
@@ -79,7 +79,7 @@ static void RTC_ExitInitializationMode(void) {
  * @param:	None.
  * @return:	None.
  */
-void RTC_Reset(void) {
+void RTC_reset(void) {
 	// Reset RTC peripheral.
 	RCC -> CSR |= (0b1 << 19); // RTCRST='1'.
 	unsigned char j = 0;
@@ -98,7 +98,7 @@ void RTC_Reset(void) {
  * @param lsi_freq_hz:	Effective LSI oscillator frequency used to compute the accurate prescaler value (only if LSI is used as source).
  * @return:				None.
  */
-void RTC_Init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz) {
+void RTC_init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz) {
 	// Manage RTC clock source.
 	if ((*rtc_use_lse) != 0) {
 		// Use LSE.
@@ -111,11 +111,11 @@ void RTC_Init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz) {
 	// Enable RTC and register access.
 	RCC -> CSR |= (0b1 << 18); // RTCEN='1'.
 	// Switch to LSI if RTC failed to enter initialization mode.
-	if (RTC_EnterInitializationMode() == 0) {
-		RTC_Reset();
+	if (RTC_enter_initialization_mode() == 0) {
+		RTC_reset();
 		RCC -> CSR |= (0b10 << 16); // RTCSEL='10'.
 		RCC -> CSR |= (0b1 << 18); // RTCEN='1'.
-		RTC_EnterInitializationMode();
+		RTC_enter_initialization_mode();
 		// Update flag.
 		(*rtc_use_lse) = 0;
 	}
@@ -134,23 +134,23 @@ void RTC_Init(unsigned char* rtc_use_lse, unsigned int lsi_freq_hz) {
 	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
 	RTC -> CR &= ~(0b111 << 0);
 	RTC -> CR |= (0b100 << 0); // Wake-up timer clocked by RTC clock (1Hz).
-	RTC_ExitInitializationMode();
+	RTC_exit_initialization_mode();
 	// Configure EXTI line.
-	EXTI_ConfigureLine(EXTI_LINE_RTC_WAKEUP_TIMER, EXTI_TRIGGER_RISING_EDGE);
+	EXTI_configure_line(EXTI_LINE_RTC_WAKEUP_TIMER, EXTI_TRIGGER_RISING_EDGE);
 	// Disable interrupt and clear all flags.
 	RTC -> CR &= ~(0b1 << 14);
 	RTC -> ISR &= 0xFFFE0000;
 	EXTI -> PR |= (0b1 << EXTI_LINE_RTC_WAKEUP_TIMER);
 	// Set interrupt priority.
-	NVIC_SetPriority(NVIC_IT_RTC, 2);
-	NVIC_EnableInterrupt(NVIC_IT_RTC);
+	NVIC_set_priority(NVIC_IT_RTC, 2);
+	NVIC_enable_interrupt(NVIC_IT_RTC);
 }
 
 /* START RTC WAKE-UP TIMER.
  * @param delay_seconds:	Delay in seconds.
  * @return:					None.
  */
-void RTC_StartWakeUpTimer(unsigned int delay_seconds) {
+void RTC_start_wakeup_timer(unsigned int delay_seconds) {
 	// Clamp parameter.
 	unsigned int local_delay_seconds = delay_seconds;
 	if (local_delay_seconds > RTC_WAKEUP_TIMER_DELAY_MAX) {
@@ -159,7 +159,7 @@ void RTC_StartWakeUpTimer(unsigned int delay_seconds) {
 	// Check if timer si not allready running.
 	if (((RTC -> CR) & (0b1 << 10)) == 0) {
 		// Enable RTC and register access.
-		RTC_EnterInitializationMode();
+		RTC_enter_initialization_mode();
 		// Configure wake-up timer.
 		RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
 		RTC -> WUTR = (local_delay_seconds - 1);
@@ -170,7 +170,7 @@ void RTC_StartWakeUpTimer(unsigned int delay_seconds) {
 		RTC -> CR |= (0b1 << 14); // WUTE='1'.
 		// Start timer.
 		RTC -> CR |= (0b1 << 10); // Enable wake-up timer.
-		RTC_ExitInitializationMode();
+		RTC_exit_initialization_mode();
 	}
 }
 
@@ -178,11 +178,11 @@ void RTC_StartWakeUpTimer(unsigned int delay_seconds) {
  * @param:	None.
  * @return:	None.
  */
-void RTC_StopWakeUpTimer(void) {
+void RTC_stop_wakeup_timer(void) {
 	// Enable RTC and register access.
-	RTC_EnterInitializationMode();
+	RTC_enter_initialization_mode();
 	RTC -> CR &= ~(0b1 << 10); // Disable wake-up timer.
-	RTC_ExitInitializationMode();
+	RTC_exit_initialization_mode();
 	// Disable interrupt.
 	RTC -> CR &= ~(0b1 << 14); // WUTE='0'.
 }
@@ -191,7 +191,7 @@ void RTC_StopWakeUpTimer(void) {
  * @param:	None.
  * @return:	1 if the RTC interrupt occured, 0 otherwise.
  */
-volatile unsigned char RTC_GetWakeUpTimerFlag(void) {
+volatile unsigned char RTC_get_wakeup_timer_flag(void) {
 	return rtc_wakeup_timer_flag;
 }
 
@@ -199,7 +199,7 @@ volatile unsigned char RTC_GetWakeUpTimerFlag(void) {
  * @param:	None.
  * @return:	None.
  */
-void RTC_ClearWakeUpTimerFlag(void) {
+void RTC_clear_wakeup_timer_flag(void) {
 	// Clear all flags.
 	RTC -> ISR &= ~(0b1 << 10); // WUTF='0'.
 	EXTI -> PR |= (0b1 << EXTI_LINE_RTC_WAKEUP_TIMER);

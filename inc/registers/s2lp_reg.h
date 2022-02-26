@@ -24,7 +24,7 @@ typedef enum {
 	S2LP_CMD_FLUSHRXFIFO,
 	S2LP_CMD_FLUSHTXFIFO,
 	S2LP_CMD_SEQUENCE_UPDATE
-} S2LP_Command;
+} S2LP_command_t;
 
 /*** S2LP registers definition ***/
 

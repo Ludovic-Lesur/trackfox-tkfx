@@ -12,9 +12,9 @@
 
 /*** USART functions ***/
 
-void USART2_Init(void);
+void USART2_init(void);
 #ifdef ATM
-void USART2_SendString(char* tx_string);
+void USART2_send_string(char* tx_string);
 #endif
 
 #endif /* USART_H */

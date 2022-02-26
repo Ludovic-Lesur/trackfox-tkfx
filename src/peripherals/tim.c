@@ -39,7 +39,7 @@ void __attribute__((optimize("-O0"))) TIM21_IRQHandler(void) {
  * @param:	None.
  * @return:	None.
  */
-void TIM21_Init(void) {
+void TIM21_init(void) {
 	// Enable peripheral clock.
 	RCC -> APB2ENR |= (0b1 << 2); // TIM21EN='1'.
 	// Reset timer before configuration.
@@ -62,7 +62,7 @@ void TIM21_Init(void) {
  * @param lsi_frequency_hz:		Pointer that will contain measured LSI frequency in Hz.
  * @return:						None.
  */
-void TIM21_GetLsiFrequency(unsigned int* lsi_frequency_hz) {
+void TIM21_get_lsi_frequency(unsigned int* lsi_frequency_hz) {
 	// Local variables.
 	unsigned char tim21_interrupt_count = 0;
 	unsigned int tim21_ccr1_edge1 = 0;
@@ -72,7 +72,7 @@ void TIM21_GetLsiFrequency(unsigned int* lsi_frequency_hz) {
 	TIM21 -> CCR1 &= 0xFFFF0000;
 	// Enable interrupt.
 	TIM21 -> SR &= 0xFFFFF9B8; // Clear all flags.
-	NVIC_EnableInterrupt(NVIC_IT_TIM21);
+	NVIC_enable_interrupt(NVIC_IT_TIM21);
 	// Enable TIM21 peripheral.
 	TIM21 -> CR1 |= (0b1 << 0); // CEN='1'.
 	TIM21 -> CCER |= (0b1 << 0); // CC1E='1'.
@@ -90,7 +90,7 @@ void TIM21_GetLsiFrequency(unsigned int* lsi_frequency_hz) {
 		}
 	}
 	// Disable interrupt.
-	NVIC_DisableInterrupt(NVIC_IT_TIM21);
+	NVIC_disable_interrupt(NVIC_IT_TIM21);
 	// Stop counter.
 	TIM21 -> CR1 &= ~(0b1 << 0); // CEN='0'.
 	TIM21 -> CCER &= ~(0b1 << 0); // CC1E='0'.
@@ -102,7 +102,7 @@ void TIM21_GetLsiFrequency(unsigned int* lsi_frequency_hz) {
  * @param:	None.
  * @return:	None.
  */
-void TIM21_Disable(void) {
+void TIM21_disable(void) {
 	// Disable TIM21 peripheral.
 	TIM21 -> CR1 &= ~(0b1 << 0); // CEN='0'.
 	RCC -> APB2ENR &= ~(0b1 << 2); // TIM21EN='0'.

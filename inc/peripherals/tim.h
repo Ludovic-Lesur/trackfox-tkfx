@@ -10,8 +10,8 @@
 
 /*** TIM functions ***/
 
-void TIM21_Init(void);
-void TIM21_GetLsiFrequency(unsigned int* lsi_frequency_hz);
-void TIM21_Disable(void);
+void TIM21_init(void);
+void TIM21_get_lsi_frequency(unsigned int* lsi_frequency_hz);
+void TIM21_disable(void);
 
 #endif /* TIM_H */

@@ -32,13 +32,13 @@ typedef struct {
 	unsigned char tx_buf[USART_TX_BUFFER_SIZE]; 	// Transmit buffer.
 	unsigned int tx_buf_read_idx; 					// Reading index in TX buffer.
 	unsigned int tx_buf_write_idx; 					// Writing index in TX buffer.
-} USART_Context;
+} USART_context_t;
 #endif
 
 /*** USART local global variables ***/
 
 #ifdef USE_TXE_INTERRUPT
-static volatile USART_Context usart_ctx;
+static volatile USART_context_t usart_ctx;
 #endif
 
 /*** USART local functions ***/
@@ -67,7 +67,7 @@ void __attribute__((optimize("-O0"))) USART2_IRQHandler(void) {
 	// RXNE interrupt.
 	if (((USART2 -> ISR) & (0b1 << 5)) != 0) {
 		// Transmit incoming byte to AT command manager.
-		AT_FillRxBuffer(USART2 -> RDR);
+		AT_fill_rx_buffer(USART2 -> RDR);
 		// Clear RXNE flag.
 		USART2 -> RQR |= (0b1 << 3);
 	}
@@ -82,7 +82,7 @@ void __attribute__((optimize("-O0"))) USART2_IRQHandler(void) {
  * @param tx_byte:	Byte to append.
  * @return:			None.
  */
-static void USART2_FillTxBuffer(unsigned char tx_byte) {
+static void USART2_fill_tx_buffer(unsigned char tx_byte) {
 #ifdef USE_TXE_INTERRUPT
 	// Fill buffer.
 	usart_ctx.tx_buf[usart_ctx.tx_buf_write_idx] = tx_byte;
@@ -111,7 +111,7 @@ static void USART2_FillTxBuffer(unsigned char tx_byte) {
  * @param:	None.
  * @return:	None.
  */
-void USART2_Init(void) {
+void USART2_init(void) {
 #ifdef ATM
 #ifdef USE_TXE_INTERRUPT
 	// Init context.
@@ -126,21 +126,21 @@ void USART2_Init(void) {
 	RCC -> APB1ENR |= (0b1 << 17); // USART2EN='1'.
 	RCC -> APB1SMENR |= (0b1 << 17); // Enable clock in sleep mode.
 	// Configure TX and RX GPIOs.
-	GPIO_Configure(&GPIO_USART2_TX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_USART2_RX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_USART2_TX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_USART2_RX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_HIGH, GPIO_PULL_NONE);
 	// Configure peripheral.
 	USART2 -> CR3 |= (0b1 << 12) | (0b1 << 23); // No overrun detection (OVRDIS='1') and clock enable in stop mode (UCESM='1').
 	USART2 -> BRR = ((RCC_HSI_FREQUENCY_KHZ * 1000) / (USART_BAUD_RATE)); // BRR = (fCK)/(baud rate). See p.730 of RM0377 datasheet.
 	// Enable transmitter and receiver.
 	USART2 -> CR1 |= (0b1 << 5) | (0b11 << 2); // TE='1', RE='1' and RXNEIE='1'.
 	// Set interrupt priority.
-	NVIC_SetPriority(NVIC_IT_USART2, 3);
+	NVIC_set_priority(NVIC_IT_USART2, 3);
 	// Enable peripheral.
 	USART2 -> CR1 |= (0b11 << 0);
 #else
 	// Configure TX and RX GPIOs.
-	GPIO_Configure(&GPIO_USART2_TX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_Configure(&GPIO_USART2_RX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_USART2_TX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_USART2_RX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
 }
 
@@ -149,17 +149,17 @@ void USART2_Init(void) {
  * @param tx_string:	Byte array to send.
  * @return:				None.
  */
-void USART2_SendString(char* tx_string) {
+void USART2_send_string(char* tx_string) {
 	// Disable interrupt.
-	NVIC_DisableInterrupt(NVIC_IT_USART2);
+	NVIC_disable_interrupt(NVIC_IT_USART2);
 	// Fill TX buffer with new bytes.
 	while (*tx_string) {
-		USART2_FillTxBuffer((unsigned char) *(tx_string++));
+		USART2_fill_tx_buffer((unsigned char) *(tx_string++));
 	}
 	// Enable interrupt.
 	#ifdef USE_TXE_INTERRUPT
 		USART2 -> CR1 |= (0b1 << 7); // (TXEIE = '1').
 	#endif
-	NVIC_EnableInterrupt(NVIC_IT_USART2);
+	NVIC_enable_interrupt(NVIC_IT_USART2);
 }
 #endif

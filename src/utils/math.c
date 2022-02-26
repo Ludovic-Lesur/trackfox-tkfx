@@ -18,7 +18,7 @@
  * @param power:	Desired power.
  * @return result:	Result of computation.
  */
-unsigned int MATH_Pow10(unsigned char power) {
+unsigned int MATH_pow_10(unsigned char power) {
 	unsigned int result = 0;
 	unsigned int pow10_buf[MATH_DECIMAL_MAX_DIGITS] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
 	if (power < MATH_DECIMAL_MAX_DIGITS) {
@@ -32,7 +32,7 @@ unsigned int MATH_Pow10(unsigned char power) {
  * @param data_length:	Input buffer length.
  * @return average: 	Average value of the input buffer.
  */
-unsigned int MATH_ComputeAverage(unsigned int* data, unsigned char data_length) {
+unsigned int MATH_average(unsigned int* data, unsigned char data_length) {
 	// Local variables.
 	unsigned char idx = 0;
 	unsigned int average = 0;
@@ -49,7 +49,7 @@ unsigned int MATH_ComputeAverage(unsigned int* data, unsigned char data_length) 
  * @param average_length:	Number of center elements taken for final average.
  * @return filter_out:		Output value of the median filter.
  */
-unsigned int MATH_ComputeMedianFilter(unsigned int* data, unsigned char median_length, unsigned char average_length) {
+unsigned int MATH_median_filter(unsigned int* data, unsigned char median_length, unsigned char average_length) {
 	// Local variables.
 	unsigned int local_buf[MATH_MEDIAN_FILTER_LENGTH_MAX];
 	unsigned char buffer_sorted = 0;
@@ -88,11 +88,38 @@ unsigned int MATH_ComputeMedianFilter(unsigned int* data, unsigned char median_l
 			end_idx = (median_length - 1);
 		}
 		// Compute average.
-		filter_out = MATH_ComputeAverage(&(data[start_idx]), (end_idx - start_idx + 1));
+		filter_out = MATH_average(&(data[start_idx]), (end_idx - start_idx + 1));
 	}
 	else {
 		// Return median value.
 		filter_out = local_buf[(median_length / 2)];
 	}
 	return filter_out;
+}
+
+/* COMPUTE THE TWO'S COMPLEMENT OF A GIVEN VALUE.
+ * @param value:				Value on which the two's complement has to be computed.
+ * @param sign_bit_position:	NEOM8N_position_t of the sign bit.
+ * @return result:				Result of computation.
+ */
+signed int MATH_two_complement(unsigned int value, unsigned char sign_bit_position) {
+	signed int result = 0;
+	// Check sign bit.
+	if ((value & (0b1 << sign_bit_position)) == 0) {
+		// Value is positive: nothing to do.
+		result = value;
+	}
+	else {
+		// Value is negative.
+		unsigned char bit_idx = 0;
+		unsigned int not_value = 0;
+		for (bit_idx=0 ; bit_idx<=sign_bit_position ; bit_idx++) {
+			if ((value & (0b1 << bit_idx)) == 0) {
+				not_value |= (0b1 << bit_idx);
+			}
+		}
+		unsigned int absolute_value = not_value + 1;
+		result = (-1) * absolute_value;
+	}
+	return result;
 }
