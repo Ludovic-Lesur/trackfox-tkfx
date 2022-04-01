@@ -98,13 +98,13 @@ void NVM_write_byte(unsigned short address_offset, unsigned char byte_to_store) 
  */
 void NVM_reset_default(void) {
 	// Sigfox parameters.
-	NVM_write_byte((NVM_SIGFOX_PN_ADDRESS_OFFSET + 0), 0x00);
-	NVM_write_byte((NVM_SIGFOX_PN_ADDRESS_OFFSET + 1), 0x00);
-	NVM_write_byte((NVM_SIGFOX_SEQ_ADDRESS_OFFSET + 0), 0x00);
-	NVM_write_byte((NVM_SIGFOX_SEQ_ADDRESS_OFFSET + 1), 0x00);
-	NVM_write_byte((NVM_SIGFOX_FH_ADDRESS_OFFSET + 0), 0x00);
-	NVM_write_byte((NVM_SIGFOX_FH_ADDRESS_OFFSET + 1), 0x00);
-	NVM_write_byte(NVM_SIGFOX_RL_ADDRESS_OFFSET, 0x00);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 0), 0x00);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 1), 0x00);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), 0x00);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), 0x00);
+	NVM_write_byte((NVM_ADDRESS_FH + 0), 0x00);
+	NVM_write_byte((NVM_ADDRESS_FH + 1), 0x00);
+	NVM_write_byte(NVM_ADDRESS_SIGFOX_FH, 0x00);
 	// Device configuration (mapped on downlink frame).
 	// TBD.
 }

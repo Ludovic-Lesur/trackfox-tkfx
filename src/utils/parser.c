@@ -23,9 +23,9 @@
  * @param separator:    Reference separator.
  * @return status:      Comparison result.
  */
-static PARSER_Status PARSER_search_separator(PARSER_Context* parser_ctx, char separator) {
+static PARSER_status_t PARSER_search_separator(PARSER_context_t* parser_ctx, char separator) {
 	// Local variables.
-	PARSER_Status status = PARSER_ERROR_SEPARATOR_NOT_FOUND;
+	PARSER_status_t status = PARSER_ERROR_SEPARATOR_NOT_FOUND;
 	unsigned char idx = 0;
 	// Starting from char following the current separator (which is the start of buffer in case of first call).
 	for (idx=(parser_ctx -> start_idx) ; idx<(parser_ctx -> rx_buf_length) ; idx++) {
@@ -45,9 +45,9 @@ static PARSER_Status PARSER_search_separator(PARSER_Context* parser_ctx, char se
  * @param command:      Reference command.
  * @return status:      Comparison result.
  */
-PARSER_Status PARSER_compare_command(PARSER_Context* parser_ctx, char* command) {
+PARSER_status_t PARSER_compare_command(PARSER_context_t* parser_ctx, char* command) {
 	// Local variables.
-	PARSER_Status status = PARSER_SUCCESS;
+	PARSER_status_t status = PARSER_SUCCESS;
 	unsigned int idx = 0;
 	// Compare all characters.
 	while (command[idx] != STRING_CHAR_NULL) {
@@ -72,9 +72,9 @@ errors:
  * @param header:       Reference header.
  * @return status:      Comparison result.
  */
-PARSER_Status PARSER_compare_header(PARSER_Context* parser_ctx, char* header) {
+PARSER_status_t PARSER_compare_header(PARSER_context_t* parser_ctx, char* header) {
 	// Local variables.
-	PARSER_Status status = PARSER_SUCCESS;
+	PARSER_status_t status = PARSER_SUCCESS;
 	unsigned int idx = 0;
 	// Compare all characters.
 	while (header[idx] != STRING_CHAR_NULL) {
@@ -99,9 +99,9 @@ errors:
  * @param param_value:  Pointer hat will contain extracted parameter value.
  * @return status:      Searching result.
  */
-PARSER_Status PARSER_get_parameter(PARSER_Context* parser_ctx, PARSER_ParameterType param_type, char separator, unsigned char last_param, int* param) {
+PARSER_status_t PARSER_get_parameter(PARSER_context_t* parser_ctx, PARSER_parameter_type_t param_type, char separator, unsigned char last_param, int* param) {
     // Local variables.
-	PARSER_Status status = PARSER_ERROR_UNKNOWN_COMMAND;
+	PARSER_status_t status = PARSER_ERROR_UNKNOWN_COMMAND;
 	unsigned char param_length_char = 0;
 	unsigned char param_negative_flag = 0;
 	unsigned char idx = 0; // Generic index used in for loops.
@@ -145,16 +145,16 @@ PARSER_Status PARSER_get_parameter(PARSER_Context* parser_ctx, PARSER_ParameterT
 			// Get digit and check if it is a bit.
 			bit_digit = (parser_ctx -> rx_buf)[parser_ctx -> start_idx];
 			if ((bit_digit == STRING_hexa_to_ascii(0)) || (bit_digit == STRING_hexa_to_ascii(1))) {
-				(*param) = STRING_ascii_to_hexa(bit_digit);
+				(*param) = STRING_char_to_value(bit_digit);
 				status = PARSER_SUCCESS;
 			}
 			else {
-				status = PARSER_ERROR_PARAMETER_BIT_INVALID;
+				status = PARSER_ERROR_BIT_INVALID;
 				goto errors;
 			}
 		}
 		else {
-			status = PARSER_ERROR_PARAMETER_BIT_OVERFLOW;
+			status = PARSER_ERROR_BIT_OVERFLOW;
 			goto errors;
 		}
 		break;
@@ -166,7 +166,7 @@ PARSER_Status PARSER_get_parameter(PARSER_Context* parser_ctx, PARSER_ParameterT
 			// Check if parameter can be binary coded on 32 bits = 4 bytes.
 			if (hexa_number_of_bytes > PARSER_PARAMETER_HEXADECIMAL_MAX_BYTES) {
 				// Error in parameter -> value is too large.
-				status = PARSER_ERROR_PARAMETER_HEXA_OVERFLOW;
+				status = PARSER_ERROR_HEXADECIMAL_OVERFLOW;
 				goto errors;
 			}
 			// Scan parameter.
@@ -174,14 +174,14 @@ PARSER_Status PARSER_get_parameter(PARSER_Context* parser_ctx, PARSER_ParameterT
 				// Increment digit_idx.
 				hexa_digit_idx++;
 				// Check if buffer content are hexadecimal characters.
-				if (STRING_is_hexa_char((parser_ctx -> rx_buf)[idx]) == 0) {
-					status = PARSER_ERROR_PARAMETER_HEXA_INVALID;
+				if (STRING_is_hexadecimal_char((parser_ctx -> rx_buf)[idx]) == 0) {
+					status = PARSER_ERROR_HEXADECIMAL_INVALID;
 					goto errors;
 				}
 				// Get byte every two digits.
 				if ((hexa_digit_idx % 2) == 0) {
 					// Current byte = (previous digit << 4) + (current digit).
-					hexa_byte_buf[(hexa_digit_idx / 2) - 1] = ((STRING_ascii_to_hexa((parser_ctx -> rx_buf)[idx - 1])) << 4) + STRING_ascii_to_hexa((parser_ctx -> rx_buf)[idx]);
+					hexa_byte_buf[(hexa_digit_idx / 2) - 1] = ((STRING_char_to_value((parser_ctx -> rx_buf)[idx - 1])) << 4) + STRING_char_to_value((parser_ctx -> rx_buf)[idx]);
 				}
 			}
 			// The loop didn't return, parameter is valid -> retrieve the number.
@@ -197,25 +197,25 @@ PARSER_Status PARSER_get_parameter(PARSER_Context* parser_ctx, PARSER_ParameterT
 		}
 		else {
 			// Error in parameter -> odd number of digits while using hexadecimal format.
-			status = PARSER_ERROR_PARAMETER_HEXA_ODD_SIZE;
+			status = PARSER_ERROR_HEXADECIMAL_ODD_SIZE;
 			goto errors;
 		}
 		break;
 	case PARSER_PARAMETER_TYPE_DECIMAL:
 		// Check if parameter exists and can be binary coded on 32 bits = 9 digits max.
 		if (param_length_char > PARSER_PARAMETER_DECIMAL_MAX_DIGITS) {
-			status = PARSER_ERROR_PARAMETER_DEC_OVERFLOW;
+			status = PARSER_ERROR_DECIMAL_OVERFLOW;
 			goto errors;
 		}
 		// Scan parameter.
 		for (idx=(parser_ctx -> start_idx) ; idx<=end_idx ; idx++) {
 			// Check if buffer content are decimal characters.
 			if (STRING_is_decimal_char((parser_ctx -> rx_buf)[idx]) == 0) {
-				status = PARSER_ERROR_PARAMETER_DEC_INVALID;
+				status = PARSER_ERROR_DECIMAL_INVALID;
 				goto errors;
 			}
 			// Store digit and increment index.
-			dec_digit_buf[dec_digit_idx] = STRING_ascii_to_hexa((parser_ctx -> rx_buf)[idx]);
+			dec_digit_buf[dec_digit_idx] = STRING_char_to_value((parser_ctx -> rx_buf)[idx]);
 			dec_digit_idx++;
 		}
 		// The loop didn't return, parameter is valid -> retrieve the number.
@@ -250,9 +250,9 @@ errors:
  * @param extracted_length:	Length of the extracted buffer.
  * @return status:          Searching result.
  */
-PARSER_Status PARSER_get_byte_array(PARSER_Context* parser_ctx, char separator, unsigned char last_param, unsigned char max_length, unsigned char* param, unsigned char* extracted_length) {
+PARSER_status_t PARSER_get_byte_array(PARSER_context_t* parser_ctx, char separator, unsigned char last_param, unsigned char max_length, unsigned char* param, unsigned char* extracted_length) {
     // Local variables.
-	PARSER_Status status = PARSER_ERROR_UNKNOWN_COMMAND;
+	PARSER_status_t status = PARSER_ERROR_UNKNOWN_COMMAND;
 	unsigned char param_length_char = 0;
 	unsigned char idx = 0; // Generic index used in for loops.
     unsigned char end_idx = 0;
@@ -287,7 +287,7 @@ PARSER_Status PARSER_get_byte_array(PARSER_Context* parser_ctx, char separator, 
 		// Check if byte array does not exceed given length.
 		if (hexa_number_of_bytes > max_length) {
 			// Error in parameter -> array is too large.
-			status = PARSER_ERROR_PARAMETER_BYTE_ARRAY_INVALID_LENGTH;
+			status = PARSER_ERROR_BYTE_ARRAY_LENGTH;
 			goto errors;
 		}
 		// Scan each byte.
@@ -295,14 +295,14 @@ PARSER_Status PARSER_get_byte_array(PARSER_Context* parser_ctx, char separator, 
 			// Increment digit_idx.
 			hexa_digit_idx++;
 			// Check if buffer content are hexadecimal characters.
-			if (STRING_is_hexa_char((parser_ctx -> rx_buf)[idx]) == 0) {
-				status = PARSER_ERROR_PARAMETER_HEXA_INVALID;
+			if (STRING_is_hexadecimal_char((parser_ctx -> rx_buf)[idx]) == 0) {
+				status = PARSER_ERROR_HEXADECIMAL_INVALID;
 				goto errors;
 			}
 			// Get byte every two digits.
 			if ((hexa_digit_idx % 2) == 0) {
 				// Current byte = (previous digit << 4) + (current digit).
-				param[(hexa_digit_idx / 2) - 1] = ((STRING_ascii_to_hexa((parser_ctx -> rx_buf)[idx - 1])) << 4) + STRING_ascii_to_hexa((parser_ctx -> rx_buf)[idx]);
+				param[(hexa_digit_idx / 2) - 1] = ((STRING_char_to_value((parser_ctx -> rx_buf)[idx - 1])) << 4) + STRING_char_to_value((parser_ctx -> rx_buf)[idx]);
 				(*extracted_length)++;
 			}
 		}
@@ -311,7 +311,7 @@ PARSER_Status PARSER_get_byte_array(PARSER_Context* parser_ctx, char separator, 
 	}
 	else {
 		// Error in parameter -> odd number of digits while using hexadecimal format.
-		status = PARSER_ERROR_PARAMETER_HEXA_ODD_SIZE;
+		status = PARSER_ERROR_HEXADECIMAL_ODD_SIZE;
 		goto errors;
 	}
 	// Update start index after decoding parameter.

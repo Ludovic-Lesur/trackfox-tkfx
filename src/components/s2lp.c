@@ -1,7 +1,7 @@
 /*
  * s2lp.c
  *
- *  Created on: 12 oct. 2019
+ *  Created on: 16 aug. 2019
  *      Author: Ludo
  */
 
@@ -22,7 +22,7 @@
 #define S2LP_HEADER_BYTE_READ				0x01
 #define S2LP_HEADER_BYTE_COMMAND			0x80
 
-#define S2LP_XO_FREQUENCY_HZ				26000000
+#define S2LP_XO_FREQUENCY_HZ				49152000
 #define S2LP_XO_HIGH_RANGE_THRESHOLD_HZ		48000000
 
 #define S2LP_SYNC_WORD_LENGTH_BITS_MAX		32
@@ -84,9 +84,7 @@ void S2LP_disable(void) {
 	// Configure GPIOs as analog inputs.
 	GPIO_configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#ifdef HW1_1
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#endif
 }
 
 /* CONFIGURE S2LP GPIO0.
@@ -127,9 +125,7 @@ void S2LP_tcxo(unsigned char tcxo_enable) {
  */
 void S2LP_enter_shutdown(void) {
 	// Put SDN in high impedance (pull-up resistor used).
-#ifdef HW1_1
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#endif
 }
 
 /* PUT S2LP IN ACTIVE MODE.
@@ -138,10 +134,8 @@ void S2LP_enter_shutdown(void) {
  */
 void S2LP_exit_shutdown(void) {
 	// Put SDN low.
-#ifdef HW1_1
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_write(&GPIO_S2LP_SDN, 0);
-#endif
 	// Wait for reset time.
 	LPTIM1_delay_milliseconds(100, 1);
 }
@@ -315,22 +309,22 @@ void S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting) {
 }
 
 /* CONFIGURE S2LP GPIOs.
- * @param gpio_number:			GPIO to configure (0 to 3).
+ * @param gpio_index:			GPIO to configure (0 to 3).
  * @param gpio_mode:			GPIO mode (use enum defined in s2lp.h).
  * @param gpio_function:		GPIO function (use enum defined in s2lp.h).
  * @param fifo_flag_direction:	'1' to select RX FIFO flags, '0' to select TX FIFO flags.
  * @return:						None.
  */
-void S2LP_configure_gpio(unsigned char gpio_number, S2LP_GPIO_mode_t gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction) {
+void S2LP_configure_gpio(unsigned char gpio_index, S2LP_GPIO_mode_t gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction) {
 	// Read corresponding register.
 	unsigned char reg_value = 0;
-	S2LP_read_register((S2LP_REG_GPIO0_CONF + gpio_number), &reg_value);
+	S2LP_read_register((S2LP_REG_GPIO0_CONF + gpio_index), &reg_value);
 	// Set required bits.
 	reg_value &= 0x04; // Bit 2 is reserved.
 	reg_value |= ((gpio_mode & 0x02) << 0);
 	reg_value |= ((gpio_function & 0x1F) << 3);
 	// Write register.
-	S2LP_write_register((S2LP_REG_GPIO0_CONF + gpio_number), reg_value);
+	S2LP_write_register((S2LP_REG_GPIO0_CONF + gpio_index), reg_value);
 	// Select FIFO flags.
 	S2LP_read_register(S2LP_REG_PROTOCOL2, &reg_value);
 	reg_value &= 0xFB;

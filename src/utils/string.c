@@ -14,7 +14,7 @@
 #define STRING_DIGIT_DECIMAL_MAX			9
 #define STRING_DIGIT_HEXADECIMAL_MAX		0x0F
 
-#define STRING_FORMAT_BINARY_MAX_BITS		32
+#define STRING_FORMAT_BOOLEAN_MAX_BITS		32
 #define STRING_FORMAT_HEXADECIMAL_MAX_BYTES	4
 #define STRING_FORMAT_DECIMAL_MAX_DIGITS	10
 #define STRING_FORMAT_ASCII_MAX_VALUE		0xFF
@@ -25,7 +25,7 @@
  * @param ascii_code:	Hexadecimal ASCII code to convert.
  * @return value:		Corresponding value.
  */
-unsigned char STRING_ascii_to_hexa(char ascii_code) {
+unsigned char STRING_char_to_value(char ascii_code) {
 	unsigned char value = 0;
 	if ((ascii_code >= 'A') && (ascii_code <= 'F')) {
 		value = ascii_code - 'A' + 10;
@@ -64,7 +64,7 @@ char STRING_hexa_to_ascii(unsigned char hexa_digit) {
  * @param ascii_code:	The byte to analyse.
  * @return:				1 if the byte is the ASCII code of an hexadecimal character, 0 otherwise.
  */
-unsigned char STRING_is_hexa_char(char ascii_code) {
+unsigned char STRING_is_hexadecimal_char(char ascii_code) {
 	return (((ascii_code >= '0') && (ascii_code <= '9')) || ((ascii_code >= 'A') && (ascii_code <= 'F')));
 }
 
@@ -82,7 +82,7 @@ unsigned char STRING_is_decimal_char(char ascii_code) {
  * @param print_prefix: Print base prefix is non zero.
  * @param string:       Output string.
  */
-void STRING_convert_value(int value, STRING_format_t format, unsigned char print_prefix, char* string) {
+void STRING_value_to_string(int value, STRING_format_t format, unsigned char print_prefix, char* string) {
     // Local variables.
 	unsigned int value_abs;
 	unsigned char first_non_zero_found = 0;
@@ -101,13 +101,13 @@ void STRING_convert_value(int value, STRING_format_t format, unsigned char print
 	}
 	// Build string according to format.
 	switch (format) {
-	case STRING_FORMAT_BINARY:
+	case STRING_FORMAT_BOOLEAN:
 		if (print_prefix != 0) {
 			// Print "0b" prefix.
             string[string_idx++] = '0';
             string[string_idx++] = 'b';
 		}
-		for (idx=(STRING_FORMAT_BINARY_MAX_BITS - 1) ; idx>=0 ; idx--) {
+		for (idx=(STRING_FORMAT_BOOLEAN_MAX_BITS - 1) ; idx>=0 ; idx--) {
 			if (value_abs & (0b1 << idx)) {
 				string[string_idx++] = '1';
 				first_non_zero_found = 1;

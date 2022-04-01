@@ -57,11 +57,11 @@ typedef struct {
 	unsigned char rf_api_s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES];
 	unsigned int rf_api_wait_frame_calls_count;
 	volatile unsigned char rf_api_s2lp_irq_flag;
-} RF_API_Context;
+} RF_api_context_t;
 
 /*** RF API local global variables ***/
 
-static RF_API_Context rf_api_ctx;
+static RF_api_context_t rf_api_ctx;
 signed char rf_api_cw_output_power = S2LP_RF_OUTPUT_POWER_MAX;
 
 /*** RF API functions ***/

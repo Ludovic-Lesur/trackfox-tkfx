@@ -508,6 +508,7 @@ int main (void) {
 	// Init GPIOs.
 	GPIO_init();
 	EXTI_init();
+	PWR_init();
 	// Reset RTC before starting oscillators.
 	RTC_reset();
 	// Init clocks.

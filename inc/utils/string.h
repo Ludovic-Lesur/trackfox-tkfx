@@ -19,7 +19,7 @@
 /*** STRING structures ***/
 
 typedef enum {
-	STRING_FORMAT_BINARY,
+	STRING_FORMAT_BOOLEAN,
 	STRING_FORMAT_HEXADECIMAL,
 	STRING_FORMAT_DECIMAL,
 	STRING_FORMAT_ASCII,
@@ -28,11 +28,11 @@ typedef enum {
 
 /*** STRING functions ***/
 
-unsigned char STRING_ascii_to_hexa(char ascii_code);
+unsigned char STRING_char_to_value(char ascii_code);
 char STRING_decimal_to_ascii(unsigned char decimal_digit);
 char STRING_hexa_to_ascii(unsigned char hexa_digit);
-unsigned char STRING_is_hexa_char(char ascii_code);
+unsigned char STRING_is_hexadecimal_char(char ascii_code);
 unsigned char STRING_is_decimal_char(char ascii_code);
-void STRING_convert_value(int value, STRING_format_t format, unsigned char print_prefix, char* string);
+void STRING_value_to_string(int value, STRING_format_t format, unsigned char print_prefix, char* string);
 
 #endif /* STRING_H */

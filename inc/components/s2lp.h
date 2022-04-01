@@ -1,7 +1,7 @@
 /*
  * s2lp.h
  *
- *  Created on: 12 oct. 2019
+ *  Created on: 16 aug. 2019
  *      Author: Ludo
  */
 
@@ -163,12 +163,12 @@ typedef struct {
 } S2LP_mantissa_exponent_t;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
-#define S2LP_FDEV_2KHZ			((S2LP_mantissa_exponent_t) {67, 1}) // Setting for uplink 100bps and fXO=26MHz.
-#define S2LP_FDEV_800HZ			((S2LP_mantissa_exponent_t) {129, 0}) // Setting for downlink 600bps and fXO=26MHz.
+#define S2LP_FDEV_2KHZ			((S2LP_mantissa_exponent_t) {171, 0}) // Setting for uplink 100bps and fXO=49.152MHz.
+#define S2LP_FDEV_800HZ			((S2LP_mantissa_exponent_t) {68, 0}) // Setting for downlink 600bps and fXO=49.152MHz.
 
 // Data rates.
-#define S2LP_DATARATE_500BPS	((S2LP_mantissa_exponent_t) {17059, 1}) // Setting for uplink 100bps and fXO=26MHz.
-#define S2LP_DATARATE_600BPS	((S2LP_mantissa_exponent_t) {33579, 1}) // Setting for downlink 600bps and fXO=26MHz.
+#define S2LP_DATARATE_500BPS	((S2LP_mantissa_exponent_t) {21845, 1}) // Setting for uplink 100bps and fXO=49.152MHz.
+#define S2LP_DATARATE_600BPS	((S2LP_mantissa_exponent_t) {39322, 1}) // Setting for downlink 600bps and fXO=49.152MHz.
 
 // RX bandwidths.
 #define S2LP_RXBW_2KHZ1			((S2LP_mantissa_exponent_t) {8, 8})
@@ -179,7 +179,7 @@ typedef enum {
 	S2LP_PREAMBLE_PATTERN_1010,
 	S2LP_PREAMBLE_PATTERN_1100,
 	S2LP_PREAMBLE_PATTERN_0011,
-	S2LP_PREAMBLE_LAST
+	S2LP_PREAMBLE_PATTERN_LAST
 } S2LP_preamble_pattern_t;
 
 // SMPS setting.
@@ -201,6 +201,7 @@ void S2LP_set_gpio0(unsigned char pull_resistor_config);
 void S2LP_tcxo(unsigned char tcxo_enable);
 void S2LP_enter_shutdown(void);
 void S2LP_exit_shutdown(void);
+
 // Common functions.
 void S2LP_send_command(S2LP_command_t command);
 void S2LP_wait_for_state(S2LP_state_t new_state);
@@ -212,20 +213,23 @@ void S2LP_set_modulation(S2LP_modulation_t modulation);
 void S2LP_set_rf_frequency(unsigned int rf_frequency_hz);
 void S2LP_set_fsk_deviation(S2LP_mantissa_exponent_t fsk_deviation_setting);
 void S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting);
-void S2LP_configure_gpio(unsigned char gpio_number, S2LP_GPIO_mode_t gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction);
+void S2LP_configure_gpio(unsigned char gpio_index, S2LP_GPIO_mode_t gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction);
 void S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, unsigned char threshold_value);
 void S2LP_configure_irq(S2LP_irq_index_t irq_idx, unsigned irq_enable);
 void S2LP_clear_irq_flags(void);
+
 // Packet functions.
 void S2LP_set_packet_length(unsigned char packet_length_bytes);
 void S2LP_set_preamble_detector(unsigned char preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern);
 void S2LP_set_sync_word(unsigned char* sync_word, unsigned char sync_word_length_bits);
 void S2LP_disable_crc(void);
+
 // TX functions.
 void S2LP_configure_pa(void);
 void S2LP_set_rf_output_power(signed char output_power_dbm);
 void S2LP_set_tx_source(S2LP_tx_source_t tx_source);
 void S2LP_write_fifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
+
 // RX functions.
 void S2LP_set_rx_source(S2LP_rx_source_t rx_source);
 void S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
