@@ -453,9 +453,13 @@ void S2LP_configure_pa(void) {
 	unsigned char reg_value = 0;
 	S2LP_write_register(S2LP_REG_PA_POWER0, 0x00);
 	// Disable FIR.
-	S2LP_read_register(S2LP_REG_PA_CONFIG1,  &reg_value);
+	S2LP_read_register(S2LP_REG_PA_CONFIG1, &reg_value);
 	reg_value &= 0xFD;
 	S2LP_write_register(S2LP_REG_PA_CONFIG1, reg_value);
+	// Enable interpolator.
+	S2LP_read_register(S2LP_REG_MOD1, &reg_value);
+	reg_value |= 0x80;
+	S2LP_write_register(S2LP_REG_MOD1, reg_value);
 }
 
 /* CONFIGURE TX OUTPUT POWER.

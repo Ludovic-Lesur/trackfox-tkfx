@@ -41,7 +41,7 @@ void AES_disable(void) {
  * @param init_vector:	Initialisation vector (128-bits value).
  * @param key			AES key (128-bits value).
  */
-void AES_encode_cbc(unsigned char data_in[AES_BLOCK_SIZE], unsigned char data_out[AES_BLOCK_SIZE], unsigned char init_vector[AES_BLOCK_SIZE], unsigned char key[AES_BLOCK_SIZE]) {
+void AES_encrypt(unsigned char data_in[AES_BLOCK_SIZE], unsigned char data_out[AES_BLOCK_SIZE], unsigned char init_vector[AES_BLOCK_SIZE], unsigned char key[AES_BLOCK_SIZE]) {
 	// Configure operation.
 	AES -> CR &= ~(0b11 << 3); // MODE='00'.
 	// Fill key.
