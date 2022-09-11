@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef SPI_H
-#define SPI_H
+#ifndef __SPI_H__
+#define __SPI_H__
 
 /*** SPI functions ***/
 
@@ -18,4 +18,4 @@ void SPI1_power_off(void);
 unsigned char SPI1_write_byte(unsigned char tx_data);
 unsigned char SPI1_read_byte(unsigned char tx_data, unsigned char* rx_data);
 
-#endif /* SPI_H_ */
+#endif /* __SPI_H__ */

@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef LPUART_H
-#define LPUART_H
+#ifndef __LPUART_H__
+#define __LPUART_H__
 
 /*** LPUART functions ***/
 
@@ -19,4 +19,4 @@ void LPUART1_power_on(void);
 void LPUART1_power_off(void);
 void LPUART1_send_byte(unsigned char byte_to_send);
 
-#endif /* LPUART_H */
+#endif /* __LPUART_H__ */

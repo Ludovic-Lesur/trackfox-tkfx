@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef DMA_H
-#define DMA_H
+#ifndef __DMA_H__
+#define __DMA_H__
 
 /*** DMA functions ***/
 
@@ -23,4 +23,4 @@ void DMA1_set_channel6_dest_addr(unsigned int dest_buf_addr, unsigned short dest
 
 void DMA1_disable(void);
 
-#endif /* DMA_H */
+#endif /* __DMA_H__ */

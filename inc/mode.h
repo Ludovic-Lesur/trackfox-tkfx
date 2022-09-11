@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef MODE_H
-#define MODE_H
+#ifndef __MODE_H__
+#define __MODE_H__
 
 /*** Tracker mode ***/
 
@@ -26,4 +26,4 @@
 #error "Only 1 tracker mode must be selected."
 #endif
 
-#endif /* MODE_H */
+#endif /* __MODE_H__ */

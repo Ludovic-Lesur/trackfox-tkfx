@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef MATH_H
-#define MATH_H
+#ifndef __MATH_H__
+#define __MATH_H__
 
 /*** MATH functions ***/
 
@@ -15,4 +15,4 @@ unsigned int MATH_average(unsigned int* data, unsigned char data_length);
 unsigned int MATH_median_filter(unsigned int* data, unsigned char median_length, unsigned char average_length);
 signed int MATH_two_complement(unsigned int value, unsigned char sign_bit_position);
 
-#endif /* MATH_H */
+#endif /* __MATH_H__ */

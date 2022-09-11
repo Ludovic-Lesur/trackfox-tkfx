@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef MMA8653FC_H
-#define MMA8653FC_H
+#ifndef __MMA8653FC_H__
+#define __MMA8653FC_H__
 
 #include "mma8653fc_reg.h"
 #include "mode.h"
@@ -56,4 +56,4 @@ unsigned char MMA8653FC_get_motion_interrupt_flag(void);
 
 #endif
 
-#endif /* MMA8653FC_H */
+#endif /* __MMA8653FC_H__ */

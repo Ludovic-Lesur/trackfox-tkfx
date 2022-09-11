@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef PWR_H
-#define PWR_H
+#ifndef __PWR_H__
+#define __PWR_H__
 
 /*** PWR functions ***/
 
@@ -15,4 +15,4 @@ void PWR_enter_sleep_mode(void);
 void PWR_enter_low_power_sleep_mode(void);
 void PWR_enter_stop_mode(void);
 
-#endif /* PWR_H */
+#endif /* __PWR_H__ */

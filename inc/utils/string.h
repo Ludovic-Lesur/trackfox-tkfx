@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef STRING_H
-#define STRING_H
+#ifndef __STRING_H__
+#define __STRING_H__
 
 /*** STRING macros ***/
 
@@ -35,4 +35,4 @@ unsigned char STRING_is_hexadecimal_char(char ascii_code);
 unsigned char STRING_is_decimal_char(char ascii_code);
 void STRING_value_to_string(int value, STRING_format_t format, unsigned char print_prefix, char* string);
 
-#endif /* STRING_H */
+#endif /* __STRING_H__ */

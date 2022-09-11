@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef PARSER_H
-#define	PARSER_H
+#ifndef __PARSER_H__
+#define __PARSER_H__
 
 /*** PARSER structures ***/
 
@@ -46,5 +46,5 @@ PARSER_status_t PARSER_compare_header(PARSER_context_t* parser_ctx, char* header
 PARSER_status_t PARSER_get_parameter(PARSER_context_t* parser_ctx, PARSER_parameter_type_t param_type, char separator, unsigned char last_param, int* param);
 PARSER_status_t PARSER_get_byte_array(PARSER_context_t* parser_ctx, char separator, unsigned char last_param, unsigned char max_length, unsigned char* param, unsigned char* extracted_length);
 
-#endif	/* PARSER_H */
+#endif	/* __PARSER_H__ */
 

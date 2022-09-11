@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef S2LP_H
-#define S2LP_H
+#ifndef __S2LP_H__
+#define __S2LP_H__
 
 #include "s2lp_reg.h"
 
@@ -186,11 +186,11 @@ typedef enum {
 typedef struct {
 	unsigned char s2lp_smps_reg_pm_conf3;
 	unsigned char s2lp_smps_reg_pm_conf2;
-} S2LP_smps_setting;
+} S2LP_smps_setting_t;
 
 // SMPS frequencies.
-#define S2LP_SMPS_TX			((S2LP_smps_setting) {0x9C, 0x28})
-#define S2LP_SMPS_RX			((S2LP_smps_setting) {0x87, 0xFC})
+#define S2LP_SMPS_TX			((S2LP_smps_setting_t) {0x9C, 0x28})
+#define S2LP_SMPS_RX			((S2LP_smps_setting_t) {0x87, 0xFC})
 
 /*** S2LP functions ***/
 
@@ -207,7 +207,7 @@ void S2LP_send_command(S2LP_command_t command);
 void S2LP_wait_for_state(S2LP_state_t new_state);
 void S2LP_wait_for_oscillator(void);
 void S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator);
-void S2LP_configure_smps(S2LP_smps_setting smps_setting);
+void S2LP_configure_smps(S2LP_smps_setting_t smps_setting);
 void S2LP_configure_charge_pump(void);
 void S2LP_set_modulation(S2LP_modulation_t modulation);
 void S2LP_set_rf_frequency(unsigned int rf_frequency_hz);
@@ -237,4 +237,4 @@ void S2LP_disable_equa_cs_ant_switch(void);
 signed int S2LP_get_rssi(void);
 void S2LP_read_fifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
 
-#endif /* S2LP_H */
+#endif /* __S2LP_H__ */

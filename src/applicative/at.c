@@ -183,15 +183,15 @@ static void AT_PrintAdcData(void) {
 	unsigned int generic_int = 0;
 	signed char tmcu_degrees = 0;
 	// Vpv.
-	ADC1_get_data(ADC_DATA_IDX_VSRC_MV, &generic_int);
+	ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &generic_int);
 	AT_response_add_string("Vsrc=");
 	AT_response_add_value(generic_int, STRING_FORMAT_DECIMAL, 0);
 	// Vout.
-	ADC1_get_data(ADC_DATA_IDX_VCAP_MV, &generic_int);
+	ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &generic_int);
 	AT_response_add_string("mV Vcap=");
 	AT_response_add_value(generic_int, STRING_FORMAT_DECIMAL, 0);
 	// Vmcu.
-	ADC1_get_data(ADC_DATA_IDX_VMCU_MV, &generic_int);
+	ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &generic_int);
 	AT_response_add_string("uA Vmcu=");
 	AT_response_add_value(generic_int, STRING_FORMAT_DECIMAL, 0);
 	// Tmcu.

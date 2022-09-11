@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef MAPPING_H
-#define MAPPING_H
+#ifndef __MAPPING_H__
+#define __MAPPING_H__
 
 #include "gpio.h"
 #include "gpio_reg.h"
@@ -63,4 +63,4 @@ static const GPIO_pin_t GPIO_I2C1_SDA	=			(GPIO_pin_t) {GPIOB, 1, 7, 1};
 // Sensors power control.
 static const GPIO_pin_t GPIO_SENSORS_POWER_ENABLE =	(GPIO_pin_t) {GPIOB, 1, 8, 0};
 
-#endif /* MAPPING_H */
+#endif /* __MAPPING_H__ */

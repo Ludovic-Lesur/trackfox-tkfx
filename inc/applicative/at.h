@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef AT_H
-#define AT_H
+#ifndef __AT_H__
+#define __AT_H__
 
 #include "mode.h"
 
@@ -21,4 +21,4 @@ void AT_print_test_result(unsigned char status, int rssi);
 
 #endif
 
-#endif /* AT_H */
+#endif /* __AT_H__ */

@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef RCC_H
-#define RCC_H
+#ifndef __RCC_H__
+#define __RCC_H__
 
 /*** RCC macros ***/
 
@@ -25,4 +25,4 @@ unsigned char RCC_enable_lsi(void);
 void RCC_get_lsi_frequency(unsigned int* lsi_frequency_hz);
 unsigned char RCC_enable_lse(void);
 
-#endif /* RCC_H */
+#endif /* __RCC_H__ */

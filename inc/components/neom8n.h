@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef NEOM8N_H
-#define NEOM8N_H
+#ifndef __NEOM8N_H__
+#define __NEOM8N_H__
 
 /*** NEOM8N structures ***/
 
@@ -39,4 +39,4 @@ unsigned char NEOM8N_get_backup(void);
 NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned int timeout_seconds, unsigned int vcap_min_mv, unsigned int* fix_duration_seconds);
 void NEOM8N_switch_dma_buffer(unsigned char lf_flag);
 
-#endif /* NEOM8N_H */
+#endif /* __NEOM8N_H__ */

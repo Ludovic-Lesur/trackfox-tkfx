@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef NVM_H
-#define NVM_H
+#ifndef __NVM_H__
+#define __NVM_H__
 
 /*** NVM macros ***/
 
@@ -28,4 +28,4 @@ void NVM_read_byte(unsigned short address_offset, unsigned char* byte_to_read);
 void NVM_write_byte(unsigned short address_offset, unsigned char byte_to_store);
 void NVM_reset_default(void);
 
-#endif /* NVM_H */
+#endif /* __NVM_H__ */

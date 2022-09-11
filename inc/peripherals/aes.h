@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef AES_H
-#define AES_H
+#ifndef __AES_H__
+#define __AES_H__
 
 /*** AES macros ***/
 
@@ -18,4 +18,4 @@ void AES_init(void);
 void AES_disable(void);
 void AES_encrypt(unsigned char data_in[AES_BLOCK_SIZE], unsigned char data_out[AES_BLOCK_SIZE], unsigned char init_vector[AES_BLOCK_SIZE], unsigned char key[AES_BLOCK_SIZE]);
 
-#endif /* AES_H_ */
+#endif /* __AES_H___ */

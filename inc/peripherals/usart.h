@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef USART_H
-#define USART_H
+#ifndef __USART_H__
+#define __USART_H__
 
 #include "mode.h"
 
@@ -17,4 +17,4 @@ void USART2_init(void);
 void USART2_send_string(char* tx_string);
 #endif
 
-#endif /* USART_H */
+#endif /* __USART_H__ */

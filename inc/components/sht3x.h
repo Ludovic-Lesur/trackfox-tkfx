@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef SHT3X_H
-#define SHT3X_H
+#ifndef __SHT3X_H__
+#define __SHT3X_H__
 
 /*** SHT3x functions ***/
 
@@ -16,4 +16,4 @@ void SHT3X_get_temperature_comp1(unsigned char* temperature_degrees);
 void SHT3X_get_temperature_comp2(signed char* temperature_degrees);
 void SHT3X_get_humidity(unsigned char* humidity_percent);
 
-#endif /* SHT3X_H */
+#endif /* __SHT3X_H__ */

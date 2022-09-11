@@ -5,28 +5,40 @@
  *      Author: Ludo
  */
 
-#ifndef ADC_H
-#define ADC_H
+#ifndef __ADC_H__
+#define __ADC_H__
+
+#include "lptim.h"
 
 /*** ADC structures ***/
 
 typedef enum {
-	ADC_DATA_IDX_VSRC_MV = 0,
-	ADC_DATA_IDX_VCAP_MV,
-	ADC_DATA_IDX_VMCU_MV,
-	ADC_DATA_IDX_LAST
+	ADC_SUCCESS = 0,
+	ADC_ERROR_CALIBRATION,
+	ADC_ERROR_DATA_INDEX,
+	ADC_ERROR_TIMEOUT,
+	ADC_ERROR_BASE_LPTIM = 0x0100,
+	ADC_ERROR_BASE_LAST = (ADC_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST)
+} ADC_status_t;
+
+typedef enum {
+	ADC_DATA_INDEX_VSRC_MV = 0,
+	ADC_DATA_INDEX_VCAP_MV,
+	ADC_DATA_INDEX_VMCU_MV,
+	ADC_DATA_INDEX_LAST
 } ADC_data_index_t;
 
 /*** ADC functions ***/
 
-void ADC1_init(void);
-void ADC1_disable(void);
-void ADC1_power_on(void);
+ADC_status_t ADC1_init(void);
+ADC_status_t ADC1_power_on(void);
 void ADC1_power_off(void);
-void ADC1_perform_measurements(void);
-void ADC1_perform_vcap_measurement(void);
-void ADC1_get_data(ADC_data_index_t data_idx, unsigned int* data);
-void ADC1_get_tmcu_comp2(signed char* tmcu_degrees);
-void ADC1_get_tmcu_comp1(unsigned char* tmcu_degrees);
+ADC_status_t ADC1_perform_measurements(void);
+ADC_status_t ADC1_get_data(ADC_data_index_t data_idx, unsigned int* data);
+void ADC1_get_tmcu(signed char* tmcu_degrees);
 
-#endif /* ADC_H */
+#define ADC1_status_check(error_base) { if (adc1_status != ADC_SUCCESS) { status = error_base + adc1_status; goto errors; }}
+#define ADC1_error_check() { ERROR_status_check(adc1_status, ADC_SUCCESS, ERROR_BASE_ADC1); }
+#define ADC1_error_check_print() { ERROR_status_check_print(adc1_status, ADC_SUCCESS, ERROR_BASE_ADC1); }
+
+#endif /* __ADC_H__ */

@@ -478,9 +478,9 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned in
 			RCC_switch_to_hsi();
 			// Check supercap voltage.
 			ADC1_power_on();
-			ADC1_perform_vcap_measurement();
+			ADC1_perform_measurements();
 			ADC1_power_off();
-			ADC1_get_data(ADC_DATA_IDX_VCAP_MV, &neom8n_ctx.vcap_mv);
+			ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &neom8n_ctx.vcap_mv);
 			// Exit if supercap voltage falls below the given threshold.
 			if (neom8n_ctx.vcap_mv < vcap_min_mv) break;
 		}

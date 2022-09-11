@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef TIM_H
-#define TIM_H
+#ifndef __TIM_H__
+#define __TIM_H__
 
 /*** TIM functions ***/
 
@@ -14,4 +14,4 @@ void TIM21_init(void);
 void TIM21_get_lsi_frequency(unsigned int* lsi_frequency_hz);
 void TIM21_disable(void);
 
-#endif /* TIM_H */
+#endif /* __TIM_H__ */

@@ -28,8 +28,8 @@
  * for library usage.
  */
 
-#ifndef RF_API_H
-#define RF_API_H
+#ifndef __RF_API_H__
+#define __RF_API_H__
 
 #include "sigfox_api.h"
 #include "sigfox_types.h"
@@ -258,4 +258,4 @@ void RF_API_SetIrqFlag(void);
  *******************************************************************/
 void RF_API_SetCwOutputPower(signed char tx_output_power);
 
-#endif /* RF_API_H */
+#endif /* __RF_API_H__ */

@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef MMA8653FC_REG_H
-#define MMA8653FC_REG_H
+#ifndef __MMA8653FC_REG_H__
+#define __MMA8653FC_REG_H__
 
 /*** MMA8653FC registers definition ***/
 
@@ -40,4 +40,4 @@
 #define MMA8653FC_REG_OFF_Y			0x30
 #define MMA8653FC_REG_OFF_Z			0x31
 
-#endif /* MMA8653FC_REG_H */
+#endif /* __MMA8653FC_REG_H__ */

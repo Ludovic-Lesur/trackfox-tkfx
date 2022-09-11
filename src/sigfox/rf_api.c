@@ -96,8 +96,8 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	// Exit shutdown.
 	S2LP_exit_shutdown();
 	// TX/RX common init.
-	S2LP_send_command(S2LP_CMD_SRES);
-	S2LP_send_command(S2LP_CMD_STANDBY);
+	S2LP_send_command(S2LP_COMMAND_SRES);
+	S2LP_send_command(S2LP_COMMAND_STANDBY);
 	S2LP_wait_for_state(S2LP_STATE_STANDBY);
 	S2LP_set_oscillator(S2LP_OSCILLATOR_TCXO);
 	S2LP_configure_charge_pump();
@@ -192,7 +192,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	unsigned char s2lp_fifo_sample_idx = 0;
 	unsigned char s2lp_fdev = RF_API_S2LP_FDEV_NEGATIVE; // Effective deviation.
 	// Go to ready state.
-	S2LP_send_command(S2LP_CMD_READY);
+	S2LP_send_command(S2LP_COMMAND_READY);
 	S2LP_wait_for_state(S2LP_STATE_READY);
 	// First ramp-up.
 	for (s2lp_fifo_sample_idx=0 ; s2lp_fifo_sample_idx<RF_API_SYMBOL_PROFILE_LENGTH_BYTES ; s2lp_fifo_sample_idx++) {
@@ -205,7 +205,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	EXTI_clear_all_flags();
 	NVIC_enable_interrupt(NVIC_IT_EXTI_4_15);
 	// Start radio
-	S2LP_send_command(S2LP_CMD_TX);
+	S2LP_send_command(S2LP_COMMAND_TX);
 	// Byte loop.
 	for (stream_byte_idx=0 ; stream_byte_idx<size ; stream_byte_idx++) {
 		// Bit loop.
@@ -253,9 +253,9 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Disable external GPIO interrupt.
 	NVIC_disable_interrupt(NVIC_IT_EXTI_4_15);
 	// Stop radio.
-	S2LP_send_command(S2LP_CMD_SABORT);
+	S2LP_send_command(S2LP_COMMAND_SABORT);
 	S2LP_wait_for_state(S2LP_STATE_READY);
-	S2LP_send_command(S2LP_CMD_STANDBY);
+	S2LP_send_command(S2LP_COMMAND_STANDBY);
 	S2LP_wait_for_state(S2LP_STATE_STANDBY);
 	// Return.
 	return SFX_ERR_NONE;
@@ -276,9 +276,9 @@ sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
 	S2LP_set_modulation(S2LP_MODULATION_NONE);
 	S2LP_set_rf_output_power(rf_api_cw_output_power);
 	// Start radio.
-	S2LP_send_command(S2LP_CMD_READY);
+	S2LP_send_command(S2LP_COMMAND_READY);
 	S2LP_wait_for_state(S2LP_STATE_READY);
-	S2LP_send_command(S2LP_CMD_TX);
+	S2LP_send_command(S2LP_COMMAND_TX);
 	// Return.
 	return SFX_ERR_NONE;
 }
@@ -292,7 +292,7 @@ sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
  *******************************************************************/
 sfx_u8 RF_API_stop_continuous_transmission (void) {
 	// Stop radio.
-	S2LP_send_command(S2LP_CMD_SABORT);
+	S2LP_send_command(S2LP_COMMAND_SABORT);
 	S2LP_wait_for_state(S2LP_STATE_READY);
 	// Return.
 	return SFX_ERR_NONE;
@@ -347,13 +347,13 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	rf_api_ctx.rf_api_wait_frame_calls_count++;
 	if (rf_api_ctx.rf_api_wait_frame_calls_count < RF_API_WAIT_FRAME_CALLS_MAX) {
 		// Go to ready state.
-		S2LP_send_command(S2LP_CMD_READY);
+		S2LP_send_command(S2LP_COMMAND_READY);
 		S2LP_wait_for_state(S2LP_STATE_READY);
-		S2LP_send_command(S2LP_CMD_FLUSHRXFIFO);
+		S2LP_send_command(S2LP_COMMAND_FLUSHRXFIFO);
 		S2LP_clear_irq_flags();
 		rf_api_ctx.rf_api_s2lp_irq_flag = 0;
 		// Start radio.
-		S2LP_send_command(S2LP_CMD_RX);
+		S2LP_send_command(S2LP_COMMAND_RX);
 		// Enable external GPIO.
 		EXTI_clear_all_flags();
 		NVIC_enable_interrupt(NVIC_IT_EXTI_4_15);
@@ -386,10 +386,10 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 			(*rssi) = (sfx_s16) S2LP_get_rssi();
 		}
 		// Stop radio.
-		S2LP_send_command(S2LP_CMD_SABORT);
+		S2LP_send_command(S2LP_COMMAND_SABORT);
 		S2LP_wait_for_state(S2LP_STATE_READY);
-		S2LP_send_command(S2LP_CMD_FLUSHRXFIFO);
-		S2LP_send_command(S2LP_CMD_STANDBY);
+		S2LP_send_command(S2LP_COMMAND_FLUSHRXFIFO);
+		S2LP_send_command(S2LP_COMMAND_STANDBY);
 		S2LP_wait_for_state(S2LP_STATE_STANDBY);
 	}
 	// Return.

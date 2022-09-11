@@ -275,10 +275,11 @@ int main (void) {
 			ADC1_power_on();
 			ADC1_perform_measurements();
 			ADC1_power_off();
-			ADC1_get_data(ADC_DATA_IDX_VSRC_MV, &tkfx_ctx.vsrc_mv);
-			ADC1_get_data(ADC_DATA_IDX_VCAP_MV, &tkfx_ctx.vcap_mv);
-			ADC1_get_data(ADC_DATA_IDX_VMCU_MV, &tkfx_ctx.vmcu_mv);
-			ADC1_get_tmcu_comp1(&tkfx_ctx.tmcu_degrees);
+			ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &tkfx_ctx.vsrc_mv);
+			ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &tkfx_ctx.vcap_mv);
+			ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &tkfx_ctx.vmcu_mv);
+			ADC1_get_tmcu(&tkfx_ctx.tmcu_degrees);
+			// TODO convert to 1 complement with function.
 			// Get GPS backup status.
 			tkfx_ctx.status.field.gps_backup_status = NEOM8N_get_backup();
 			// Compute next state.
@@ -407,8 +408,6 @@ int main (void) {
 			// Clear POR flag.
 			tkfx_ctx.por_flag = 0;
 			// Turn peripherals off.
-			ADC1_disable();
-			LPTIM1_disable();
 			I2C1_disable();
 			LPUART1_disable();
 			// Clear EXTI flags.

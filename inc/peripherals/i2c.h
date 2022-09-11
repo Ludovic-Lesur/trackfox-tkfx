@@ -5,8 +5,8 @@
  *      Author: Ludo
  */
 
-#ifndef I2C_H
-#define I2C_H
+#ifndef __I2C_H__
+#define __I2C_H__
 
 /*** I2C functions ***/
 
@@ -17,4 +17,4 @@ void I2C1_power_off(void);
 unsigned char I2C1_write(unsigned char slave_address, unsigned char* tx_buf, unsigned char tx_buf_length, unsigned char stop_flag);
 unsigned char I2C1_read(unsigned char slave_address, unsigned char* rx_buf, unsigned char rx_buf_length);
 
-#endif /* I2C_H */
+#endif /* __I2C_H__ */

@@ -202,7 +202,7 @@ void S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator) {
  * @param:	None.
  * @return:	None.
  */
-void S2LP_configure_smps(S2LP_smps_setting smps_setting) {
+void S2LP_configure_smps(S2LP_smps_setting_t smps_setting) {
 	// Configure divider and switching frequency.
 	S2LP_write_register(S2LP_REG_PM_CONF3, smps_setting.s2lp_smps_reg_pm_conf3);
 	S2LP_write_register(S2LP_REG_PM_CONF2, smps_setting.s2lp_smps_reg_pm_conf2);
