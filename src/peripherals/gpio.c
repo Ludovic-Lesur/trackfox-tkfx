@@ -20,8 +20,8 @@
 
 /* SET THE MODE OF A GPIO PIN.
  * @param gpio:	GPIO structure.
- * @param mode: Mode (see enum defined in gpio.h).
- * @return: 	None.
+ * @param mode:	Mode (see enum defined in gpio.h).
+ * @return:		None.
  */
 static void GPIO_set_mode(const GPIO_pin_t* gpio, GPIO_mode_t mode) {
 	// Set analog mode during transition.
@@ -50,7 +50,7 @@ static void GPIO_set_mode(const GPIO_pin_t* gpio, GPIO_mode_t mode) {
 
 /* GET THE MODE OF A GPIO PIN.
  * @param gpio:			GPIO structure.
- * @return gpioMode: 	Current mode (see enum defined in gpio.h).
+ * @return gpio_mode:	Current mode (see enum defined in gpio.h).
  */
 static GPIO_mode_t GPIO_get_mode(const GPIO_pin_t* gpio) {
 	// Get mode.
@@ -61,7 +61,7 @@ static GPIO_mode_t GPIO_get_mode(const GPIO_pin_t* gpio) {
 /* SET THE OUTPUT TYPE OF A GPIO PIN.
  * @param gpio:			GPIO structure.
  * @param output_type: 	Output type (see enum defined in gpio.h).
- * @return: 			None.
+ * @return:				None.
  */
 static void GPIO_set_output_type(const GPIO_pin_t* gpio, GPIO_output_type_t output_type) {
 	// Set bit.
@@ -82,7 +82,7 @@ static void GPIO_set_output_type(const GPIO_pin_t* gpio, GPIO_output_type_t outp
 /* SET THE OUTPUT SPEED OF A GPIO PIN.
  * @param gpio:			GPIO structure.
  * @param output_speed: Output speed (see enum defined in gpio.h).
- * @return: 			None.
+ * @return:				None.
  */
 static void GPIO_set_output_speed(const GPIO_pin_t* gpio, GPIO_output_speed_t output_speed) {
 	// Set low speed during transition.
@@ -112,7 +112,7 @@ static void GPIO_set_output_speed(const GPIO_pin_t* gpio, GPIO_output_speed_t ou
 /* ENABLE OR DISABLE PULL-UP AND PULL-DOWN RESISTORS ON A GPIO PIN.
  * @param gpio:				GPIO structure.
  * @param pull_resistor: 	Resistor configuration (see enum defined in gpio.h).
- * @return: 				None.
+ * @return:					None.
  */
 static void GPIO_set_pull_resistor(const GPIO_pin_t* gpio, GPIO_pull_resistor_t pull_resistor) {
 	// Disable resistors during transition.
@@ -136,9 +136,9 @@ static void GPIO_set_pull_resistor(const GPIO_pin_t* gpio, GPIO_pull_resistor_t 
 }
 
 /* SELECT THE ALTERNATE FUNCTION OF A GPIO PIN (REQUIRES THE MODE 'GPIO_MODE_ALTERNATE_FUNCTION').
- * @param gpio:			GPIO structure.
- * @param alternate_function_index: 	Alternate function number (0 to 15).
- * @return: 			None.
+ * @param gpio:						GPIO structure.
+ * @param alternate_function_index:	Alternate function number (0 to 15).
+ * @return:							None.
  */
 static void GPIO_set_alternate_function(const GPIO_pin_t* gpio, unsigned int alternate_function_index) {
 	// Clamp AF number.
@@ -164,14 +164,15 @@ static void GPIO_set_alternate_function(const GPIO_pin_t* gpio, unsigned int alt
  * @param output_type:		Output type (see enum defined in gpio.h).
  * @param output_speed: 	Output speed (see enum defined in gpio.h).
  * @param pull_resistor:	Resistor configuration (see enum defined in gpio.h).
- * @param alternate_function_index: 		Alternate function number (0 to 15) if 'GPIO_MODE_ALTERNATE_FUNCTION' mode is selected.
+ * @return:					None.
  */
 void GPIO_configure(const GPIO_pin_t* gpio, GPIO_mode_t mode, GPIO_output_type_t output_type, GPIO_output_speed_t output_speed, GPIO_pull_resistor_t pull_resistor) {
+	// Configure GPIO.
 	GPIO_set_mode(gpio, mode);
-	GPIO_set_alternate_function(gpio, (gpio -> alternate_function_index));
 	GPIO_set_output_type(gpio, output_type);
 	GPIO_set_output_speed(gpio, output_speed);
 	GPIO_set_pull_resistor(gpio, pull_resistor);
+	GPIO_set_alternate_function(gpio, (gpio -> alternate_function_index));
 }
 
 /* CONFIGURE MCU GPIOs.
@@ -179,12 +180,12 @@ void GPIO_configure(const GPIO_pin_t* gpio, GPIO_mode_t mode, GPIO_output_type_t
  * @return: None.
  */
 void GPIO_init(void) {
-	// Enable GPIOA, GPIOB and GPIOC clocks.
+	// Enable all GPIOx clocks.
 	RCC -> IOPENR |= (0b111 << 0); // IOPxEN='1'.
 	// Programming pins.
 #ifndef DEBUG
-	GPIO_configure(&GPIO_SWDIO, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_configure(&GPIO_SWCLK, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_SWDIO, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_SWCLK, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
 }
 
@@ -203,7 +204,7 @@ void __attribute__((optimize("-O0"))) GPIO_write(const GPIO_pin_t* gpio, unsigne
 	}
 }
 
-/* READ THE STATE OF A GPIO
+/* READ THE STATE OF A GPIO.
  * @param gpio:		GPIO structure.
  * @return state: 	Current GPIO input state ('0' or '1').
  */
@@ -212,13 +213,13 @@ unsigned char __attribute__((optimize("-O0"))) GPIO_read(const GPIO_pin_t* gpio)
 	unsigned char state = 0;
 	switch (GPIO_get_mode(gpio)) {
 	case GPIO_MODE_INPUT:
-		// GPIO_pin_t configured as input -> read IDR register.
+		// GPIO configured as input -> read IDR register.
 		if ((((gpio -> port_address) -> IDR) & (0b1 << (gpio -> pin_index))) != 0) {
 			state = 1;
 		}
 		break;
 	case GPIO_MODE_OUTPUT:
-		// GPIO_pin_t configured as output -> read ODR register.
+		// GPIO configured as output -> read ODR register.
 		if ((((gpio -> port_address) -> ODR) & (0b1 << (gpio -> pin_index))) != 0) {
 			state = 1;
 		}
