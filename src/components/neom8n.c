@@ -488,7 +488,6 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned in
 	}
 	// Stop ADC and DMA.
 	DMA1_stop_channel6();
-	DMA1_disable();
 	// Go back to HSI.
 	RCC_switch_to_hsi();
 	LPUART1_update_brr();

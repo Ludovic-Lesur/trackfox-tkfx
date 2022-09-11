@@ -214,7 +214,6 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 		// Fill output data.
 		for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE; byte_idx++) encrypted_data[(block_idx * AES_BLOCK_SIZE) + byte_idx] = data_out[byte_idx];
 	}
-	AES_disable();
 	return SFX_ERR_NONE;
 }
 
