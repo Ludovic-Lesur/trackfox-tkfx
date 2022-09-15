@@ -408,7 +408,6 @@ int main (void) {
 			// Clear POR flag.
 			tkfx_ctx.por_flag = 0;
 			// Turn peripherals off.
-			I2C1_disable();
 			LPUART1_disable();
 			// Clear EXTI flags.
 			EXTI_clear_all_flags();
