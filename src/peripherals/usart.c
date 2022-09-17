@@ -17,53 +17,22 @@
 #include "rcc_reg.h"
 #include "usart_reg.h"
 
-#ifdef ATM
 /*** USART local macros ***/
 
-//#define USE_TXE_INTERRUPT
-#define USART_BAUD_RATE			9600
-#define USART_TX_BUFFER_SIZE	128
-#define USART_TIMEOUT_COUNT		100000
-
-/*** USART local structures ***/
-
-#ifdef USE_TXE_INTERRUPT
-typedef struct {
-	unsigned char tx_buf[USART_TX_BUFFER_SIZE]; 	// Transmit buffer.
-	unsigned int tx_buf_read_idx; 					// Reading index in TX buffer.
-	unsigned int tx_buf_write_idx; 					// Writing index in TX buffer.
-} USART_context_t;
-#endif
-
-/*** USART local global variables ***/
-
-#ifdef USE_TXE_INTERRUPT
-static volatile USART_context_t usart_ctx;
+#ifdef ATM
+#define USART_BAUD_RATE				9600
+#define USART_TIMEOUT_COUNT			100000
+#define USART_STRING_LENGTH_MAX		1000
 #endif
 
 /*** USART local functions ***/
 
+#ifdef ATM
 /* USART2 INTERRUPT HANDLER.
  * @param:	None.
  * @return:	None.
  */
 void __attribute__((optimize("-O0"))) USART2_IRQHandler(void) {
-#ifdef USE_TXE_INTERRUPT
-	// TXE interrupt.
-	if (((USART2 -> ISR) & (0b1 << 7)) != 0) {
-		if ((usart_ctx.tx_buf_read_idx) != (usart_ctx.tx_buf_write_idx)) {
-			USART2 -> TDR = (usart_ctx.tx_buf)[usart_ctx.tx_buf_read_idx]; // Fill transmit data register with new byte.
-			usart_ctx.tx_buf_read_idx++; // Increment TX read index.
-			if (usart_ctx.tx_buf_read_idx == USART_TX_BUFFER_SIZE) {
-				usart_ctx.tx_buf_read_idx = 0; // Manage roll-over.
-			}
-		}
-		else {
-			// No more bytes, disable TXE interrupt.
-			USART2 -> CR1 &= ~(0b1 << 7); // TXEIE = '0'.
-		}
-	}
-#endif
 	// RXNE interrupt.
 	if (((USART2 -> ISR) & (0b1 << 5)) != 0) {
 		// Transmit incoming byte to AT command manager.
@@ -77,31 +46,30 @@ void __attribute__((optimize("-O0"))) USART2_IRQHandler(void) {
 		USART2 -> ICR |= (0b1 << 3);
 	}
 }
+#endif
 
+#ifdef ATM
 /* FILL USART TX BUFFER WITH A NEW BYTE.
  * @param tx_byte:	Byte to append.
- * @return:			None.
+ * @return status:	Function execution status.
  */
-static void USART2_fill_tx_buffer(unsigned char tx_byte) {
-#ifdef USE_TXE_INTERRUPT
-	// Fill buffer.
-	usart_ctx.tx_buf[usart_ctx.tx_buf_write_idx] = tx_byte;
-	// Manage index roll-over.
-	usart_ctx.tx_buf_write_idx++;
-	if (usart_ctx.tx_buf_write_idx == USART_TX_BUFFER_SIZE) {
-		usart_ctx.tx_buf_write_idx = 0;
-	}
-#else
+static USART_status_t USART2_fill_tx_buffer(unsigned char tx_byte) {
+	// Local variables.
+	USART_status_t status = USART_SUCCESS;
+	unsigned int loop_count = 0;
 	// Fill transmit register.
 	USART2 -> TDR = tx_byte;
 	// Wait for transmission to complete.
-	unsigned int loop_count = 0;
 	while (((USART2 -> ISR) & (0b1 << 7)) == 0) {
 		// Wait for TXE='1' or timeout.
 		loop_count++;
-		if (loop_count > USART_TIMEOUT_COUNT) break;
+		if (loop_count > USART_TIMEOUT_COUNT) {
+			status = USART_ERROR_TX_TIMEOUT;
+			goto errors;
+		}
 	}
-#endif
+errors:
+	return status;
 }
 #endif
 
@@ -113,13 +81,6 @@ static void USART2_fill_tx_buffer(unsigned char tx_byte) {
  */
 void USART2_init(void) {
 #ifdef ATM
-#ifdef USE_TXE_INTERRUPT
-	// Init context.
-	unsigned int idx = 0;
-	for (idx=0 ; idx<USART_TX_BUFFER_SIZE ; idx++) usart_ctx.tx_buf[idx] = 0;
-	usart_ctx.tx_buf_write_idx = 0;
-	usart_ctx.tx_buf_read_idx = 0;
-#endif
 	// Enable peripheral clock.
 	RCC -> CR |= (0b1 << 1); // Enable HSI in stop mode (HSI16KERON='1').
 	RCC -> CCIPR |= (0b10 << 2); // Select HSI as USART clock.
@@ -138,28 +99,33 @@ void USART2_init(void) {
 	// Enable peripheral.
 	USART2 -> CR1 |= (0b11 << 0);
 #else
-	// Configure TX and RX GPIOs.
-	GPIO_configure(&GPIO_USART2_TX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	GPIO_configure(&GPIO_USART2_RX, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	// Configure TX and RX GPIOs as output low.
+	GPIO_configure(&GPIO_USART2_TX, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_configure(&GPIO_USART2_RX, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
 }
 
 #ifdef ATM
 /* SEND A BYTE ARRAY THROUGH USART2.
  * @param tx_string:	Byte array to send.
- * @return:				None.
+ * @return status:		Function execution status.
  */
-void USART2_send_string(char* tx_string) {
-	// Disable interrupt.
-	NVIC_disable_interrupt(NVIC_IT_USART2);
-	// Fill TX buffer with new bytes.
+USART_status_t USART2_send_string(char* tx_string) {
+	// Local variables.
+	USART_status_t status = USART_SUCCESS;
+	unsigned int char_count = 0;
+	// Loop on all characters.
 	while (*tx_string) {
-		USART2_fill_tx_buffer((unsigned char) *(tx_string++));
+		// Fill TX buffer with new byte.
+		status = USART2_fill_tx_buffer((unsigned char) *(tx_string++));
+		if (status != USART_SUCCESS) break;
+		// Check char count.
+		char_count++;
+		if (char_count > USART_STRING_LENGTH_MAX) {
+			status = USART_ERROR_STRING_LENGTH;
+			break;
+		}
 	}
-	// Enable interrupt.
-	#ifdef USE_TXE_INTERRUPT
-		USART2 -> CR1 |= (0b1 << 7); // (TXEIE = '1').
-	#endif
-	NVIC_enable_interrupt(NVIC_IT_USART2);
+	return status;
 }
 #endif

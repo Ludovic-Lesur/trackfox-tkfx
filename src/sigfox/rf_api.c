@@ -162,8 +162,6 @@ sfx_u8 RF_API_stop(void) {
 	SPI1_power_off();
 	S2LP_tcxo(0);
 	S2LP_disable();
-	// Turn peripherals off.
-	SPI1_disable();
 	return SFX_ERR_NONE;
 }
 
