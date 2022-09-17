@@ -407,8 +407,6 @@ int main (void) {
 			IWDG_reload();
 			// Clear POR flag.
 			tkfx_ctx.por_flag = 0;
-			// Turn peripherals off.
-			LPUART1_disable();
 			// Clear EXTI flags.
 			EXTI_clear_all_flags();
 			// Enable RTC interrupt.

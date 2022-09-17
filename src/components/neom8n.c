@@ -350,7 +350,6 @@ static void NEOM8N_select_nmea_messages(unsigned int nmea_message_id_mask) {
 		}
 		// Bytes 14-15 = NEOM8N checksum (CK_A and CK_B).
 		NEOM8N_compute_ubx_checksum(neom8n_cfg_msg, NEOM8N_CFG_MSG_PAYLOAD_LENGTH);
-		LPUART1_enable_tx();
 		for (neom8n_cfg_msg_idx=0 ; neom8n_cfg_msg_idx<(NEOM8N_MSG_OVERHEAD_LENGTH+NEOM8N_CFG_MSG_PAYLOAD_LENGTH) ; neom8n_cfg_msg_idx++) {
 			LPUART1_send_byte(neom8n_cfg_msg[neom8n_cfg_msg_idx]); // Send command.
 		}
@@ -431,14 +430,10 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned in
 	neom8n_ctx.fill_buf1 = 1;
 	DMA1_set_channel6_dest_addr((unsigned int) &(neom8n_ctx.rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
 	DMA1_start_channel6();
-	LPUART1_enable_rx();
 	// Loop until data is retrieved or timeout expired.
 	while ((RTC_get_wakeup_timer_flag() == 0) && (neom8n_ctx.nmea_gga_data_valid == 0)) {
-		// Lower clock while waiting for NMEA frame.
-		RCC_switch_to_msi();
-		LPUART1_update_brr();
 		// Enter low power sleep mode.
-		PWR_enter_low_power_sleep_mode();
+		PWR_enter_sleep_mode();
 		// Wake-up.
 		(*fix_duration_seconds)++; // NMEA frames are output every seconds.
 		// Check LF flag to trigger parsing process.
@@ -474,8 +469,6 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned in
 			}
 			// Wait for next message.
 			neom8n_ctx.lf_flag = 0;
-			// Switch to high speed clock required for ADC operation.
-			RCC_switch_to_hsi();
 			// Check supercap voltage.
 			ADC1_power_on();
 			ADC1_perform_measurements();
@@ -488,10 +481,7 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned in
 	}
 	// Stop ADC and DMA.
 	DMA1_stop_channel6();
-	// Go back to HSI.
-	RCC_switch_to_hsi();
-	LPUART1_update_brr();
-	// Stop RTC wake-up timer
+	// Stop RTC wake-up timer.
 	RTC_stop_wakeup_timer();
 	// Clamp fix duration.
 	if ((RTC_get_wakeup_timer_flag() > 0) || ((*fix_duration_seconds) > timeout_seconds)) {
