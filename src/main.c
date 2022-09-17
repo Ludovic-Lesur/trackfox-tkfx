@@ -172,6 +172,7 @@ static const TKFX_config_t tkfx_config = {1500, 180, 300}; // Bike tracking conf
 int main (void) {
 	// Init memory.
 	NVIC_init();
+	NVM_init();
 	// Init GPIOs.
 	GPIO_init();
 	EXTI_init();

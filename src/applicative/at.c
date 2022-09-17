@@ -195,7 +195,7 @@ static void AT_PrintAdcData(void) {
 	AT_response_add_string("uA Vmcu=");
 	AT_response_add_value(generic_int, STRING_FORMAT_DECIMAL, 0);
 	// Tmcu.
-	ADC1_get_tmcu_comp2(&tmcu_degrees);
+	ADC1_get_tmcu(&tmcu_degrees);
 	AT_response_add_string("mV Tmcu=");
 	AT_response_add_value((signed int) tmcu_degrees, STRING_FORMAT_DECIMAL, 0);
 	AT_response_add_string("dC");
@@ -397,9 +397,7 @@ static void AT_decode(void) {
 		// NVM reset command AT$NVMR<CR>.
 		else if (PARSER_compare_command(&at_ctx.at_parser, AT_COMMAND_NVMR) == PARSER_SUCCESS) {
 			// Reset all NVM field to default value.
-			NVM_enable();
 			NVM_reset_default();
-			NVM_disable();
 			AT_print_ok();
 		}
 		// NVM read command AT$NVM=<address_offset><CR>.
@@ -409,9 +407,7 @@ static void AT_decode(void) {
 				// Check if address is reachable.
 				if (generic_int_1 < EEPROM_SIZE) {
 					// Read byte at requested address.
-					NVM_enable();
 					NVM_read_byte(generic_int_1, &generic_byte);
-					NVM_disable();
 					// Print byte.
 					AT_response_add_value(generic_byte, STRING_FORMAT_HEXADECIMAL, 1);
 					AT_response_add_string(AT_RESPONSE_END);
@@ -427,12 +423,10 @@ static void AT_decode(void) {
 		// Get ID command AT$ID?<CR>.
 		else if (PARSER_compare_command(&at_ctx.at_parser, AT_COMMAND_ID) == PARSER_SUCCESS) {
 			// Retrieve device ID in NVM.
-			NVM_enable();
 			for (idx=0 ; idx<ID_LENGTH ; idx++) {
 				NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_ID + ID_LENGTH - idx - 1), &generic_byte);
 				AT_response_add_value(generic_byte, STRING_FORMAT_HEXADECIMAL, (idx==0 ? 1 : 0));
 			}
-			NVM_disable();
 			AT_response_add_string(AT_RESPONSE_END);
 		}
 		// Set ID command AT$ID=<id><CR>.
@@ -442,11 +436,9 @@ static void AT_decode(void) {
 				// Check length.
 				if (extracted_length == ID_LENGTH) {
 					// Write device ID in NVM.
-					NVM_enable();
 					for (idx=0 ; idx<ID_LENGTH ; idx++) {
 						NVM_write_byte((NVM_ADDRESS_SIGFOX_DEVICE_ID + ID_LENGTH - idx - 1), generic_byte_array_1[idx]);
 					}
-					NVM_disable();
 					AT_print_ok();
 				}
 				else {
@@ -460,12 +452,10 @@ static void AT_decode(void) {
 		// Get key command AT$KEY?<CR>.
 		else if (PARSER_compare_command(&at_ctx.at_parser, AT_COMMAND_KEY) == PARSER_SUCCESS) {
 			// Retrieve device key in NVM.
-			NVM_enable();
 			for (idx=0 ; idx<AES_BLOCK_SIZE ; idx++) {
 				NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_KEY + idx), &generic_byte);
 				AT_response_add_value(generic_byte, STRING_FORMAT_HEXADECIMAL, (idx==0 ? 1 : 0));
 			}
-			NVM_disable();
 			AT_response_add_string(AT_RESPONSE_END);
 		}
 		// Set key command AT$KEY=<id><CR>.
@@ -475,11 +465,9 @@ static void AT_decode(void) {
 				// Check length.
 				if (extracted_length == AES_BLOCK_SIZE) {
 					// Write device key in NVM.
-					NVM_enable();
 					for (idx=0 ; idx<AES_BLOCK_SIZE ; idx++) {
 						NVM_write_byte((NVM_ADDRESS_SIGFOX_DEVICE_KEY + idx), generic_byte_array_1[idx]);
 					}
-					NVM_disable();
 					AT_print_ok();
 				}
 				else {

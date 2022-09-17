@@ -12,7 +12,6 @@
 #include "nvic_reg.h"
 #include "pwr_reg.h"
 #include "rcc_reg.h"
-#include "rcc.h"
 #include "rtc_reg.h"
 #include "scb_reg.h"
 
@@ -51,18 +50,6 @@ void PWR_enter_sleep_mode(void) {
 	__asm volatile ("wfi"); // Wait For Interrupt core instruction.
 }
 
-/* FUNCTION TO ENTER LOW POWER SLEEP MODE.
- * @param:	None.
- * @return:	None.
- */
-void PWR_enter_low_power_sleep_mode(void) {
-	// Regulator in low power mode.
-	PWR -> CR |= (0b1 << 0); // LPSDSR='1'.
-	// Enter low power sleep mode.
-	SCB -> SCR &= ~(0b1 << 2); // SLEEPDEEP='0'.
-	__asm volatile ("wfi"); // Wait For Interrupt core instruction.
-}
-
 /* FUNCTION TO ENTER STOP MODE.
  * @param:	None.
  * @return:	None.
@@ -74,7 +61,7 @@ void PWR_enter_stop_mode(void) {
 	PWR -> CR |= (0b1 << 2); // CWUF='1'.
 	// Enter stop mode when CPU enters deepsleep.
 	PWR -> CR &= ~(0b1 << 1); // PDDS='0'.
-	// Clear all EXTI line, RTC an peripherals interrupt pending bits.
+	// Clear all EXTI, RTC and peripherals interrupt pending bits.
 	RCC -> CICR |= 0x000001BF;
 	EXTI -> PR |= 0x007BFFFF; // PIFx='1'.
 	RTC -> ISR &= 0xFFFF005F; // Reset alarms, wake-up, tamper and timestamp flags.

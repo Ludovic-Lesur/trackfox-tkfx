@@ -188,9 +188,7 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 		case CREDENTIALS_PRIVATE_KEY:
 			// Retrieve device key from NVM.
 			for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE ; byte_idx++) {
-				NVM_enable();
 				NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_KEY+byte_idx, &key_byte);
-				NVM_disable();
 				local_key[byte_idx] = key_byte;
 			}
 			break;
@@ -242,18 +240,16 @@ sfx_u8 MCU_API_get_nv_mem(sfx_u8 read_data[SFX_NVMEM_BLOCK_SIZE]) {
 	// |______|_______|______|______|
 
 	// PN.
-	NVM_enable();
-	NVM_read_byte(NVM_ADDRESS_SIGFOX_PN, &(read_data[SFX_NVMEM_PN]));
-	NVM_read_byte(NVM_ADDRESS_SIGFOX_PN+1, &(read_data[SFX_NVMEM_PN + 1]));
+	NVM_read_byte((NVM_ADDRESS_SIGFOX_PN + 0), &(read_data[SFX_NVMEM_PN + 0]));
+	NVM_read_byte((NVM_ADDRESS_SIGFOX_PN + 1), &(read_data[SFX_NVMEM_PN + 1]));
 	// Sequence number.
-	NVM_read_byte(NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER, &(read_data[SFX_NVMEM_MSG_COUNTER]));
-	NVM_read_byte(NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER+1, &(read_data[SFX_NVMEM_MSG_COUNTER + 1]));
+	NVM_read_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), &(read_data[SFX_NVMEM_MSG_COUNTER + 0]));
+	NVM_read_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), &(read_data[SFX_NVMEM_MSG_COUNTER + 1]));
 	// FH.
-	NVM_read_byte(NVM_ADDRESS_FH, &(read_data[SFX_NVMEM_FH]));
-	NVM_read_byte(NVM_ADDRESS_FH+1, &(read_data[SFX_NVMEM_FH + 1]));
+	NVM_read_byte((NVM_ADDRESS_SIGFOX_FH + 0), &(read_data[SFX_NVMEM_FH + 0]));
+	NVM_read_byte((NVM_ADDRESS_SIGFOX_FH + 1), &(read_data[SFX_NVMEM_FH + 1]));
 	// RL.
-	NVM_read_byte(NVM_ADDRESS_SIGFOX_FH, &(read_data[SFX_NVMEM_RL]));
-	NVM_disable();
+	NVM_read_byte(NVM_ADDRESS_SIGFOX_RL, &(read_data[SFX_NVMEM_RL]));
 	return SFX_ERR_NONE;
 }
 
@@ -283,18 +279,16 @@ sfx_u8 MCU_API_set_nv_mem(sfx_u8 data_to_write[SFX_NVMEM_BLOCK_SIZE]) {
 	// |______|_______|______|______|
 
 	// PN.
-	NVM_enable();
-	NVM_write_byte(NVM_ADDRESS_SIGFOX_PN, data_to_write[SFX_NVMEM_PN]);
-	NVM_write_byte(NVM_ADDRESS_SIGFOX_PN+1, data_to_write[SFX_NVMEM_PN + 1]);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 0), data_to_write[SFX_NVMEM_PN + 0]);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 1), data_to_write[SFX_NVMEM_PN + 1]);
 	// Sequence number.
-	NVM_write_byte(NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER, data_to_write[SFX_NVMEM_MSG_COUNTER]);
-	NVM_write_byte(NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER+1, data_to_write[SFX_NVMEM_MSG_COUNTER + 1]);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), data_to_write[SFX_NVMEM_MSG_COUNTER + 0]);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), data_to_write[SFX_NVMEM_MSG_COUNTER + 1]);
 	// FH.
-	NVM_write_byte(NVM_ADDRESS_FH, data_to_write[SFX_NVMEM_FH]);
-	NVM_write_byte(NVM_ADDRESS_FH+1, data_to_write[SFX_NVMEM_FH + 1]);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_FH + 0), data_to_write[SFX_NVMEM_FH + 0]);
+	NVM_write_byte((NVM_ADDRESS_SIGFOX_FH + 1), data_to_write[SFX_NVMEM_FH + 1]);
 	// RL.
-	NVM_write_byte(NVM_ADDRESS_SIGFOX_FH, data_to_write[SFX_NVMEM_RL]);
-	NVM_disable();
+	NVM_write_byte(NVM_ADDRESS_SIGFOX_RL, data_to_write[SFX_NVMEM_RL]);
 	return SFX_ERR_NONE;
 }
 
@@ -444,9 +438,7 @@ sfx_u8 MCU_API_get_device_id_and_payload_encryption_flag(sfx_u8 dev_id[ID_LENGTH
 	// Get device ID.
 	unsigned char byte_idx = 0;
 	for (byte_idx=0 ; byte_idx<ID_LENGTH ; byte_idx++) {
-		NVM_enable();
 		NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_ID+byte_idx, &(dev_id[byte_idx]));
-		NVM_disable();
 	}
 	// No payload encryption.
 	(*payload_encryption_enabled) = SFX_FALSE;
