@@ -92,7 +92,7 @@ void MMA8653FC_get_data(signed int* x, signed int* y, signed int* z) {
 	i2c_access = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	if (i2c_access == 0) return;
 	data |= (reg_data >> 6);
-	(*x) = MATH_two_complement(data, 9);
+	MATH_two_complement(data, 9, x);
 	// Y-axis.
 	local_addr = MMA8653FC_REG_OUT_Y_MSB;
 	i2c_access = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
@@ -107,7 +107,7 @@ void MMA8653FC_get_data(signed int* x, signed int* y, signed int* z) {
 	i2c_access = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	if (i2c_access == 0) return;
 	data |= (reg_data >> 6);
-	(*y) = MATH_two_complement(data, 9);
+	MATH_two_complement(data, 9, y);
 	// Z-axis.
 	local_addr = MMA8653FC_REG_OUT_Z_MSB;
 	i2c_access = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
@@ -122,7 +122,7 @@ void MMA8653FC_get_data(signed int* x, signed int* y, signed int* z) {
 	i2c_access = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	if (i2c_access == 0) return;
 	data |= (reg_data >> 6);
-	(*z) = MATH_two_complement(data, 9);
+	MATH_two_complement(data, 9, z);
 }
 
 

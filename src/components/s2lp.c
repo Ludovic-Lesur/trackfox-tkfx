@@ -84,7 +84,9 @@ void S2LP_disable(void) {
 	// Configure GPIOs as analog inputs.
 	GPIO_configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+#ifdef HW1_1
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+#endif
 }
 
 /* CONFIGURE S2LP GPIO0.
@@ -124,8 +126,10 @@ void S2LP_tcxo(unsigned char tcxo_enable) {
  * @return:	None.
  */
 void S2LP_enter_shutdown(void) {
+#ifdef HW1_1
 	// Put SDN in high impedance (pull-up resistor used).
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+#endif
 }
 
 /* PUT S2LP IN ACTIVE MODE.
@@ -133,9 +137,11 @@ void S2LP_enter_shutdown(void) {
  * @return:	None.
  */
 void S2LP_exit_shutdown(void) {
+#ifdef HW1_1
 	// Put SDN low.
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_write(&GPIO_S2LP_SDN, 0);
+#endif
 	// Wait for reset time.
 	LPTIM1_delay_milliseconds(100, 1);
 }
