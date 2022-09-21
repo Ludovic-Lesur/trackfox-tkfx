@@ -240,7 +240,6 @@ int main (void) {
 			LPUART1_init(lse_success);
 			// Init components.
 			NEOM8N_init();
-			SHT3X_init();
 #ifdef SSM
 			MMA8653FC_init();
 			// Disable accelerometer interrupt.
@@ -269,9 +268,9 @@ int main (void) {
 			IWDG_reload();
 			// Get temperature from SHT30.
 			I2C1_power_on();
-			SHT3X_perform_measurements();
+			SHT3X_perform_measurements(SHT3X_I2C_ADDRESS);
 			I2C1_power_off();
-			SHT3X_get_temperature_comp1(&tkfx_ctx.tamb_degrees);
+			SHT3X_get_temperature(&tkfx_ctx.tamb_degrees); // TODO convert to 1 complement with MATH function.
 			// Get voltages measurements.
 			ADC1_power_on();
 			ADC1_perform_measurements();
@@ -279,8 +278,7 @@ int main (void) {
 			ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &tkfx_ctx.vsrc_mv);
 			ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &tkfx_ctx.vcap_mv);
 			ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &tkfx_ctx.vmcu_mv);
-			ADC1_get_tmcu(&tkfx_ctx.tmcu_degrees);
-			// TODO convert to 1 complement with function.
+			ADC1_get_tmcu(&tkfx_ctx.tmcu_degrees); // TODO convert to 1 complement with MATH function.
 			// Get GPS backup status.
 			tkfx_ctx.status.field.gps_backup_status = NEOM8N_get_backup();
 			// Compute next state.
