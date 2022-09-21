@@ -8,6 +8,7 @@
 #ifndef __MMA8653FC_H__
 #define __MMA8653FC_H__
 
+#include "i2c.h"
 #include "mma8653fc_reg.h"
 #include "mode.h"
 
@@ -15,10 +16,17 @@
 
 /*** MMA8653FC macros ***/
 
+#define MMA8653FC_I2C_ADDRESS			0x1D
 #define MMA8653FC_ACTIVE_CONFIG_LENGTH	10
 #define MMA8653FC_SLEEP_CONFIG_LENGTH	3
 
 /*** MMA8653FC structures ***/
+
+typedef enum {
+	MMA8653FC_SUCCESS = 0,
+	MMA8653FC_ERROR_BASE_I2C = 0x0100,
+	MMA8653FC_ERROR_BASE_LAST = (MMA8653FC_ERROR_BASE_I2C + I2C_ERROR_BASE_LAST)
+} MMA8653FC_status_t;
 
 typedef struct {
 	unsigned char addr;
@@ -47,9 +55,9 @@ static const MMA8653FC_register_setting_t mma8653_sleep_config[MMA8653FC_SLEEP_C
 /*** MMA8653FC functions ***/
 
 void MMA8653FC_init(void);
-unsigned char MMA8653FC_get_id(void);
-void MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, unsigned char mma8653fc_config_size);
-void MMA8653FC_get_data(signed int* x, signed int* y, signed int* z);
+MMA8653FC_status_t MMA8653FC_get_id(unsigned char* chip_id);
+MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, unsigned char mma8653fc_config_size);
+MMA8653FC_status_t MMA8653FC_get_data(signed int* x, signed int* y, signed int* z);
 void MMA8653FC_set_motion_interrupt_flag(void);
 void MMA8653FC_clear_motion_interrupt_flag(void);
 unsigned char MMA8653FC_get_motion_interrupt_flag(void);
