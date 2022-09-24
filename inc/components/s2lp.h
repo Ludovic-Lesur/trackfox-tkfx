@@ -8,16 +8,47 @@
 #ifndef __S2LP_H__
 #define __S2LP_H__
 
+#include "lptim.h"
 #include "s2lp_reg.h"
+#include "spi.h"
 
 /*** S2LP macros ***/
 
-#define S2LP_RF_OUTPUT_POWER_MIN	-49
-#define S2LP_RF_OUTPUT_POWER_MAX	14
-
-#define S2LP_FIFO_SIZE_BYTES		128
+#define S2LP_FIFO_SIZE_BYTES	128
 
 /*** S2LP structures ***/
+
+typedef enum {
+	S2LP_SUCCESS = 0,
+	S2LP_ERROR_COMMAND,
+	S2LP_ERROR_STATE_TIMEOUT,
+	S2LP_ERROR_OSCILLATOR_TIMEOUT,
+	S2LP_ERROR_OSCILLATOR,
+	S2LP_ERROR_MODULATION,
+	S2LP_ERROR_RF_FREQUENCY_OVERFLOW,
+	S2LP_ERROR_RF_FREQUENCY_UNDERFLOW,
+	S2LP_ERROR_GPIO_INDEX,
+	S2LP_ERROR_GPIO_MODE,
+	S2LP_ERROR_GPIO_FUNCTION,
+	S2LP_ERROR_FIFO_FLAG_DIRECTION,
+	S2LP_ERROR_FIFO_THRESHOLD,
+	S2LP_ERROR_FIFO_THRESHOLD_VALUE,
+	S2LP_ERROR_IRQ_INDEX,
+	S2LP_ERROR_PREAMBLE_PATTERN,
+	S2LP_ERROR_SYNC_WORD,
+	S2LP_ERROR_SYNC_WORD_LENGTH,
+	S2LP_ERROR_RF_OUTPUT_POWER_OVERFLOW,
+	S2LP_ERROR_RF_OUTPUT_POWER_UNDERFLOW,
+	S2LP_ERROR_TX_SOURCE,
+	S2LP_ERROR_TX_DATA,
+	S2LP_ERROR_TX_DATA_LENGTH,
+	S2LP_ERROR_RX_SOURCE,
+	S2LP_ERROR_RX_DATA,
+	S2LP_ERROR_RX_DATA_LENGTH,
+	S2LP_ERROR_BASE_SPI = 0x0100,
+	S2LP_ERROR_BASE_LPTIM = (S2LP_ERROR_BASE_SPI + SPI_ERROR_BASE_LAST),
+	S2LP_ERROR_BASE_LAST = (S2LP_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST)
+} S2LP_status_t;
 
 // Chip state.
 typedef enum {
@@ -59,7 +90,7 @@ typedef enum {
 	S2LP_GPIO_MODE_OUT_LOW_POWER,
 	S2LP_GPIO_MODE_OUT_HIGH_POWER,
 	S2LP_GPIO_MODE_LAST
-} S2LP_GPIO_mode_t;
+} S2LP_gpio_mode_t;
 
 // GPIOs output functions.
 typedef enum {
@@ -107,6 +138,12 @@ typedef enum {
 } S2LP_gpio_input_function_t;
 
 typedef enum {
+	S2LP_FIFO_FLAG_DIRECTION_TX = 0x00,
+	S2LP_FIFO_FLAG_DIRECTION_RX,
+	S2LP_FIFO_FLAG_DIRECTION_LAST
+} S2LP_fifo_flag_direction_t;
+
+typedef enum {
 	S2LP_FIFO_THRESHOLD_RX_FULL = 0x3C,
 	S2LP_FIFO_THRESHOLD_RX_EMPTY,
 	S2LP_FIFO_THRESHOLD_TX_FULL,
@@ -131,29 +168,29 @@ typedef enum {
 
 // Interrupts.
 typedef enum {
-	S2LP_IRQ_RX_DATA_READY_IDX = 0,
-	S2LP_IRQ_RX_DATA_DISC_IDX,
-	S2LP_IRQ_TX_DATA_SENT_IDX,
-	S2LP_IRQ_MAX_RE_TX_REACH_IDX,
-	S2LP_IRQ_CRC_ERROR_IDX,
-	S2LP_IRQ_TX_FIFO_ERROR_IDX,
-	S2LP_IRQ_RX_FIFO_ERROR_IDX,
-	S2LP_IRQ_TX_FIFO_ALMOST_FULL_IDX,
-	S2LP_IRQ_TX_FIFO_ALMOST_EMPTY_IDX,
-	S2LP_IRQ_RX_FIFO_ALMOST_FULL_IDX,
-	S2LP_IRQ_RX_FIFO_ALMOST_EMPTY_IDX,
-	S2LP_IRQ_MAX_BO_CCA_REACH_IDX,
-	S2LP_IRQ_VALID_PREAMBLE_IDX,
-	S2LP_IRQ_VALID_SYNC_IDX,
-	S2LP_IRQ_RSSI_ABOVE_TH_IDX,
-	S2LP_IRQ_WKUP_TOUT_LDC_IDX,
-	S2LP_IRQ_READY_IDX,
-	S2LP_IRQ_STANDBY_DELAYED_IDX,
-	S2LP_IRQ_LOW_BATT_LVL_IDX,
-	S2LP_IRQ_POR_IDX,
-	S2LP_IRQ_RX_TIMEOUT_IDX = 28,
-	S2LP_IRQ_RX_SNIFF_TIMEOUT_IDX,
-	S2LP_IRQ_LAST
+	S2LP_IRQ_INDEX_RX_DATA_READY = 0,
+	S2LP_IRQ_INDEX_RX_DATA_DISC,
+	S2LP_IRQ_INDEX_TX_DATA_SENT,
+	S2LP_IRQ_INDEX_MAX_RE_TX_REACH,
+	S2LP_IRQ_INDEX_CRC_ERROR,
+	S2LP_IRQ_INDEX_TX_FIFO_ERROR,
+	S2LP_IRQ_INDEX_RX_FIFO_ERROR,
+	S2LP_IRQ_INDEX_TX_FIFO_ALMOST_FULL,
+	S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY,
+	S2LP_IRQ_INDEX_RX_FIFO_ALMOST_FULL,
+	S2LP_IRQ_INDEX_RX_FIFO_ALMOST_EMPTY,
+	S2LP_IRQ_INDEX_MAX_BO_CCA_REACH,
+	S2LP_IRQ_INDEX_VALID_PREAMBLE,
+	S2LP_IRQ_INDEX_VALID_SYNC,
+	S2LP_IRQ_INDEX_RSSI_ABOVE_TH,
+	S2LP_IRQ_INDEX_WKUP_TOUT_LDC,
+	S2LP_IRQ_INDEX_READY,
+	S2LP_IRQ_INDEX_STANDBY_DELAYED,
+	S2LP_IRQ_INDEX_LOW_BATT_LVL,
+	S2LP_IRQ_INDEX_POR,
+	S2LP_IRQ_INDEX_RX_TIMEOUT = 28,
+	S2LP_IRQ_INDEX_RX_SNIFF_TIMEOUT,
+	S2LP_IRQ_INDEX_LAST
 } S2LP_irq_index_t;
 
 // Generic structure for mantissa and exponent setting.
@@ -197,44 +234,46 @@ typedef struct {
 // GPIOs functions.
 void S2LP_init(void);
 void S2LP_disable(void);
-void S2LP_set_gpio0(unsigned char pull_resistor_config);
-void S2LP_tcxo(unsigned char tcxo_enable);
-void S2LP_enter_shutdown(void);
-void S2LP_exit_shutdown(void);
+S2LP_status_t S2LP_tcxo(unsigned char tcxo_enable);
+S2LP_status_t S2LP_shutdown(unsigned char shutdown_enable);
 
 // Common functions.
-void S2LP_send_command(S2LP_command_t command);
-void S2LP_wait_for_state(S2LP_state_t new_state);
-void S2LP_wait_for_oscillator(void);
-void S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator);
-void S2LP_configure_smps(S2LP_smps_setting_t smps_setting);
-void S2LP_configure_charge_pump(void);
-void S2LP_set_modulation(S2LP_modulation_t modulation);
-void S2LP_set_rf_frequency(unsigned int rf_frequency_hz);
-void S2LP_set_fsk_deviation(S2LP_mantissa_exponent_t fsk_deviation_setting);
-void S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting);
-void S2LP_configure_gpio(unsigned char gpio_index, S2LP_GPIO_mode_t gpio_mode, unsigned char gpio_function, unsigned char fifo_flag_direction);
-void S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, unsigned char threshold_value);
-void S2LP_configure_irq(S2LP_irq_index_t irq_idx, unsigned irq_enable);
-void S2LP_clear_irq_flags(void);
+S2LP_status_t S2LP_send_command(S2LP_command_t command);
+S2LP_status_t S2LP_wait_for_state(S2LP_state_t new_state);
+S2LP_status_t S2LP_wait_for_oscillator(void);
+S2LP_status_t S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator);
+S2LP_status_t S2LP_configure_smps(S2LP_smps_setting_t smps_setting);
+S2LP_status_t S2LP_configure_charge_pump(void);
+S2LP_status_t S2LP_set_modulation(S2LP_modulation_t modulation);
+S2LP_status_t S2LP_set_rf_frequency(unsigned int rf_frequency_hz);
+S2LP_status_t S2LP_set_fsk_deviation(S2LP_mantissa_exponent_t fsk_deviation_setting);
+S2LP_status_t S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting);
+S2LP_status_t S2LP_configure_gpio(unsigned char gpio_index, S2LP_gpio_mode_t gpio_mode, unsigned char gpio_function, S2LP_fifo_flag_direction_t fifo_flag_direction);
+S2LP_status_t S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, unsigned char threshold_value);
+S2LP_status_t S2LP_configure_irq(S2LP_irq_index_t irq_idx, unsigned char irq_enable);
+S2LP_status_t S2LP_clear_irq_flags(void);
 
 // Packet functions.
-void S2LP_set_packet_length(unsigned char packet_length_bytes);
-void S2LP_set_preamble_detector(unsigned char preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern);
-void S2LP_set_sync_word(unsigned char* sync_word, unsigned char sync_word_length_bits);
-void S2LP_disable_crc(void);
+S2LP_status_t S2LP_set_packet_length(unsigned char packet_length_bytes);
+S2LP_status_t S2LP_set_preamble_detector(unsigned char preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern);
+S2LP_status_t S2LP_set_sync_word(unsigned char* sync_word, unsigned char sync_word_length_bits);
+S2LP_status_t S2LP_disable_crc(void);
 
 // TX functions.
-void S2LP_configure_pa(void);
-void S2LP_set_rf_output_power(signed char output_power_dbm);
-void S2LP_set_tx_source(S2LP_tx_source_t tx_source);
-void S2LP_write_fifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
+S2LP_status_t S2LP_configure_pa(void);
+S2LP_status_t S2LP_set_rf_output_power(signed char output_power_dbm);
+S2LP_status_t S2LP_set_tx_source(S2LP_tx_source_t tx_source);
+S2LP_status_t S2LP_write_fifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
 
 // RX functions.
-void S2LP_set_rx_source(S2LP_rx_source_t rx_source);
-void S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
-void S2LP_disable_equa_cs_ant_switch(void);
-signed int S2LP_get_rssi(void);
-void S2LP_read_fifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
+S2LP_status_t S2LP_set_rx_source(S2LP_rx_source_t rx_source);
+S2LP_status_t S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
+S2LP_status_t S2LP_disable_equa_cs_ant_switch(void);
+S2LP_status_t S2LP_get_rssi(signed int* rssi_dbm);
+S2LP_status_t S2LP_read_fifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
+
+#define S2LP_status_check(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = error_base + s2lp_status; goto errors; }}
+#define S2LP_error_check() { ERROR_status_check(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP); }
+#define S2LP_error_check_print() { ERROR_status_check_print(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP); }
 
 #endif /* __S2LP_H__ */

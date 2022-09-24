@@ -62,7 +62,7 @@ typedef struct {
 /*** RF API local global variables ***/
 
 static RF_api_context_t rf_api_ctx;
-signed char rf_api_cw_output_power = S2LP_RF_OUTPUT_POWER_MAX;
+signed char rf_api_cw_output_power = RF_API_ETSI_UPLINK_OUTPUT_POWER_DBM;
 
 /*** RF API functions ***/
 
@@ -90,11 +90,9 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	SPI1_init();
 	// Turn transceiver on.
 	SPI1_power_on();
-	// Turn TCXO on.
 	S2LP_init();
 	S2LP_tcxo(1);
-	// Exit shutdown.
-	S2LP_exit_shutdown();
+	S2LP_shutdown(0);
 	// TX/RX common init.
 	S2LP_send_command(S2LP_COMMAND_SRES);
 	S2LP_send_command(S2LP_COMMAND_STANDBY);
@@ -105,7 +103,8 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	switch (rf_mode) {
 	case SFX_RF_MODE_TX:
 		// Configure GPIO.
-		S2LP_set_gpio0(0);
+		GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+		EXTI_configure_gpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
 		// Uplink.
 		S2LP_configure_smps(S2LP_SMPS_TX);
 		S2LP_configure_pa();
@@ -120,7 +119,8 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		// Reset call counter.
 		rf_api_ctx.rf_api_wait_frame_calls_count = 0;
 		// Configure GPIO.
-		S2LP_set_gpio0(1);
+		GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_UP);
+		EXTI_configure_gpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_FALLING_EDGE);
 		// Downlink.
 		S2LP_configure_smps(S2LP_SMPS_RX);
 		S2LP_set_modulation(S2LP_MODULATION_2GFSK_BT1);
@@ -128,7 +128,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		S2LP_set_bitrate(RF_API_DOWNLINK_DATARATE);
 		S2LP_set_rx_bandwidth(S2LP_RXBW_2KHZ1);
 		S2LP_configure_gpio(0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_NIRQ, 1);
-		S2LP_configure_irq(S2LP_IRQ_RX_DATA_READY_IDX, 1);
+		S2LP_configure_irq(S2LP_IRQ_INDEX_RX_DATA_READY, 1);
 		// Downlink packet structure.
 		S2LP_set_preamble_detector((RF_API_DOWNLINK_PREAMBLE_LENGTH_BITS / 2), S2LP_PREAMBLE_PATTERN_1010);
 		S2LP_set_sync_word(downlink_sync_word, RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS);
@@ -158,7 +158,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
  *******************************************************************/
 sfx_u8 RF_API_stop(void) {
 	// Turn transceiver and TCXO off.
-	S2LP_enter_shutdown();
+	S2LP_shutdown(1);
 	SPI1_power_off();
 	S2LP_tcxo(0);
 	S2LP_disable();
@@ -340,6 +340,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	// Init state.
 	(*state) = DL_TIMEOUT;
 	sfx_error_t sfx_err = RF_ERR_API_WAIT_FRAME;
+	signed int rssi_dbm = 0;
 	// Manage call count.
 	rf_api_ctx.rf_api_wait_frame_calls_count++;
 	if (rf_api_ctx.rf_api_wait_frame_calls_count < RF_API_WAIT_FRAME_CALLS_MAX) {
@@ -380,7 +381,8 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 			(*state) = DL_PASSED;
 			sfx_err = SFX_ERR_NONE;
 			S2LP_read_fifo(frame, RF_API_DOWNLINK_FRAME_LENGTH_BYTES);
-			(*rssi) = (sfx_s16) S2LP_get_rssi();
+			S2LP_get_rssi(&rssi_dbm);
+			(*rssi) = (sfx_s16) rssi_dbm;
 		}
 		// Stop radio.
 		S2LP_send_command(S2LP_COMMAND_SABORT);
