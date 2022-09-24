@@ -10,14 +10,12 @@
 #include "adc.h"
 #include "aes.h"
 #include "exti.h"
-#include "i2c.h"
 #include "iwdg.h"
 #include "lptim.h"
 #include "mode.h"
 #include "nvm.h"
 #include "pwr.h"
 #include "rtc.h"
-#include "sht3x.h"
 #include "sigfox_types.h"
 #ifdef ATM
 #include "at.h"
@@ -60,15 +58,13 @@ static MCU_API_context_t mcu_api_ctx;
  * \retval MCU_ERR_API_MALLOC         Malloc error
  *******************************************************************/
 sfx_u8 MCU_API_malloc(sfx_u16 size, sfx_u8** returned_pointer) {
-	sfx_u8 sfx_err = SFX_ERR_NONE;
 	// Check size.
-	if (size <= MCU_API_MALLOC_BUFFER_SIZE) {
-		(*returned_pointer) = &(mcu_api_ctx.malloc_buf[0]);
-	}
-	else {
-		sfx_err = MCU_ERR_API_MALLOC;
-	}
-	return sfx_err;
+	if (size > MCU_API_MALLOC_BUFFER_SIZE) goto errors;
+	// Allocate buffer.
+	(*returned_pointer) = &(mcu_api_ctx.malloc_buf[0]);
+	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_MALLOC;
 }
 
 /*!******************************************************************
@@ -99,24 +95,28 @@ sfx_u8 MCU_API_free(sfx_u8* ptr) {
  * \retval MCU_ERR_API_VOLT_TEMP:                Get voltage/temperature error
  *******************************************************************/
 sfx_u8 MCU_API_get_voltage_temperature(sfx_u16* voltage_idle, sfx_u16* voltage_tx, sfx_s16* temperature) {
-	// Perform temperature measurement.
-	I2C1_power_on();
-	SHT3X_perform_measurements(SHT3X_I2C_ADDRESS);
-	I2C1_power_off();
-	// Perform voltage measurement.
-	ADC1_power_on();
-	ADC1_perform_measurements();
+	// Local variables.
+	ADC_status_t adc1_status = ADC_SUCCESS;
+	unsigned int mcu_supply_voltage_mv = 0;
+	signed char mcu_temperature_degrees = 0;
+	// Perform measurements.
+	adc1_status = ADC1_power_on();
+	if (adc1_status != ADC_SUCCESS) goto errors;
+	adc1_status = ADC1_perform_measurements();
+	if (adc1_status != ADC_SUCCESS) goto errors;
 	ADC1_power_off();
 	// Get MCU supply voltage.
-	unsigned int mcu_supply_voltage_mv = 0;
-	ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &mcu_supply_voltage_mv);
+	adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &mcu_supply_voltage_mv);
+	if (adc1_status != ADC_SUCCESS) goto errors;
 	(*voltage_idle) = (sfx_u16) mcu_supply_voltage_mv;
 	(*voltage_tx) = (sfx_u16) mcu_supply_voltage_mv;
 	// Get MCU internal temperature.
-	signed char mcu_temperature_degrees = 0;
-	SHT3X_get_temperature(&mcu_temperature_degrees);
+	ADC1_get_tmcu(&mcu_temperature_degrees);
 	(*temperature) = ((sfx_s16) mcu_temperature_degrees) * 10; // Unit = 1/10 of degrees.
 	return SFX_ERR_NONE;
+errors:
+	ADC1_power_off();
+	return MCU_ERR_API_VOLT_TEMP;
 }
 
 /*!******************************************************************
@@ -134,27 +134,36 @@ sfx_u8 MCU_API_get_voltage_temperature(sfx_u16* voltage_idle, sfx_u16* voltage_t
  * \retval MCU_ERR_API_DLY:                      Delay error
  *******************************************************************/
 sfx_u8 MCU_API_delay(sfx_delay_t delay_type) {
+	// Local variables.
+	LPTIM_status_t lptim1_status;
 	switch (delay_type) {
 	case SFX_DLY_INTER_FRAME_TX:
 		// 0 to 2s in Uplink DC.
-		LPTIM1_delay_milliseconds(500, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(500, 1);
+		if (lptim1_status != LPTIM_SUCCESS) goto errors;
 		break;
 	case SFX_DLY_INTER_FRAME_TRX:
 		// 500 ms in Uplink/Downlink FH & Downlink DC.
-		LPTIM1_delay_milliseconds(500, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(500, 1);
+		if (lptim1_status != LPTIM_SUCCESS) goto errors;
 		break;
 	case SFX_DLY_OOB_ACK:
 		// 1.4s to 4s for Downlink OOB.
-		LPTIM1_delay_milliseconds(2000, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(2000, 1);
+		if (lptim1_status != LPTIM_SUCCESS) goto errors;
 		break;
 	case SFX_DLY_CS_SLEEP:
 		// Delay between several trials of Carrier Sense (for the first frame only).
-		LPTIM1_delay_milliseconds(1000, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(1000, 1);
+		if (lptim1_status != LPTIM_SUCCESS) goto errors;
 		break;
 	default:
+		goto errors;
 		break;
 	}
 	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_DLY;
 }
 
 /*!******************************************************************
@@ -175,12 +184,13 @@ sfx_u8 MCU_API_delay(sfx_delay_t delay_type) {
  *******************************************************************/
 sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encrypt, sfx_u8 aes_block_len, sfx_u8 key[AES_BLOCK_SIZE], sfx_credentials_use_key_t use_key) {
 	// Local variables.
+	NVM_status_t nvm_status = NVM_SUCCESS;
+	AES_status_t aes_status = AES_SUCCESS;
 	unsigned char byte_idx = 0;
 	unsigned char local_key[AES_BLOCK_SIZE] = {0};
 	unsigned char init_vector[AES_BLOCK_SIZE] = {0};
 	unsigned char data_in[AES_BLOCK_SIZE] = {0};
 	unsigned char data_out[AES_BLOCK_SIZE] = {0};
-	unsigned char number_of_blocks = aes_block_len / AES_BLOCK_SIZE;
 	unsigned char block_idx;
 	unsigned char key_byte = 0;
 	// Get accurate key.
@@ -188,7 +198,8 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 		case CREDENTIALS_PRIVATE_KEY:
 			// Retrieve device key from NVM.
 			for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE ; byte_idx++) {
-				NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_KEY+byte_idx, &key_byte);
+				nvm_status = NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_KEY+byte_idx, &key_byte);
+				if (nvm_status != NVM_SUCCESS) goto errors;
 				local_key[byte_idx] = key_byte;
 			}
 			break;
@@ -199,20 +210,23 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 			}
 			break;
 		default:
+			goto errors;
 			break;
 	}
 	// Perform encryption.
-	AES_init();
-	for (block_idx=0; block_idx<number_of_blocks ; block_idx++) {
+	for (block_idx=0; block_idx<(aes_block_len / AES_BLOCK_SIZE) ; block_idx++) {
 		// Fill input data and initialization vector with previous result.
 		for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE; byte_idx++) data_in[byte_idx] = data_to_encrypt[(block_idx * AES_BLOCK_SIZE) + byte_idx];
 		for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE; byte_idx++) init_vector[byte_idx] = data_out[byte_idx];
 		// Run algorithme.
-		AES_encrypt(data_in, data_out, init_vector, local_key);
+		aes_status = AES_encrypt(data_in, data_out, init_vector, local_key);
+		if (aes_status != AES_SUCCESS) goto errors;
 		// Fill output data.
 		for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE; byte_idx++) encrypted_data[(block_idx * AES_BLOCK_SIZE) + byte_idx] = data_out[byte_idx];
 	}
 	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_AES;
 }
 
 /*!******************************************************************
@@ -239,18 +253,29 @@ sfx_u8 MCU_API_get_nv_mem(sfx_u8 read_data[SFX_NVMEM_BLOCK_SIZE]) {
 	// |  PN  |  SEQ  |  FH  |  RL  |
 	// |______|_______|______|______|
 
+	// Local variables.
+	NVM_status_t nvm_status = NVM_SUCCESS;
 	// PN.
-	NVM_read_byte((NVM_ADDRESS_SIGFOX_PN + 0), &(read_data[SFX_NVMEM_PN + 0]));
-	NVM_read_byte((NVM_ADDRESS_SIGFOX_PN + 1), &(read_data[SFX_NVMEM_PN + 1]));
+	nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_PN + 0), &(read_data[SFX_NVMEM_PN + 0]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
+	nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_PN + 1), &(read_data[SFX_NVMEM_PN + 1]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	// Sequence number.
-	NVM_read_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), &(read_data[SFX_NVMEM_MSG_COUNTER + 0]));
-	NVM_read_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), &(read_data[SFX_NVMEM_MSG_COUNTER + 1]));
+	nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), &(read_data[SFX_NVMEM_MSG_COUNTER + 0]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
+	nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), &(read_data[SFX_NVMEM_MSG_COUNTER + 1]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	// FH.
-	NVM_read_byte((NVM_ADDRESS_SIGFOX_FH + 0), &(read_data[SFX_NVMEM_FH + 0]));
-	NVM_read_byte((NVM_ADDRESS_SIGFOX_FH + 1), &(read_data[SFX_NVMEM_FH + 1]));
+	nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_FH + 0), &(read_data[SFX_NVMEM_FH + 0]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
+	nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_FH + 1), &(read_data[SFX_NVMEM_FH + 1]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	// RL.
-	NVM_read_byte(NVM_ADDRESS_SIGFOX_RL, &(read_data[SFX_NVMEM_RL]));
+	nvm_status = NVM_read_byte(NVM_ADDRESS_SIGFOX_RL, &(read_data[SFX_NVMEM_RL]));
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_GETNVMEM;
 }
 
 /*!******************************************************************
@@ -278,18 +303,29 @@ sfx_u8 MCU_API_set_nv_mem(sfx_u8 data_to_write[SFX_NVMEM_BLOCK_SIZE]) {
 	// |  PN  |  SEQ  |  FH  |  RL  |
 	// |______|_______|______|______|
 
+	// Local variables.
+	NVM_status_t nvm_status = NVM_SUCCESS;
 	// PN.
-	NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 0), data_to_write[SFX_NVMEM_PN + 0]);
-	NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 1), data_to_write[SFX_NVMEM_PN + 1]);
+	nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 0), data_to_write[SFX_NVMEM_PN + 0]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
+	nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_PN + 1), data_to_write[SFX_NVMEM_PN + 1]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	// Sequence number.
-	NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), data_to_write[SFX_NVMEM_MSG_COUNTER + 0]);
-	NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), data_to_write[SFX_NVMEM_MSG_COUNTER + 1]);
+	nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 0), data_to_write[SFX_NVMEM_MSG_COUNTER + 0]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
+	nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_MESSAGE_COUNTER + 1), data_to_write[SFX_NVMEM_MSG_COUNTER + 1]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	// FH.
-	NVM_write_byte((NVM_ADDRESS_SIGFOX_FH + 0), data_to_write[SFX_NVMEM_FH + 0]);
-	NVM_write_byte((NVM_ADDRESS_SIGFOX_FH + 1), data_to_write[SFX_NVMEM_FH + 1]);
+	nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_FH + 0), data_to_write[SFX_NVMEM_FH + 0]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
+	nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_FH + 1), data_to_write[SFX_NVMEM_FH + 1]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	// RL.
-	NVM_write_byte(NVM_ADDRESS_SIGFOX_RL, data_to_write[SFX_NVMEM_RL]);
+	nvm_status = NVM_write_byte(NVM_ADDRESS_SIGFOX_RL, data_to_write[SFX_NVMEM_RL]);
+	if (nvm_status != NVM_SUCCESS) goto errors;
 	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_SETNVMEM;
 }
 
 /*!******************************************************************
@@ -334,9 +370,14 @@ sfx_u8 MCU_API_timer_start(sfx_u32 time_duration_in_s) {
  * \retval MCU_ERR_API_TIMER_STOP:               Stop timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_stop(void) {
+	// Local variables.
+	RTC_status_t rtc_status = RTC_SUCCESS;
 	// Stop wake-up timer.
-	RTC_stop_wakeup_timer();
+	rtc_status = RTC_stop_wakeup_timer();
+	if (rtc_status != RTC_SUCCESS) goto errors;
 	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_TIMER_STOP;
 }
 
 /*!******************************************************************
@@ -366,17 +407,23 @@ sfx_u8 MCU_API_timer_stop_carrier_sense(void) {
  * \retval MCU_ERR_API_TIMER_END:                Wait end of timer error
  *******************************************************************/
 sfx_u8 MCU_API_timer_wait_for_end(void) {
+	// Local variables.
+	RTC_status_t rtc_status = RTC_SUCCESS;
+	unsigned int remaining_delay = mcu_api_ctx.timer_duration_seconds;
+	unsigned int sub_delay = 0;
 	// Clear watchdog.
 	IWDG_reload();
 	// Enter stop mode until GPIO interrupt or RTC wake-up.
-	unsigned int remaining_delay = mcu_api_ctx.timer_duration_seconds;
-	unsigned int sub_delay = 0;
 	while (remaining_delay > 0) {
 		// Compute sub-delay.
 		sub_delay = (remaining_delay > IWDG_REFRESH_PERIOD_SECONDS) ? (IWDG_REFRESH_PERIOD_SECONDS) : (remaining_delay);
 		remaining_delay -= sub_delay;
-		// Start wake-up timer.
-		RTC_start_wakeup_timer(sub_delay);
+		// Restart wake-up timer.
+		rtc_status = RTC_stop_wakeup_timer();
+		if (rtc_status != RTC_SUCCESS) goto errors;
+		rtc_status = RTC_start_wakeup_timer(sub_delay);
+		if (rtc_status != RTC_SUCCESS) goto errors;
+		// Enter stop mode.
 		PWR_enter_stop_mode();
 		// Wake-up: clear watchdog and flags.
 		IWDG_reload();
@@ -384,6 +431,9 @@ sfx_u8 MCU_API_timer_wait_for_end(void) {
 		EXTI_clear_all_flags();
 	}
 	return SFX_ERR_NONE;
+errors:
+	RTC_stop_wakeup_timer();
+	return MCU_ERR_API_TIMER_END;
 }
 
 /*!******************************************************************
@@ -435,14 +485,19 @@ sfx_u8 MCU_API_get_version(sfx_u8** version, sfx_u8* size) {
  * \retval MCU_ERR_API_GET_ID_PAYLOAD_ENCR_FLAG: Error when getting device ID or payload encryption flag
  *******************************************************************/
 sfx_u8 MCU_API_get_device_id_and_payload_encryption_flag(sfx_u8 dev_id[ID_LENGTH], sfx_bool* payload_encryption_enabled) {
-	// Get device ID.
+	// Local variables.
+	NVM_status_t nvm_status = NVM_SUCCESS;
 	unsigned char byte_idx = 0;
-	for (byte_idx=0 ; byte_idx<ID_LENGTH ; byte_idx++) {
-		NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_ID+byte_idx, &(dev_id[byte_idx]));
-	}
 	// No payload encryption.
 	(*payload_encryption_enabled) = SFX_FALSE;
+	// Get device ID.
+	for (byte_idx=0 ; byte_idx<ID_LENGTH ; byte_idx++) {
+		nvm_status = NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_ID+byte_idx, &(dev_id[byte_idx]));
+		if (nvm_status != NVM_SUCCESS) goto errors;
+	}
 	return SFX_ERR_NONE;
+errors:
+	return MCU_ERR_API_GET_ID_PAYLOAD_ENCR_FLAG;
 }
 
 /*!******************************************************************

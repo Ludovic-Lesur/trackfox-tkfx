@@ -197,6 +197,8 @@ int main (void) {
 	IWDG_reload();
 	// Init RTC.
 	RTC_init(&lse_success, tkfx_ctx.lsi_frequency_hz);
+	// Init AES module.
+	AES_init();
 	// Local variables.
 	sfx_error_t sfx_error = 0;
 	sfx_rc_t tkfx_sigfox_rc = (sfx_rc_t) RC1;
