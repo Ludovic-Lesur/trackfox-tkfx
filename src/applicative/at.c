@@ -627,7 +627,7 @@ static void AT_decode(void) {
 						// CW with given output power.
 						SIGFOX_API_stop_continuous_transmission();
 						if (generic_int_2 != 0) {
-							RF_API_SetCwOutputPower((signed char) generic_int_3);
+							RF_API_set_cw_output_power((signed char) generic_int_3);
 							SIGFOX_API_start_continuous_transmission(generic_int_1, SFX_NO_MODULATION);
 						}
 						AT_print_ok();

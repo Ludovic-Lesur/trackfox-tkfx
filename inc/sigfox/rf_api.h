@@ -237,7 +237,7 @@ sfx_u8 RF_API_wait_for_clear_channel(sfx_u8 cs_min, sfx_s8 cs_threshold, sfx_rx_
 sfx_u8 RF_API_get_version(sfx_u8** version, sfx_u8* size);
 
 /*!******************************************************************
- * \fn sfx_u8 RF_API_SetIrqFlag(void)
+ * \fn sfx_u8 RF_API_set_irq_flag(void)
  * \brief Set S2LP IRQ flag.
  *
  * \param[in] none
@@ -245,10 +245,10 @@ sfx_u8 RF_API_get_version(sfx_u8** version, sfx_u8* size);
  *
  * \retval none
  *******************************************************************/
-void RF_API_SetIrqFlag(void);
+void RF_API_set_irq_flag(void);
 
 /*!******************************************************************
- * \fn sfx_u8 RF_API_SetCwOutputPower(void)
+ * \fn sfx_u8 RF_API_set_cw_output_power(void)
  * \brief Store TX output power for CW mode.
  *
  * \param[in] tx_output_power: RF output power in dBm.
@@ -256,6 +256,6 @@ void RF_API_SetIrqFlag(void);
  *
  * \retval none
  *******************************************************************/
-void RF_API_SetCwOutputPower(signed char tx_output_power);
+void RF_API_set_cw_output_power(signed char tx_output_power);
 
 #endif /* __RF_API_H__ */

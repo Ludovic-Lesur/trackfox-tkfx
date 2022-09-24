@@ -57,7 +57,7 @@ void __attribute__((optimize("-O0"))) EXTI4_15_IRQHandler(void) {
 	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.pin_index))) != 0) {
 		// Set applicative flag.
 		if (((EXTI -> IMR) & (0b1 << (GPIO_S2LP_GPIO0.pin_index))) != 0) {
-			RF_API_SetIrqFlag();
+			RF_API_set_irq_flag();
 		}
 		// Clear flag.
 		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.pin_index)); // PIFx='1' (writing '1' clears the bit).
