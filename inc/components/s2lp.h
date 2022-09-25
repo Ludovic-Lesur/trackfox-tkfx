@@ -269,7 +269,7 @@ S2LP_status_t S2LP_write_fifo(unsigned char* tx_data, unsigned char tx_data_leng
 S2LP_status_t S2LP_set_rx_source(S2LP_rx_source_t rx_source);
 S2LP_status_t S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
 S2LP_status_t S2LP_disable_equa_cs_ant_switch(void);
-S2LP_status_t S2LP_get_rssi(signed int* rssi_dbm);
+S2LP_status_t S2LP_get_rssi(signed short* rssi_dbm);
 S2LP_status_t S2LP_read_fifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
 
 #define S2LP_status_check(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = error_base + s2lp_status; goto errors; }}

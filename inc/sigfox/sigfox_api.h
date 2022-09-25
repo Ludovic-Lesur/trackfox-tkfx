@@ -89,6 +89,9 @@
 
 
 #define SFX_ERR_NONE                                             (sfx_u8)(0x00) /*!< No error - to be used for MANUF_ERROR_CODES and SIGFOX_ERROR_CODES */
+#define SIGFOX_API_status_check(error_base) 					 { if (sigfox_api_status != SFX_ERR_NONE) { status = error_base + sigfox_api_status; goto errors; }}
+#define SIGFOX_API_error_check()								 { ERROR_status_check(sigfox_api_status, SFX_ERR_NONE, ERROR_BASE_SIGFOX); }
+#define SIGFOX_API_error_check_print()							 { ERROR_status_check_print(sigfox_api_status, SFX_ERR_NONE, ERROR_BASE_SIGFOX); }
 
 /*
  * ----------------------------------------------------------------
@@ -317,8 +320,12 @@
 #define RC5_CONFIG     {0x00000003,0x00001388,0x00000000} /*!< Config word default value: 3 retries before 1st frame , 0x1288=5000ms max time between each frame>*/
 
 
-#define ID_LENGTH      (sfx_u8)(4) /* Size of device identifier */
-#define PAC_LENGTH     (sfx_u8)(8) /* Size of device initial PAC */
+#define ID_LENGTH      						(sfx_u8)(4) 	/* Size of device identifier */
+#define PAC_LENGTH     						(sfx_u8)(8) 	/* Size of device initial PAC */
+#define SIGFOX_DOWNLINK_DATA_SIZE_BYTES		(sfx_u8)(8) 	/* Size of downlink payload */
+#define SIGFOX_DOWNLINK_PHY_SIZE_BYTES		(sfx_u8)(15) 	/* Size of downlink phy content */
+#define SIGFOX_UPLINK_DATA_MAX_SIZE_BYTES	(sfx_u8)(12)	/* Maximum size of uplink payload */
+#define SIGFOX_RC_STD_CONFIG_SIZE			(sfx_u8)(3)		/* Size of RC config word */
 
 /********************************
  * \enum

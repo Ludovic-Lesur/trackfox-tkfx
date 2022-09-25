@@ -410,7 +410,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	// Local variables.
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	RTC_status_t rtc_status = RTC_SUCCESS;
-	signed int rssi_dbm = 0;
+	signed short rssi_dbm = 0;
 	unsigned int remaining_delay = RF_API_DOWNLINK_TIMEOUT_SECONDS;
 	unsigned int sub_delay = 0;
 	// Init state.

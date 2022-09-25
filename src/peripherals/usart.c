@@ -106,6 +106,26 @@ void USART2_init(void) {
 }
 
 #ifdef ATM
+/* ENABLE USART INTERRUPT.
+ * @param:	None.
+ * @return:	None.
+ */
+void USART2_enable_interrupt(void) {
+	NVIC_enable_interrupt(NVIC_IT_USART2);
+}
+#endif
+
+#ifdef ATM
+/* DISABLE USART INTERRUPT.
+ * @param:	None.
+ * @return:	None.
+ */
+void USART2_disable_interrupt(void) {
+	NVIC_disable_interrupt(NVIC_IT_USART2);
+}
+#endif
+
+#ifdef ATM
 /* SEND A BYTE ARRAY THROUGH USART2.
  * @param tx_string:	Byte array to send.
  * @return status:		Function execution status.

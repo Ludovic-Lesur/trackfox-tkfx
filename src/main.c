@@ -526,7 +526,6 @@ int main (void) {
 	LPUART1_init(tkfx_use_lse);
 	// Components.
 	NEOM8N_init();
-	SHT3X_init();
 	MMA8653FC_init();
 	// Configure accelerometer.
 	I2C1_power_on();

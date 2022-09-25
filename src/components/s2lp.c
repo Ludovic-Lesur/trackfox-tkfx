@@ -874,7 +874,7 @@ errors:
  * @param rssi_dbm:	Pointer that will contain RSSI in dBm.
  * @return status:	Function execution status.
  */
-S2LP_status_t S2LP_get_rssi(signed int* rssi_dbm) {
+S2LP_status_t S2LP_get_rssi(signed short* rssi_dbm) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	unsigned char rssi_level_reg_value = 0;
@@ -882,7 +882,7 @@ S2LP_status_t S2LP_get_rssi(signed int* rssi_dbm) {
 	status = S2LP_read_register(S2LP_REG_RSSI_LEVEL, &rssi_level_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Convert to dBm.
-	(*rssi_dbm) = rssi_level_reg_value - S2LP_RSSI_OFFSET_DB;
+	(*rssi_dbm) = (signed short) rssi_level_reg_value - (signed short) S2LP_RSSI_OFFSET_DB;
 errors:
 	return status;
 }
