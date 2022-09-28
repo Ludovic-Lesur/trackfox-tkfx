@@ -88,13 +88,9 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	SPI_status_t spi_status = SPI_SUCCESS;
 	// Clear watchdog.
 	IWDG_reload();
-	// Init required peripherals.
-	DMA1_init_channel3();
-	SPI1_init();
 	// Turn transceiver on.
 	spi_status = SPI1_power_on();
 	if (spi_status != SPI_SUCCESS) goto errors;
-	S2LP_init();
 	s2lp_status = S2LP_tcxo(1);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	s2lp_status = S2LP_shutdown(0);
@@ -175,6 +171,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	}
 	return SFX_ERR_NONE;
 errors:
+	SPI1_power_off();
 	return RF_ERR_API_INIT;
 }
 
@@ -196,8 +193,8 @@ sfx_u8 RF_API_stop(void) {
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	s2lp_status = S2LP_tcxo(0);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
+	GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_OUTPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	SPI1_power_off();
-	S2LP_disable();
 	return SFX_ERR_NONE;
 errors:
 	SPI1_power_off();

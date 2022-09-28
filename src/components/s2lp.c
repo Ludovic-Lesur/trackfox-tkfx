@@ -109,18 +109,6 @@ void S2LP_init(void) {
 	GPIO_configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 }
 
-/* DISABLE S2LP INTERFACE.
- * @param:	None.
- * @return:	None.
- */
-void S2LP_disable(void) {
-	// Disable GPIOs.
-	GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_OUTPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#ifdef HW1_1
-	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-#endif
-}
-
 /* CONTROL EXTERNAL TCXO.
  * @param:			None.
  * @return status:	Function execution status.
@@ -460,7 +448,7 @@ S2LP_status_t S2LP_configure_gpio(unsigned char gpio_index, S2LP_gpio_mode_t gpi
 		status = S2LP_ERROR_GPIO_MODE;
 		goto errors;
 	}
-	if ((gpio_function >= S2LP_GPIO_INPUT_FUNCTION_LAST) || (gpio_function >= S2LP_GPIO_OUTPUT_FUNCTION_LAST)) {
+	if ((gpio_function >= S2LP_GPIO_INPUT_FUNCTION_LAST) && (gpio_function >= S2LP_GPIO_OUTPUT_FUNCTION_LAST)) {
 		status = S2LP_ERROR_GPIO_FUNCTION;
 		goto errors;
 	}

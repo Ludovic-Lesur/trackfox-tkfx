@@ -805,6 +805,9 @@ static void AT_cw_callback(void) {
 			SIGFOX_API_error_check_print();
 			s2lp_status = S2LP_set_rf_output_power((signed char) power_dbm);
 			S2LP_error_check_print();
+			AT_response_add_string("S2LP running...");
+			AT_response_add_string(AT_RESPONSE_END);
+			AT_response_send();
 		}
 	}
 	else {
@@ -816,6 +819,9 @@ static void AT_cw_callback(void) {
 		if (enable != 0) {
 			sigfox_api_status = SIGFOX_API_start_continuous_transmission((sfx_u32) frequency_hz, SFX_NO_MODULATION);
 			SIGFOX_API_error_check_print();
+			AT_response_add_string("S2LP running...");
+			AT_response_add_string(AT_RESPONSE_END);
+			AT_response_send();
 		}
 	}
 	AT_print_ok();
@@ -902,6 +908,9 @@ static void AT_rssi_callback(void) {
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_RX);
 	S2LP_error_check_print();
 	// Measurement loop.
+	AT_response_add_string("S2LP running...");
+	AT_response_add_string(AT_RESPONSE_END);
+	AT_response_send();
 	while (report_loop < ((duration_s * 1000) / AT_RSSI_REPORT_PERIOD_MS)) {
 		// Read RSSI.
 		s2lp_status = S2LP_get_rssi(&rssi_dbm);
