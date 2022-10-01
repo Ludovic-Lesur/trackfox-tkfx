@@ -165,7 +165,9 @@ typedef struct {
 	TKFX_state_t state;
 	TKFX_mode_t mode;
 	TKFX_flags_t flags;
+#ifndef ATM
 	const TKFX_config_t* config;
+#endif
 	// Clocks.
 	unsigned int lsi_frequency_hz;
 	unsigned char lse_running;
@@ -221,7 +223,9 @@ static void TKFX_init_context(void) {
 	tkfx_ctx.mode = TKFX_MODE_ACTIVE;
 	tkfx_ctx.flags.all = 0;
 	tkfx_ctx.flags.por = 1;
+#ifndef ATM
 	tkfx_ctx.config = &tkfx_config;
+#endif
 	tkfx_ctx.lsi_frequency_hz = 0;
 	tkfx_ctx.lse_running = 0;
 	tkfx_ctx.status.all = 0;
