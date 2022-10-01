@@ -12,9 +12,6 @@
 #include "i2c.h"
 #include "mapping.h"
 #include "math.h"
-#include "mode.h"
-
-#if (defined SSM) || (defined ATM)
 
 /*** MMA8653FC local global variables ***/
 
@@ -41,12 +38,12 @@ void MMA8653FC_init(void) {
 MMA8653FC_status_t MMA8653FC_get_id(unsigned char* chip_id) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
-	I2C_status_t i2c_status = I2C_SUCCESS;
+	I2C_status_t i2c1_status = I2C_SUCCESS;
 	unsigned char local_addr = MMA8653FC_REG_WHO_AM_I;
 	// Read register.
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, chip_id, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, chip_id, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 errors:
 	return status;
@@ -60,14 +57,14 @@ errors:
 MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, unsigned char mma8653fc_config_size) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
-	I2C_status_t i2c_status = I2C_SUCCESS;
+	I2C_status_t i2c1_status = I2C_SUCCESS;
 	unsigned char i2c_tx_data[2];
 	unsigned char reg_idx = 0;
 	// Write configuration.
 	for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
 		i2c_tx_data[0] = (mma8653fc_config[reg_idx].addr);
 		i2c_tx_data[1] = (mma8653fc_config[reg_idx].value);
-		i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2, 1);
+		i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, i2c_tx_data, 2, 1);
 		I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	}
 errors:
@@ -83,52 +80,52 @@ errors:
 MMA8653FC_status_t MMA8653FC_get_data(signed int* x, signed int* y, signed int* z) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
-	I2C_status_t i2c_status = I2C_SUCCESS;
+	I2C_status_t i2c1_status = I2C_SUCCESS;
 	unsigned int data = 0;
 	unsigned char reg_data = 0;
 	unsigned char local_addr = 0;
 	// X-axis.
 	local_addr = MMA8653FC_REG_OUT_X_MSB;
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data = 0;
 	data |= reg_data << 2;
 	local_addr = MMA8653FC_REG_OUT_X_LSB;
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data |= (reg_data >> 6);
 	MATH_two_complement(data, 9, x);
 	// Y-axis.
 	local_addr = MMA8653FC_REG_OUT_Y_MSB;
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data = 0;
 	data |= reg_data << 2;
 	local_addr = MMA8653FC_REG_OUT_Y_LSB;
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data |= (reg_data >> 6);
 	MATH_two_complement(data, 9, y);
 	// Z-axis.
 	local_addr = MMA8653FC_REG_OUT_Z_MSB;
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data = 0;
 	data |= reg_data << 2;
 	local_addr = MMA8653FC_REG_OUT_Z_LSB;
-	i2c_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
+	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
-	i2c_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
+	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data |= (reg_data >> 6);
 	MATH_two_complement(data, 9, z);
@@ -160,5 +157,3 @@ void MMA8653FC_clear_motion_interrupt_flag(void) {
 unsigned char MMA8653FC_get_motion_interrupt_flag(void) {
 	return mma8653fc_motion_interrupt_flag;
 }
-
-#endif

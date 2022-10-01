@@ -353,12 +353,12 @@ errors:
  */
 static void AT_ths_callback(void) {
 	// Local variables.
-	I2C_status_t i2c_status = I2C_SUCCESS;
+	I2C_status_t i2c1_status = I2C_SUCCESS;
 	SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
 	signed char tamb_degrees = 0;
 	unsigned char hamb_percent = 0;
 	// Perform measurements.
-	i2c_status = I2C1_power_on();
+	i2c1_status = I2C1_power_on();
 	I2C1_error_check_print();
 	AT_response_add_string("SHT3X running...");
 	AT_response_add_string(AT_RESPONSE_END);
@@ -387,11 +387,11 @@ errors:
  */
 static void AT_acc_callback(void) {
 	// Local variables.
-	I2C_status_t i2c_status = I2C_SUCCESS;
+	I2C_status_t i2c1_status = I2C_SUCCESS;
 	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;
 	unsigned char chip_id = 0;
 	// Get ID.
-	i2c_status = I2C1_power_on();
+	i2c1_status = I2C1_power_on();
 	I2C1_error_check_print();
 	mma8653fc_status = MMA8653FC_get_id(&chip_id);
 	MMA8653FC_error_check_print();

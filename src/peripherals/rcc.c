@@ -13,7 +13,7 @@
 
 /*** RCC local macros ***/
 
-#define RCC_TIMEOUT_COUNT				10
+#define RCC_TIMEOUT_COUNT				1000000
 #define RCC_MSI_RESET_FREQUENCY_KHZ		2100
 
 #define RCC_LSI_AVERAGING_COUNT			5
@@ -23,25 +23,6 @@
 /*** RCC local global variables ***/
 
 static unsigned int rcc_sysclk_khz;
-
-/*** RCC local functions ***/
-
-/* PERFORM A MANUAL DELAY.
- * @param:	None.
- * @return:	None.
- */
-static void RCC_delay(void) {
-	// Local variables.
-	unsigned int j = 0;
-	unsigned int loop_count = (19 * rcc_sysclk_khz) / 3; // Value for 100ms.
-	// Perform delay.
-	for (j=0 ; j<loop_count ; j++) {
-		// Poll a bit always read as '0' (required to avoid compiler optimization).
-		if (((RCC -> CR) & (0b1 << 24)) != 0) {
-			break;
-		}
-	}
-}
 
 /*** RCC functions ***/
 
@@ -76,7 +57,6 @@ RCC_status_t RCC_switch_to_hsi(void) {
 	// Wait for HSI to be stable.
 	while (((RCC -> CR) & (0b1 << 2)) == 0) {
 		// Wait for HSIRDYF='1' or timeout.
-		RCC_delay();
 		loop_count++;
 		if (loop_count > RCC_TIMEOUT_COUNT) {
 			status = RCC_ERROR_HSI_READY;
@@ -90,7 +70,6 @@ RCC_status_t RCC_switch_to_hsi(void) {
 	loop_count = 0;
 	while (((RCC -> CFGR) & (0b11 << 2)) != (0b01 << 2)) {
 		// Wait for SWS='01' or timeout.
-		RCC_delay();
 		loop_count++;
 		if (loop_count > RCC_TIMEOUT_COUNT) {
 			status = RCC_ERROR_HSI_SWITCH;
@@ -126,7 +105,6 @@ RCC_status_t RCC_enable_lsi(void) {
 	// Wait for LSI to be stable.
 	while (((RCC -> CSR) & (0b1 << 1)) == 0) {
 		// Wait for LSIRDY='1' or timeout.
-		RCC_delay();
 		loop_count++;
 		if (loop_count > RCC_TIMEOUT_COUNT) {
 			status = RCC_ERROR_LSI_READY;
@@ -182,7 +160,6 @@ RCC_status_t RCC_enable_lse(void) {
 	RCC -> CSR |= (0b1 << 8); // LSEON='1'.
 	// Wait for LSE to be stable.
 	while (((RCC -> CSR) & (0b1 << 9)) == 0) {
-		RCC_delay();
 		loop_count++; // Wait for LSERDY='1'.
 		if (loop_count > RCC_TIMEOUT_COUNT) {
 			// Turn LSE off.

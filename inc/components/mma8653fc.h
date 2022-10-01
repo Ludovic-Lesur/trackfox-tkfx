@@ -10,9 +10,6 @@
 
 #include "i2c.h"
 #include "mma8653fc_reg.h"
-#include "mode.h"
-
-#if (defined SSM) || (defined ATM)
 
 /*** MMA8653FC macros ***/
 
@@ -65,7 +62,5 @@ unsigned char MMA8653FC_get_motion_interrupt_flag(void);
 #define MMA8653FC_status_check(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = error_base + mma8653fc_status; goto errors; }}
 #define MMA8653FC_error_check() { ERROR_status_check(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
 #define MMA8653FC_error_check_print() { ERROR_status_check_print(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
-
-#endif
 
 #endif /* __MMA8653FC_H__ */
