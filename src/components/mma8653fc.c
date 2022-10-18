@@ -82,6 +82,7 @@ MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
 	I2C_status_t i2c1_status = I2C_SUCCESS;
+	MATH_status_t math_status = MATH_SUCCESS;
 	uint32_t data = 0;
 	uint8_t reg_data = 0;
 	uint8_t local_addr = 0;
@@ -99,7 +100,8 @@ MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z) {
 	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data |= (reg_data >> 6);
-	MATH_two_complement(data, 9, x);
+	math_status = MATH_two_complement(data, 9, x);
+	MATH_status_check(MMA8653FC_ERROR_BASE_MATH);
 	// Y-axis.
 	local_addr = MMA8653FC_REG_OUT_Y_MSB;
 	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
@@ -114,7 +116,8 @@ MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z) {
 	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data |= (reg_data >> 6);
-	MATH_two_complement(data, 9, y);
+	math_status = MATH_two_complement(data, 9, y);
+	MATH_status_check(MMA8653FC_ERROR_BASE_MATH);
 	// Z-axis.
 	local_addr = MMA8653FC_REG_OUT_Z_MSB;
 	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
@@ -129,11 +132,11 @@ MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z) {
 	i2c1_status = I2C1_read(MMA8653FC_I2C_ADDRESS, &reg_data, 1);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
 	data |= (reg_data >> 6);
-	MATH_two_complement(data, 9, z);
+	math_status = MATH_two_complement(data, 9, z);
+	MATH_status_check(MMA8653FC_ERROR_BASE_MATH);
 errors:
 	return status;
 }
-
 
 /* SET MOTION INTERRUPT STATUS.
  * @param:	None.

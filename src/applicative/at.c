@@ -337,7 +337,8 @@ static void AT_adc_callback(void) {
 	AT_response_add_string("mV Vmcu=");
 	AT_response_add_value((int) voltage_mv, STRING_FORMAT_DECIMAL, 0);
 	// MCU temperature.
-	ADC1_get_tmcu(&tmcu_degrees);
+	adc1_status = ADC1_get_tmcu(&tmcu_degrees);
+	ADC1_error_check_print();
 	AT_response_add_string("mV Tmcu=");
 	AT_response_add_value((int) tmcu_degrees, STRING_FORMAT_DECIMAL, 0);
 	AT_response_add_string("dC");

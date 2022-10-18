@@ -406,7 +406,8 @@ int main (void) {
 			ADC1_error_check();
 			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &tkfx_ctx.vmcu_mv);
 			ADC1_error_check();
-			ADC1_get_tmcu(&temperature_degrees);
+			adc1_status = ADC1_get_tmcu(&temperature_degrees);
+			ADC1_error_check();
 			math_status = MATH_one_complement(temperature_degrees, 7, &generic_data_u32);
 			MATH_error_check();
 			tkfx_ctx.tmcu_degrees = (uint8_t) generic_data_u32;
