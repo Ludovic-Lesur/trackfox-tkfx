@@ -9,6 +9,7 @@
 
 #include "aes_reg.h"
 #include "rcc_reg.h"
+#include "types.h"
 
 /*** AES local macros ***/
 
@@ -34,11 +35,11 @@ void AES_init(void) {
  * @param key			AES key (16-bytes array).
  * @return status:		Function execution status.
  */
-AES_status_t AES_encrypt(unsigned char* data_in, unsigned char* data_out, unsigned char* init_vector, unsigned char* key) {
+AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* init_vector, uint8_t* key) {
 	// Local variables.
 	AES_status_t status = AES_SUCCESS;
-	unsigned char idx = 0;
-	unsigned int data_32bits = 0;
+	uint8_t idx = 0;
+	uint32_t data_32bits = 0;
 	unsigned loop_count = 0;
 	// Fill key.
 	AES -> KEYR3 = (key[0] << 24) | (key[1] << 16) | (key[2] << 8) | (key[3] << 0);

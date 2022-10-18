@@ -16,6 +16,7 @@
 #include "rcc.h"
 #include "rcc_reg.h"
 #include "usart_reg.h"
+#include "types.h"
 
 /*** USART local macros ***/
 
@@ -53,10 +54,10 @@ void __attribute__((optimize("-O0"))) USART2_IRQHandler(void) {
  * @param tx_byte:	Byte to append.
  * @return status:	Function execution status.
  */
-static USART_status_t USART2_fill_tx_buffer(unsigned char tx_byte) {
+static USART_status_t USART2_fill_tx_buffer(uint8_t tx_byte) {
 	// Local variables.
 	USART_status_t status = USART_SUCCESS;
-	unsigned int loop_count = 0;
+	uint32_t loop_count = 0;
 	// Fill transmit register.
 	USART2 -> TDR = tx_byte;
 	// Wait for transmission to complete.
@@ -95,7 +96,7 @@ void USART2_init(void) {
 	// Enable transmitter and receiver.
 	USART2 -> CR1 |= (0b1 << 5) | (0b11 << 2); // TE='1', RE='1' and RXNEIE='1'.
 	// Set interrupt priority.
-	NVIC_set_priority(NVIC_IT_USART2, 3);
+	NVIC_set_priority(NVIC_INTERRUPT_USART2, 3);
 	// Enable peripheral.
 	USART2 -> CR1 |= (0b11 << 0);
 #else
@@ -111,7 +112,7 @@ void USART2_init(void) {
  * @return:	None.
  */
 void USART2_enable_interrupt(void) {
-	NVIC_enable_interrupt(NVIC_IT_USART2);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_USART2);
 }
 #endif
 
@@ -121,7 +122,7 @@ void USART2_enable_interrupt(void) {
  * @return:	None.
  */
 void USART2_disable_interrupt(void) {
-	NVIC_disable_interrupt(NVIC_IT_USART2);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_USART2);
 }
 #endif
 
@@ -130,14 +131,14 @@ void USART2_disable_interrupt(void) {
  * @param tx_string:	Byte array to send.
  * @return status:		Function execution status.
  */
-USART_status_t USART2_send_string(char* tx_string) {
+USART_status_t USART2_send_string(char_t* tx_string) {
 	// Local variables.
 	USART_status_t status = USART_SUCCESS;
-	unsigned int char_count = 0;
+	uint32_t char_count = 0;
 	// Loop on all characters.
 	while (*tx_string) {
 		// Fill TX buffer with new byte.
-		status = USART2_fill_tx_buffer((unsigned char) *(tx_string++));
+		status = USART2_fill_tx_buffer((uint8_t) *(tx_string++));
 		if (status != USART_SUCCESS) break;
 		// Check char count.
 		char_count++;

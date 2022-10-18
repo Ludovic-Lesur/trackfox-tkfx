@@ -11,6 +11,7 @@
 #include "lptim.h"
 #include "s2lp_reg.h"
 #include "spi.h"
+#include "types.h"
 
 /*** S2LP macros ***/
 
@@ -195,8 +196,8 @@ typedef enum {
 
 // Generic structure for mantissa and exponent setting.
 typedef struct {
-	unsigned short mantissa;
-	unsigned char exponent;
+	uint16_t mantissa;
+	uint8_t exponent;
 } S2LP_mantissa_exponent_t;
 
 // FSK deviations (B=4 (high band) and D=1 (REFDIV=0)).
@@ -221,8 +222,8 @@ typedef enum {
 
 // SMPS setting.
 typedef struct {
-	unsigned char s2lp_smps_reg_pm_conf3;
-	unsigned char s2lp_smps_reg_pm_conf2;
+	uint8_t s2lp_smps_reg_pm_conf3;
+	uint8_t s2lp_smps_reg_pm_conf2;
 } S2LP_smps_setting_t;
 
 // SMPS frequencies.
@@ -234,8 +235,8 @@ typedef struct {
 // GPIOs functions.
 void S2LP_init(void);
 void S2LP_disable(void);
-S2LP_status_t S2LP_tcxo(unsigned char tcxo_enable);
-S2LP_status_t S2LP_shutdown(unsigned char shutdown_enable);
+S2LP_status_t S2LP_tcxo(uint8_t tcxo_enable);
+S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable);
 
 // Common functions.
 S2LP_status_t S2LP_send_command(S2LP_command_t command);
@@ -245,32 +246,32 @@ S2LP_status_t S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator);
 S2LP_status_t S2LP_configure_smps(S2LP_smps_setting_t smps_setting);
 S2LP_status_t S2LP_configure_charge_pump(void);
 S2LP_status_t S2LP_set_modulation(S2LP_modulation_t modulation);
-S2LP_status_t S2LP_set_rf_frequency(unsigned int rf_frequency_hz);
+S2LP_status_t S2LP_set_rf_frequency(uint32_t rf_frequency_hz);
 S2LP_status_t S2LP_set_fsk_deviation(S2LP_mantissa_exponent_t fsk_deviation_setting);
 S2LP_status_t S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting);
-S2LP_status_t S2LP_configure_gpio(unsigned char gpio_index, S2LP_gpio_mode_t gpio_mode, unsigned char gpio_function, S2LP_fifo_flag_direction_t fifo_flag_direction);
-S2LP_status_t S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, unsigned char threshold_value);
-S2LP_status_t S2LP_configure_irq(S2LP_irq_index_t irq_idx, unsigned char irq_enable);
+S2LP_status_t S2LP_configure_gpio(uint8_t gpio_index, S2LP_gpio_mode_t gpio_mode, uint8_t gpio_function, S2LP_fifo_flag_direction_t fifo_flag_direction);
+S2LP_status_t S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, uint8_t threshold_value);
+S2LP_status_t S2LP_configure_irq(S2LP_irq_index_t irq_index, uint8_t irq_enable);
 S2LP_status_t S2LP_clear_irq_flags(void);
 
 // Packet functions.
-S2LP_status_t S2LP_set_packet_length(unsigned char packet_length_bytes);
-S2LP_status_t S2LP_set_preamble_detector(unsigned char preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern);
-S2LP_status_t S2LP_set_sync_word(unsigned char* sync_word, unsigned char sync_word_length_bits);
+S2LP_status_t S2LP_set_packet_length(uint8_t packet_length_bytes);
+S2LP_status_t S2LP_set_preamble_detector(uint8_t preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern);
+S2LP_status_t S2LP_set_sync_word(uint8_t* sync_word, uint8_t sync_word_length_bits);
 S2LP_status_t S2LP_disable_crc(void);
 
 // TX functions.
 S2LP_status_t S2LP_configure_pa(void);
-S2LP_status_t S2LP_set_rf_output_power(signed char output_power_dbm);
+S2LP_status_t S2LP_set_rf_output_power(int8_t output_power_dbm);
 S2LP_status_t S2LP_set_tx_source(S2LP_tx_source_t tx_source);
-S2LP_status_t S2LP_write_fifo(unsigned char* tx_data, unsigned char tx_data_length_bytes);
+S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes);
 
 // RX functions.
 S2LP_status_t S2LP_set_rx_source(S2LP_rx_source_t rx_source);
 S2LP_status_t S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
 S2LP_status_t S2LP_disable_equa_cs_ant_switch(void);
-S2LP_status_t S2LP_get_rssi(signed short* rssi_dbm);
-S2LP_status_t S2LP_read_fifo(unsigned char* rx_data, unsigned char rx_data_length_bytes);
+S2LP_status_t S2LP_get_rssi(int16_t* rssi_dbm);
+S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes);
 
 #define S2LP_status_check(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = error_base + s2lp_status; goto errors; }}
 #define S2LP_error_check() { ERROR_status_check(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP); }

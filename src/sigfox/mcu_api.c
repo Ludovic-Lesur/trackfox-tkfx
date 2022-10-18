@@ -97,8 +97,8 @@ sfx_u8 MCU_API_free(sfx_u8* ptr) {
 sfx_u8 MCU_API_get_voltage_temperature(sfx_u16* voltage_idle, sfx_u16* voltage_tx, sfx_s16* temperature) {
 	// Local variables.
 	ADC_status_t adc1_status = ADC_SUCCESS;
-	unsigned int mcu_supply_voltage_mv = 0;
-	signed char mcu_temperature_degrees = 0;
+	uint32_t mcu_supply_voltage_mv = 0;
+	int8_t mcu_temperature_degrees = 0;
 	// Perform measurements.
 	adc1_status = ADC1_power_on();
 	if (adc1_status != ADC_SUCCESS) goto errors;
@@ -186,13 +186,13 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 	// Local variables.
 	NVM_status_t nvm_status = NVM_SUCCESS;
 	AES_status_t aes_status = AES_SUCCESS;
-	unsigned char byte_idx = 0;
-	unsigned char local_key[AES_BLOCK_SIZE] = {0};
-	unsigned char init_vector[AES_BLOCK_SIZE] = {0};
-	unsigned char data_in[AES_BLOCK_SIZE] = {0};
-	unsigned char data_out[AES_BLOCK_SIZE] = {0};
-	unsigned char block_idx;
-	unsigned char key_byte = 0;
+	uint8_t byte_idx = 0;
+	uint8_t local_key[AES_BLOCK_SIZE] = {0};
+	uint8_t init_vector[AES_BLOCK_SIZE] = {0};
+	uint8_t data_in[AES_BLOCK_SIZE] = {0};
+	uint8_t data_out[AES_BLOCK_SIZE] = {0};
+	uint8_t block_idx;
+	uint8_t key_byte = 0;
 	// Get accurate key.
 	switch (use_key) {
 		case CREDENTIALS_PRIVATE_KEY:
@@ -409,8 +409,8 @@ sfx_u8 MCU_API_timer_stop_carrier_sense(void) {
 sfx_u8 MCU_API_timer_wait_for_end(void) {
 	// Local variables.
 	RTC_status_t rtc_status = RTC_SUCCESS;
-	unsigned int remaining_delay = mcu_api_ctx.timer_duration_seconds;
-	unsigned int sub_delay = 0;
+	uint32_t remaining_delay = mcu_api_ctx.timer_duration_seconds;
+	uint32_t sub_delay = 0;
 	// Clear watchdog.
 	IWDG_reload();
 	// Enter stop mode until GPIO interrupt or RTC wake-up.
@@ -487,7 +487,7 @@ sfx_u8 MCU_API_get_version(sfx_u8** version, sfx_u8* size) {
 sfx_u8 MCU_API_get_device_id_and_payload_encryption_flag(sfx_u8 dev_id[ID_LENGTH], sfx_bool* payload_encryption_enabled) {
 	// Local variables.
 	NVM_status_t nvm_status = NVM_SUCCESS;
-	unsigned char byte_idx = 0;
+	uint8_t byte_idx = 0;
 	// No payload encryption.
 	(*payload_encryption_enabled) = SFX_FALSE;
 	// Get device ID.

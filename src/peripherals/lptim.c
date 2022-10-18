@@ -14,6 +14,7 @@
 #include "pwr.h"
 #include "rcc.h"
 #include "rcc_reg.h"
+#include "types.h"
 
 /*** LPTIM local macros ***/
 
@@ -23,8 +24,8 @@
 
 /*** LPTIM local global variables ***/
 
-static unsigned int lptim_clock_frequency_hz = 0;
-static volatile unsigned char lptim_wake_up = 0;
+static uint32_t lptim_clock_frequency_hz = 0;
+static volatile uint8_t lptim_wake_up = 0;
 
 /*** LPTIM local functions ***/
 
@@ -48,10 +49,10 @@ void __attribute__((optimize("-O0"))) LPTIM1_IRQHandler(void) {
  * @param arr_value:	ARR register value to write.
  * @return status:		Function execution status.
  */
-static LPTIM_status_t LPTIM1_write_arr(unsigned int arr_value) {
+static LPTIM_status_t _LPTIM1_write_arr(uint32_t arr_value) {
 	// Local variables.
 	LPTIM_status_t status = LPTIM_SUCCESS;
-	unsigned int loop_count = 0;
+	uint32_t loop_count = 0;
 	// Reset bits.
 	LPTIM1 -> ICR |= (0b1 << 4);
 	LPTIM1 -> ARR &= 0xFFFF0000;
@@ -85,7 +86,7 @@ errors:
  * @param lsi_freq_hz:	Effective LSI oscillator frequency.
  * @return:				None.
  */
-void LPTIM1_init(unsigned int lsi_freq_hz) {
+void LPTIM1_init(uint32_t lsi_freq_hz) {
 	// Configure clock source.
 	RCC -> CCIPR &= ~(0b11 << 18); // Reset bits 18-19.
 	RCC -> CCIPR |= (0b01 << 18); // LPTIMSEL='01' (LSI clock selected).
@@ -98,7 +99,7 @@ void LPTIM1_init(unsigned int lsi_freq_hz) {
 	LPTIM1 -> IER |= (0b1 << 1); // ARRMIE='1'.
 	EXTI_configure_line(EXTI_LINE_LPTIM1, EXTI_TRIGGER_RISING_EDGE);
 	// Set interrupt priority.
-	NVIC_set_priority(NVIC_IT_LPTIM1, 2);
+	NVIC_set_priority(NVIC_INTERRUPT_LPTIM1, 2);
 }
 
 /* DELAY FUNCTION.
@@ -106,10 +107,10 @@ void LPTIM1_init(unsigned int lsi_freq_hz) {
  * @param stop_mode:	Enter stop mode during delay if non zero, block without interrupt otherwise.
  * @return status:		Function execution status.
  */
-LPTIM_status_t LPTIM1_delay_milliseconds(unsigned int delay_ms, unsigned char stop_mode) {
+LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, uint8_t stop_mode) {
 	// Local variables.
 	LPTIM_status_t status = LPTIM_SUCCESS;
-	unsigned int arr = 0;
+	uint32_t arr = 0;
 	// Check delay.
 	if ((delay_ms > LPTIM_DELAY_MS_MAX) || ((delay_ms > (IWDG_REFRESH_PERIOD_SECONDS * 1000)) && (stop_mode != 0))) {
 		status = LPTIM_ERROR_DELAY_OVERFLOW;
@@ -126,12 +127,12 @@ LPTIM_status_t LPTIM1_delay_milliseconds(unsigned int delay_ms, unsigned char st
 	LPTIM1 -> ICR |= (0b1111111 << 0);
 	// Compute ARR value.
 	arr = ((delay_ms * lptim_clock_frequency_hz) / (1000)) & 0x0000FFFF;
-	status = LPTIM1_write_arr(arr);
+	status = _LPTIM1_write_arr(arr);
 	if (status != LPTIM_SUCCESS) goto errors;
 	// Perform delay with the selected mode.
 	if (stop_mode != 0) {
 		// Enable interrupt.
-		NVIC_enable_interrupt(NVIC_IT_LPTIM1);
+		NVIC_enable_interrupt(NVIC_INTERRUPT_LPTIM1);
 		lptim_wake_up = 0;
 		// Start timer.
 		LPTIM1 -> CR |= (0b1 << 1); // SNGSTRT='1'.
@@ -139,7 +140,7 @@ LPTIM_status_t LPTIM1_delay_milliseconds(unsigned int delay_ms, unsigned char st
 		while (lptim_wake_up == 0) {
 			PWR_enter_stop_mode();
 		}
-		NVIC_disable_interrupt(NVIC_IT_LPTIM1);
+		NVIC_disable_interrupt(NVIC_INTERRUPT_LPTIM1);
 	}
 	else {
 		// Start timer.

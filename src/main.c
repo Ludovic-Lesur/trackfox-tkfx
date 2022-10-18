@@ -32,6 +32,8 @@
 #include "s2lp.h"
 #include "sht3x.h"
 #include "sigfox_types.h"
+// Utils.
+#include "types.h"
 // Applicative.
 #include "at.h"
 #include "error.h"
@@ -88,20 +90,20 @@ typedef union {
 		unsigned alarm_flag : 1;
 		unsigned tracker_mode : 2;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
-	unsigned char all;
+	uint8_t all;
 } TKFX_status_t;
 
 typedef union {
 	struct {
 		unsigned por : 1;
 		unsigned geoloc_timeout : 1;
-	};
-	unsigned char all;
+	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));;
+	uint8_t all;
 } TKFX_flags_t;
 
 // Sigfox start-up frame data format.
 typedef union {
-	unsigned char frame[TKFX_SIGFOX_STARTUP_DATA_LENGTH];
+	uint8_t frame[TKFX_SIGFOX_STARTUP_DATA_LENGTH];
 	struct {
 		unsigned reset_reason : 8;
 		unsigned major_version : 8;
@@ -114,7 +116,7 @@ typedef union {
 
 // Sigfox monitoring frame data format.
 typedef union {
-	unsigned char frame[TKFX_SIGFOX_MONITORING_DATA_LENGTH];
+	uint8_t frame[TKFX_SIGFOX_MONITORING_DATA_LENGTH];
 	struct {
 		unsigned tamb_degrees : 8;
 		unsigned hamb_degrees : 8;
@@ -128,7 +130,7 @@ typedef union {
 
 // Sigfox geoloc frame data format.
 typedef union {
-	unsigned char frame[TKFX_SIGFOX_GEOLOC_DATA_LENGTH];
+	uint8_t frame[TKFX_SIGFOX_GEOLOC_DATA_LENGTH];
 	struct {
 		unsigned latitude_degrees : 8;
 		unsigned latitude_minutes : 6;
@@ -144,17 +146,17 @@ typedef union {
 } TKFX_sigfox_geoloc_data_t;
 
 typedef struct {
-	unsigned int vcap_min_mv;
-	unsigned int geoloc_timeout_seconds;
+	uint32_t vcap_min_mv;
+	uint32_t geoloc_timeout_seconds;
 #ifdef SSM
-	unsigned int start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start conidition (set to 0 to disable filter).
-	unsigned int stop_detection_threshold_seconds; // Delay required to trigger stop condition.
-	unsigned int keep_alive_period_seconds;
-	unsigned int inactivity_geoloc_enabled; // If non zero, force a GPS fix after an inactivity period.
-	unsigned int inactivity_threshold_seconds;
+	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start conidition (set to 0 to disable filter).
+	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
+	uint32_t keep_alive_period_seconds;
+	uint32_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after an inactivity period.
+	uint32_t inactivity_threshold_seconds;
 #endif
 #ifdef PM
-	unsigned int geoloc_period_seconds;
+	uint32_t geoloc_period_seconds;
 #endif
 } TKFX_config_t;
 
@@ -168,35 +170,35 @@ typedef struct {
 	const TKFX_config_t* config;
 #endif
 	// Clocks.
-	unsigned int lsi_frequency_hz;
-	unsigned char lse_running;
+	uint32_t lsi_frequency_hz;
+	uint8_t lse_running;
 	// Wake-up management.
 #ifdef SSM
-	unsigned int start_detection_irq_count;
-	unsigned int stop_detection_timer_seconds;
-	unsigned int keep_alive_timer_seconds;
+	uint32_t start_detection_irq_count;
+	uint32_t stop_detection_timer_seconds;
+	uint32_t keep_alive_timer_seconds;
 #endif
-	unsigned int geoloc_timer_seconds;
+	uint32_t geoloc_timer_seconds;
 	// SW version.
 	TKFX_sigfox_startup_data_t sigfox_startup_data;
 	// Monitoring.
 	TKFX_status_t status;
-	unsigned char tamb_degrees;
-	unsigned char tmcu_degrees;
-	unsigned int vsrc_mv;
-	unsigned int vcap_mv;
-	unsigned int vmcu_mv;
+	uint8_t tamb_degrees;
+	uint8_t tmcu_degrees;
+	uint32_t vsrc_mv;
+	uint32_t vcap_mv;
+	uint32_t vmcu_mv;
 	TKFX_sigfox_monitoring_data_t sigfox_monitoring_data;
 	// Geoloc.
 	NEOM8N_position_t geoloc_position;
-	unsigned int geoloc_fix_duration_seconds;
+	uint32_t geoloc_fix_duration_seconds;
 	TKFX_sigfox_geoloc_data_t sigfox_geoloc_data;
 	// Error stack.
 	ERROR_t error_stack[ERROR_STACK_DEPTH];
-	unsigned char sigfox_error_stack_data[TKFX_SIGFOX_ERROR_STACK_DATA_LENGTH];
+	uint8_t sigfox_error_stack_data[TKFX_SIGFOX_ERROR_STACK_DATA_LENGTH];
 	// Sigfox.
 	sfx_rc_t sigfox_rc;
-	unsigned char sigfox_downlink_data[TKFX_SIGFOX_DOWNLINK_DATA_LENGTH];
+	uint8_t sigfox_downlink_data[TKFX_SIGFOX_DOWNLINK_DATA_LENGTH];
 } TKFX_context_t;
 
 /*** MAIN global variables ***/
@@ -337,9 +339,9 @@ int main (void) {
 	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;
 	NEOM8N_status_t neom8n_status = NEOM8N_SUCCESS;
 	sfx_error_t sigfox_api_status = SFX_ERR_NONE;
-	unsigned char idx = 0;
-	signed char temperature_degrees = 0;
-	unsigned int generic_data_u32 = 0;
+	uint8_t idx = 0;
+	int8_t temperature_degrees = 0;
+	uint32_t generic_data_u32 = 0;
 	// Main loop.
 	while (1) {
 		// Perform state machine.
@@ -375,7 +377,7 @@ int main (void) {
 #ifdef SSM
 			// Disable accelerometer interrupt.
 			MMA8653FC_clear_motion_interrupt_flag();
-			NVIC_disable_interrupt(NVIC_IT_EXTI_0_1);
+			NVIC_disable_interrupt(NVIC_INTERRUPT_EXTI_0_1);
 #endif
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_MEASURE;
@@ -391,7 +393,7 @@ int main (void) {
 			SHT3X_get_temperature(&temperature_degrees);
 			math_status = MATH_one_complement(temperature_degrees, 7, &generic_data_u32);
 			MATH_error_check();
-			tkfx_ctx.tamb_degrees = (unsigned char) generic_data_u32;
+			tkfx_ctx.tamb_degrees = (uint8_t) generic_data_u32;
 			// Get voltages measurements.
 			adc1_status = ADC1_power_on();
 			ADC1_error_check();
@@ -407,7 +409,7 @@ int main (void) {
 			ADC1_get_tmcu(&temperature_degrees);
 			math_status = MATH_one_complement(temperature_degrees, 7, &generic_data_u32);
 			MATH_error_check();
-			tkfx_ctx.tmcu_degrees = (unsigned char) generic_data_u32;
+			tkfx_ctx.tmcu_degrees = (uint8_t) generic_data_u32;
 			// Get GPS backup status.
 			tkfx_ctx.status.gps_backup_status = NEOM8N_get_backup();
 			// Compute next state.
@@ -587,7 +589,7 @@ int main (void) {
 			if (tkfx_ctx.status.accelerometer_status != 0) {
 				// Enable interrupt.
 				MMA8653FC_clear_motion_interrupt_flag();
-				NVIC_enable_interrupt(NVIC_IT_EXTI_0_1);
+				NVIC_enable_interrupt(NVIC_INTERRUPT_EXTI_0_1);
 			}
 #endif
 			// Enter sleep mode.

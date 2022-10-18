@@ -12,6 +12,7 @@
 #include "mapping.h"
 #include "rcc_reg.h"
 #include "spi_reg.h"
+#include "types.h"
 
 /*** SPI local macros ***/
 
@@ -83,10 +84,10 @@ void SPI1_power_off(void) {
  * @param tx_data:	Data to send (8-bits).
  * @return status:	Function execution status.
  */
-SPI_status_t SPI1_write_byte(unsigned char tx_data) {
+SPI_status_t SPI1_write_byte(uint8_t tx_data) {
 	// Local variables.
 	SPI_status_t status = SPI_SUCCESS;
-	unsigned int loop_count = 0;
+	uint32_t loop_count = 0;
 	// Wait for TXE flag.
 	while (((SPI1 -> SR) & (0b1 << 1)) == 0) {
 		// Wait for TXE='1' or timeout.
@@ -97,7 +98,7 @@ SPI_status_t SPI1_write_byte(unsigned char tx_data) {
 		}
 	}
 	// Send data.
-	*((volatile unsigned char*) &(SPI1 -> DR)) = tx_data;
+	*((volatile uint8_t*) &(SPI1 -> DR)) = tx_data;
 errors:
 	return status;
 }
@@ -106,12 +107,12 @@ errors:
  * @param rx_data:	Pointer to byte that will contain the data to read (8-bits).
  * @return status:	Function execution status.
  */
-SPI_status_t SPI1_read_byte(unsigned char tx_data, unsigned char* rx_data) {
+SPI_status_t SPI1_read_byte(uint8_t tx_data, uint8_t* rx_data) {
 	// Local variables.
 	SPI_status_t status = SPI_SUCCESS;
-	unsigned int loop_count = 0;
+	uint32_t loop_count = 0;
 	// Dummy read to DR to clear RXNE flag.
-	(*rx_data) = *((volatile unsigned char*) &(SPI1 -> DR));
+	(*rx_data) = *((volatile uint8_t*) &(SPI1 -> DR));
 	// Wait for TXE flag.
 	while (((SPI1 -> SR) & (0b1 << 1)) == 0) {
 		// Wait for TXE='1' or timeout.
@@ -122,7 +123,7 @@ SPI_status_t SPI1_read_byte(unsigned char tx_data, unsigned char* rx_data) {
 		}
 	}
 	// Send dummy data on MOSI to generate clock.
-	*((volatile unsigned char*) &(SPI1 -> DR)) = tx_data;
+	*((volatile uint8_t*) &(SPI1 -> DR)) = tx_data;
 	// Wait for incoming data.
 	loop_count = 0;
 	while (((SPI1 -> SR) & (0b1 << 0)) == 0) {
@@ -133,7 +134,7 @@ SPI_status_t SPI1_read_byte(unsigned char tx_data, unsigned char* rx_data) {
 			goto errors;
 		}
 	}
-	(*rx_data) = *((volatile unsigned char*) &(SPI1 -> DR));
+	(*rx_data) = *((volatile uint8_t*) &(SPI1 -> DR));
 errors:
 	return status;
 }

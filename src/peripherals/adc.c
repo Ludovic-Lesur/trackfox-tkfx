@@ -13,6 +13,7 @@
 #include "mapping.h"
 #include "math.h"
 #include "rcc_reg.h"
+#include "types.h"
 
 /*** ADC local macros ***/
 
@@ -36,9 +37,9 @@
 /*** ADC local structures ***/
 
 typedef struct {
-	unsigned int lm4040_12bits;
-	unsigned int data[ADC_DATA_INDEX_LAST];
-	signed char tmcu_degrees;
+	uint32_t lm4040_12bits;
+	uint32_t data[ADC_DATA_INDEX_LAST];
+	int8_t tmcu_degrees;
 } ADC_context_t;
 
 /*** ADC local global variables ***/
@@ -52,10 +53,10 @@ static ADC_context_t adc_ctx;
  * @param adc_result_12bits:	Pointer to int that will contain ADC raw result on 12 bits.
  * @return status:				Function execution status.
  */
-static ADC_status_t ADC1_single_conversion(unsigned char adc_channel, unsigned int* adc_result_12bits) {
+static ADC_status_t _ADC1_single_conversion(uint8_t adc_channel, uint32_t* adc_result_12bits) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
-	unsigned int loop_count = 0;
+	uint32_t loop_count = 0;
 	// Select input channel.
 	ADC1 -> CHSELR &= 0xFFF80000; // Reset all bits.
 	ADC1 -> CHSELR |= (0b1 << adc_channel);
@@ -81,18 +82,19 @@ errors:
  * @param adc_result_12bits:	Pointer to int that will contain ADC filtered result on 12 bits.
  * @return status:				Function execution status.
  */
-static ADC_status_t ADC1_filtered_conversion(unsigned char adc_channel, unsigned int* adc_result_12bits) {
+static ADC_status_t _ADC1_filtered_conversion(uint8_t adc_channel, uint32_t* adc_result_12bits) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
-	unsigned int adc_sample_buf[ADC_MEDIAN_FILTER_LENGTH] = {0x00};
-	unsigned char idx = 0;
+	MATH_status_t math_status = MATH_SUCCESS;
+	uint32_t adc_sample_buf[ADC_MEDIAN_FILTER_LENGTH] = {0x00};
+	uint8_t idx = 0;
 	// Perform all conversions.
 	for (idx=0 ; idx<ADC_MEDIAN_FILTER_LENGTH ; idx++) {
-		status = ADC1_single_conversion(adc_channel, &(adc_sample_buf[idx]));
+		status = _ADC1_single_conversion(adc_channel, &(adc_sample_buf[idx]));
 		if (status != ADC_SUCCESS) goto errors;
 	}
 	// Apply median filter.
-	(*adc_result_12bits) = MATH_median_filter_u32(adc_sample_buf, ADC_MEDIAN_FILTER_LENGTH, ADC_CENTER_AVERAGE_LENGTH);
+	math_status = MATH_median_filter_u32(adc_sample_buf, ADC_MEDIAN_FILTER_LENGTH, ADC_CENTER_AVERAGE_LENGTH, adc_result_12bits);
 errors:
 	return status;
 }
@@ -105,7 +107,7 @@ static ADC_status_t ADC1_compute_lm4040(void) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
 	// Read raw reference voltage.
-	status = ADC1_filtered_conversion(ADC_CHANNEL_LM4040, &adc_ctx.lm4040_12bits);
+	status = _ADC1_filtered_conversion(ADC_CHANNEL_LM4040, &adc_ctx.lm4040_12bits);
 	return status;
 }
 
@@ -113,7 +115,7 @@ static ADC_status_t ADC1_compute_lm4040(void) {
  * @param:			None.
  * @return status:	Function execution status.
  */
-static void ADC1_compute_vmcu(void) {
+static void _ADC1_compute_vmcu(void) {
 	// Retrieve supply voltage from bandgap result.
 	adc_ctx.data[ADC_DATA_INDEX_VMCU_MV] = (ADC_LM4040_VOLTAGE_MV * ADC_FULL_SCALE_12BITS) / (adc_ctx.lm4040_12bits);
 }
@@ -122,14 +124,14 @@ static void ADC1_compute_vmcu(void) {
  * @param:			None.
  * @return status:	Function execution status.
  */
-static ADC_status_t ADC1_compute_tmcu(void) {
+static ADC_status_t _ADC1_compute_tmcu(void) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
-	unsigned int raw_temp_sensor_12bits = 0;
+	uint32_t raw_temp_sensor_12bits = 0;
 	int raw_temp_calib_mv = 0;
 	int temp_calib_degrees = 0;
 	// Read raw temperature.
-	status = ADC1_filtered_conversion(ADC_CHANNEL_TMCU, &raw_temp_sensor_12bits);
+	status = _ADC1_filtered_conversion(ADC_CHANNEL_TMCU, &raw_temp_sensor_12bits);
 	if (status != ADC_SUCCESS) goto errors;
 	// Compute temperature according to MCU factory calibration (see p.301 and p.847 of RM0377 datasheet).
 	raw_temp_calib_mv = ((int) raw_temp_sensor_12bits * adc_ctx.data[ADC_DATA_INDEX_VMCU_MV]) / (TS_VCC_CALIB_MV) - TS_CAL1; // Equivalent raw measure for calibration power supply (VCC_CALIB).
@@ -147,9 +149,9 @@ errors:
 static ADC_status_t ADC1_compute_vsrc(void) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
-	unsigned int vsrc_12bits = 0;
+	uint32_t vsrc_12bits = 0;
 	// Get raw result.
-	status = ADC1_filtered_conversion(ADC_CHANNEL_VSRC, &vsrc_12bits);
+	status = _ADC1_filtered_conversion(ADC_CHANNEL_VSRC, &vsrc_12bits);
 	if (status != ADC_SUCCESS) goto errors;
 	// Convert to mV using bandgap result.
 	adc_ctx.data[ADC_DATA_INDEX_VSRC_MV] = (ADC_LM4040_VOLTAGE_MV * vsrc_12bits * ADC_VOLTAGE_DIVIDER_RATIO_VSRC) / (adc_ctx.lm4040_12bits);
@@ -164,9 +166,9 @@ errors:
 static ADC_status_t ADC1_compute_vcap(void) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
-	unsigned int vcap_12bits = 0;
+	uint32_t vcap_12bits = 0;
 	// Get raw result.
-	status = ADC1_filtered_conversion(ADC_CHANNEL_VCAP, &vcap_12bits);
+	status = _ADC1_filtered_conversion(ADC_CHANNEL_VCAP, &vcap_12bits);
 	if (status != ADC_SUCCESS) goto errors;
 	// Convert to mV using bandgap result.
 	adc_ctx.data[ADC_DATA_INDEX_VCAP_MV] = (ADC_LM4040_VOLTAGE_MV * vcap_12bits) / (adc_ctx.lm4040_12bits);
@@ -184,8 +186,8 @@ ADC_status_t ADC1_init(void) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
 	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
-	unsigned char idx = 0;
-	unsigned int loop_count = 0;
+	uint8_t idx = 0;
+	uint32_t loop_count = 0;
 	// Init context.
 	adc_ctx.lm4040_12bits = 0;
 	for (idx=0 ; idx<ADC_DATA_INDEX_LAST ; idx++) adc_ctx.data[idx] = 0;
@@ -256,7 +258,7 @@ ADC_status_t ADC1_perform_measurements(void) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
 	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
-	unsigned int loop_count = 0;
+	uint32_t loop_count = 0;
 	// Enable ADC peripheral.
 	ADC1 -> CR |= (0b1 << 0); // ADEN='1'.
 	while (((ADC1 -> ISR) & (0b1 << 0)) == 0) {
@@ -275,8 +277,8 @@ ADC_status_t ADC1_perform_measurements(void) {
 	// Perform measurements.
 	status = ADC1_compute_lm4040();
 	if (status != ADC_SUCCESS) goto errors;
-	ADC1_compute_vmcu();
-	status = ADC1_compute_tmcu();
+	_ADC1_compute_vmcu();
+	status = _ADC1_compute_tmcu();
 	if (status != ADC_SUCCESS) goto errors;
 	status = ADC1_compute_vsrc();
 	if (status != ADC_SUCCESS) goto errors;
@@ -294,7 +296,7 @@ errors:
  * @param data:		Pointer that will contain ADC data.
  * @return status:	Function execution status.
  */
-ADC_status_t ADC1_get_data(ADC_data_index_t data_idx, unsigned int* data) {
+ADC_status_t ADC1_get_data(ADC_data_index_t data_idx, uint32_t* data) {
 	// Local variables.
 	ADC_status_t status = ADC_SUCCESS;
 	// Check index.
@@ -311,6 +313,6 @@ errors:
  * @param tmcu_degrees:	Pointer to signed value that will contain MCU temperature in degrees (2-complement).
  * @return:				None.
  */
-void ADC1_get_tmcu(signed char* tmcu_degrees) {
+void ADC1_get_tmcu(int8_t* tmcu_degrees) {
 	(*tmcu_degrees) = adc_ctx.tmcu_degrees;
 }

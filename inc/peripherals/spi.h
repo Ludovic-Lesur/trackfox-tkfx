@@ -9,6 +9,7 @@
 #define __SPI_H__
 
 #include "lptim.h"
+#include "types.h"
 
 /*** SPI structures ***/
 
@@ -25,8 +26,8 @@ typedef enum {
 void SPI1_init(void);
 SPI_status_t SPI1_power_on(void);
 void SPI1_power_off(void);
-SPI_status_t SPI1_write_byte(unsigned char tx_data);
-SPI_status_t SPI1_read_byte(unsigned char tx_data, unsigned char* rx_data);
+SPI_status_t SPI1_write_byte(uint8_t tx_data);
+SPI_status_t SPI1_read_byte(uint8_t tx_data, uint8_t* rx_data);
 
 #define SPI1_status_check(error_base) { if (spi_status != SPI_SUCCESS) { status = error_base + spi_status; goto errors; }}
 #define SPI1_error_check() { ERROR_status_check(spi_status, SPI_SUCCESS, ERROR_BASE_SPI1); }

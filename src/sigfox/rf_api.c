@@ -35,9 +35,9 @@
 #define RF_API_UPLINK_DEVIATION_100BPS			S2LP_FDEV_2KHZ // 1 / (2 * Delta_f) = 1 / 4kHz.
 
 // Ramp profile table is written for ramp-down direction (reverse table for ramp up).
-static const unsigned char RF_API_RAMP_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PROFILE_LENGTH_BYTES] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 20, 22, 24, 27, 30, 34, 39, 45, 54, 80, 120, 220};
+static const uint8_t RF_API_RAMP_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PROFILE_LENGTH_BYTES] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 20, 22, 24, 27, 30, 34, 39, 45, 54, 80, 120, 220};
 // Ampltude profile table for bit 0 transmission.
-static const unsigned char RF_API_BIT0_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PROFILE_LENGTH_BYTES] = {1, 1, 1, 1, 1, 1, 2, 2, 3, 4, 6, 8, 11, 15, 20, 24, 30, 39, 54, 220, 220, 54, 39, 30, 24, 20, 15, 11, 8, 6, 4, 3, 2, 2, 1, 1, 1, 1, 1, 1};
+static const uint8_t RF_API_BIT0_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PROFILE_LENGTH_BYTES] = {1, 1, 1, 1, 1, 1, 2, 2, 3, 4, 6, 8, 11, 15, 20, 24, 30, 39, 54, 220, 220, 54, 39, 30, 24, 20, 15, 11, 8, 6, 4, 3, 2, 2, 1, 1, 1, 1, 1, 1};
 
 #define RF_API_DOWNLINK_DATARATE				S2LP_DATARATE_600BPS
 #define RF_API_DOWNLINK_DEVIATION				S2LP_FDEV_800HZ
@@ -47,14 +47,14 @@ static const unsigned char RF_API_BIT0_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PRO
 #define RF_API_DOWNLINK_TIMEOUT_SECONDS			25
 #define RF_API_DOWNLINK_PREAMBLE_LENGTH_BITS	32 // 0xAAAAAAAA.
 #define RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS	16 // 0xB227.
-static unsigned char RF_API_DOWNLINK_SYNC_WORD[(RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS / 8)] = {0xB2, 0x27};
+static uint8_t RF_API_DOWNLINK_SYNC_WORD[(RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS / 8)] = {0xB2, 0x27};
 
 /*** RF API local structures ***/
 
 typedef struct {
-	unsigned char s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES];
-	volatile unsigned char s2lp_irq_flag;
-	signed char cw_output_power;
+	uint8_t s2lp_fifo_buffer[RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES];
+	volatile uint8_t s2lp_irq_flag;
+	int8_t cw_output_power;
 } RF_api_context_t;
 
 /*** RF API local global variables ***/
@@ -221,10 +221,10 @@ errors:
 sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Local variables.
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
-	unsigned char stream_byte_idx = 0;
-	unsigned char stream_bit_idx = 0;
-	unsigned char s2lp_fifo_sample_idx = 0;
-	unsigned char s2lp_fdev = RF_API_S2LP_FDEV_NEGATIVE; // Effective deviation.
+	uint8_t stream_byte_idx = 0;
+	uint8_t stream_bit_idx = 0;
+	uint8_t s2lp_fifo_sample_idx = 0;
+	uint8_t s2lp_fdev = RF_API_S2LP_FDEV_NEGATIVE; // Effective deviation.
 	// Go to ready state.
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_READY);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
@@ -240,7 +240,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	// Enable external GPIO interrupt.
 	EXTI_clear_all_flags();
-	NVIC_enable_interrupt(NVIC_IT_EXTI_4_15);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
 	// Start radio
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_TX);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
@@ -292,7 +292,7 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 	// Enter stop and wait for S2LP interrupt.
 	PWR_enter_stop_mode();
 	// Disable external GPIO interrupt.
-	NVIC_disable_interrupt(NVIC_IT_EXTI_4_15);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
 	// Stop radio.
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_SABORT);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
@@ -407,9 +407,9 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	// Local variables.
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	RTC_status_t rtc_status = RTC_SUCCESS;
-	signed short rssi_dbm = 0;
-	unsigned int remaining_delay = RF_API_DOWNLINK_TIMEOUT_SECONDS;
-	unsigned int sub_delay = 0;
+	int16_t rssi_dbm = 0;
+	uint32_t remaining_delay = RF_API_DOWNLINK_TIMEOUT_SECONDS;
+	uint32_t sub_delay = 0;
 	// Init state.
 	(*state) = DL_TIMEOUT;
 	// Go to ready state.
@@ -426,7 +426,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	// Enable external GPIO.
 	EXTI_clear_all_flags();
-	NVIC_enable_interrupt(NVIC_IT_EXTI_4_15);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
 	rf_api_ctx.s2lp_irq_flag = 0;
 	// Clear watchdog.
 	IWDG_reload();
@@ -450,7 +450,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	// Wake-up: disable interrupts.
 	rtc_status = RTC_stop_wakeup_timer();
 	if (rtc_status != RTC_SUCCESS) goto errors;
-	NVIC_disable_interrupt(NVIC_IT_EXTI_4_15);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
 	// Check flag.
 	if (rf_api_ctx.s2lp_irq_flag != 0) {
 		// Downlink frame received.
@@ -539,6 +539,6 @@ void RF_API_set_irq_flag(void) {
  *
  * \retval none
  *******************************************************************/
-void RF_API_set_cw_output_power(signed char tx_output_power) {
+void RF_API_set_cw_output_power(int8_t tx_output_power) {
 	rf_api_ctx.cw_output_power = tx_output_power;
 }

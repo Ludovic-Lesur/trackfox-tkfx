@@ -11,6 +11,7 @@
 #include "rcc.h"
 #include "rcc_reg.h"
 #include "tim_reg.h"
+#include "types.h"
 
 /*** TIM local macros ***/
 
@@ -18,7 +19,7 @@
 
 /*** TIM local global variables ***/
 
-static volatile unsigned char tim21_flag = 0;
+static volatile uint8_t tim21_flag = 0;
 
 /*** TIM local functions ***/
 
@@ -62,19 +63,19 @@ void TIM21_init(void) {
  * @param lsi_frequency_hz:		Pointer that will contain measured LSI frequency in Hz.
  * @return status:				Function execution status.
  */
-TIM_status_t TIM21_get_lsi_frequency(unsigned int* lsi_frequency_hz) {
+TIM_status_t TIM21_get_lsi_frequency(uint32_t* lsi_frequency_hz) {
 	// Local variables.
 	TIM_status_t status = TIM_SUCCESS;
-	unsigned char tim21_interrupt_count = 0;
-	unsigned int tim21_ccr1_edge1 = 0;
-	unsigned int tim21_ccr1_edge8 = 0;
-	unsigned int loop_count = 0;
+	uint8_t tim21_interrupt_count = 0;
+	uint32_t tim21_ccr1_edge1 = 0;
+	uint32_t tim21_ccr1_edge8 = 0;
+	uint32_t loop_count = 0;
 	// Reset counter.
 	TIM21 -> CNT = 0;
 	TIM21 -> CCR1 = 0;
 	// Enable interrupt.
 	TIM21 -> SR &= 0xFFFFF9B8; // Clear all flags.
-	NVIC_enable_interrupt(NVIC_IT_TIM21);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_TIM21);
 	// Enable TIM21 peripheral.
 	TIM21 -> CR1 |= (0b1 << 0); // CEN='1'.
 	TIM21 -> CCER |= (0b1 << 0); // CC1E='1'.
@@ -102,7 +103,7 @@ TIM_status_t TIM21_get_lsi_frequency(unsigned int* lsi_frequency_hz) {
 	(*lsi_frequency_hz) = (8 * RCC_HSI_FREQUENCY_KHZ * 1000) / (tim21_ccr1_edge8 - tim21_ccr1_edge1);
 errors:
 	// Disable interrupt.
-	NVIC_disable_interrupt(NVIC_IT_TIM21);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_TIM21);
 	// Stop counter.
 	TIM21 -> CR1 &= ~(0b1 << 0); // CEN='0'.
 	TIM21 -> CCER &= ~(0b1 << 0); // CC1E='0'.

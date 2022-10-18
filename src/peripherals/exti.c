@@ -15,6 +15,7 @@
 #include "rcc_reg.h"
 #include "rf_api.h"
 #include "syscfg_reg.h"
+#include "types.h"
 
 /*** EXTI local macros ***/
 
@@ -68,7 +69,7 @@ void __attribute__((optimize("-O0"))) EXTI4_15_IRQHandler(void) {
  * @param bit_idx:	Interrupt index.
  * @return:			None.
  */
-static void EXTI_set_trigger(EXTI_trigger_t trigger, unsigned char bit_idx) {
+static void _EXTI_set_trigger(EXTI_trigger_t trigger, uint8_t bit_idx) {
 	// Check index.
 	if (bit_idx > EXTI_RTSR_FTSR_MAX_INDEX) return;
 	// Select triggers.
@@ -110,8 +111,8 @@ void EXTI_init(void) {
 	// Clear all flags.
 	EXTI_clear_all_flags();
 	// Set interrupts priority.
-	NVIC_set_priority(NVIC_IT_EXTI_0_1, 3);
-	NVIC_set_priority(NVIC_IT_EXTI_4_15, 0);
+	NVIC_set_priority(NVIC_INTERRUPT_EXTI_0_1, 3);
+	NVIC_set_priority(NVIC_INTERRUPT_EXTI_4_15, 0);
 }
 
 /* CONFIGURE A GPIO AS EXTERNAL INTERRUPT SOURCE.
@@ -126,7 +127,7 @@ void EXTI_configure_gpio(const GPIO_pin_t* gpio, EXTI_trigger_t trigger) {
 	// Set mask.
 	EXTI -> IMR |= (0b1 << ((gpio -> pin_index))); // IMx='1'.
 	// Select triggers.
-	EXTI_set_trigger(trigger, (gpio -> pin_index));
+	_EXTI_set_trigger(trigger, (gpio -> pin_index));
 }
 
 /* CONFIGURE A LINE AS INTERNAL INTERRUPT SOURCE.
@@ -141,7 +142,7 @@ void EXTI_configure_line(EXTI_line_t line, EXTI_trigger_t trigger) {
 	EXTI -> IMR |= (0b1 << line); // IMx='1'.
 	// Select triggers.
 	if (line <= EXTI_RTSR_FTSR_MAX_INDEX) {
-		EXTI_set_trigger(trigger, line);
+		_EXTI_set_trigger(trigger, line);
 	}
 }
 

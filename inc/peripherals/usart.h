@@ -9,6 +9,7 @@
 #define __USART_H__
 
 #include "mode.h"
+#include "types.h"
 
 /*** USART structures ***/
 
@@ -25,7 +26,7 @@ void USART2_init(void);
 #ifdef ATM
 void USART2_enable_interrupt(void);
 void USART2_disable_interrupt(void);
-USART_status_t USART2_send_string(char* tx_string);
+USART_status_t USART2_send_string(char_t* tx_string);
 #endif
 
 #define USART_status_check(error_base) { if (usart_status != USART_SUCCESS) { status = error_base + usart_status; goto errors; }}

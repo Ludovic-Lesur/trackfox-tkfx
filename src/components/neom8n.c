@@ -20,6 +20,7 @@
 #include "rcc.h"
 #include "rtc.h"
 #include "string.h"
+#include "types.h"
 #include "usart.h"
 
 /*** NEOM8N local macros ***/
@@ -88,14 +89,14 @@ typedef struct {
 	// Buffers.
 	char rx_buf1[NMEA_RX_BUFFER_SIZE]; // NMEA input messages buffer 1.
 	char rx_buf2[NMEA_RX_BUFFER_SIZE]; // NMEA input messages buffer 2.
-	volatile unsigned char fill_buf1; // 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
-	volatile unsigned char line_end_flag; // Set to '1' as soon as a complete NMEA message is received.
+	volatile uint8_t fill_buf1; // 0/1 = buffer 2/1 is currently filled by DMA, buffer 1/2 is ready to be parsed.
+	volatile uint8_t line_end_flag; // Set to '1' as soon as a complete NMEA message is received.
 	// Energy monitoring.
-	unsigned int vcap_mv; // Supercap voltage in mV.
+	uint32_t vcap_mv; // Supercap voltage in mV.
 #ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 	// GGA quality filter.
-	unsigned char gga_same_altitude_count; // Number of consecutive same altitudes.
-	unsigned int gga_previous_altitude;
+	uint8_t gga_same_altitude_count; // Number of consecutive same altitudes.
+	uint32_t gga_previous_altitude;
 #endif
 } NEOM8N_context_t;
 
@@ -116,11 +117,11 @@ static NEOM8N_context_t neom8n_ctx;
  * @param payload_length:	Length of the payload (in bytes) for this message.
  * @return:					None.
  */
-static void NEOM8N_compute_ubx_checksum(char* neom8n_command, unsigned char payload_length) {
+static void NEOM8N_compute_ubx_checksum(char* neom8n_command, uint8_t payload_length) {
 	// Local variables.
-	unsigned char ck_a = 0;
-	unsigned char ck_b = 0;
-	unsigned int checksum_idx = 0;
+	uint8_t ck_a = 0;
+	uint8_t ck_b = 0;
+	uint32_t checksum_idx = 0;
 	// See algorithme on p.136 of NEO-M8 programming manual.
 	for (checksum_idx=NEOM8N_CHECKSUM_OFFSET ; checksum_idx<(NEOM8N_CHECKSUM_OFFSET+NEOM8N_CHECKSUM_OVERHEAD_LENGTH+payload_length) ; checksum_idx++) {
 		ck_a = ck_a + neom8n_command[checksum_idx];
@@ -136,11 +137,11 @@ static void NEOM8N_compute_ubx_checksum(char* neom8n_command, unsigned char payl
  * @param ck:			Pointer to the read checksum.
  * @return status:		Function executions status.
  */
-static NEOM8N_status_t NEOM8N_get_nmea_checksum(char* nmea_rx_buf, unsigned char* ck) {
+static NEOM8N_status_t NEOM8N_get_nmea_checksum(char* nmea_rx_buf, uint8_t* ck) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	STRING_status_t string_status = STRING_SUCCESS;
-	unsigned char checksum_start_char_idx = 0;
+	uint8_t checksum_start_char_idx = 0;
 	int ck_value = 0;
 	// Get checksum start index (see NMEA messages format on p.105 of NEO-M8 programming manual).
 	while ((nmea_rx_buf[checksum_start_char_idx] != NMEA_CHAR_CHECKSUM_START) && (checksum_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
@@ -154,7 +155,7 @@ static NEOM8N_status_t NEOM8N_get_nmea_checksum(char* nmea_rx_buf, unsigned char
 	string_status = STRING_string_to_value(&(nmea_rx_buf[checksum_start_char_idx + 1]), STRING_FORMAT_HEXADECIMAL, 2, &ck_value);
 	STRING_status_check(NEOM8N_ERROR_BASE_STRING);
 	// Cast to byte.
-	(*ck) = (unsigned char) ck_value;
+	(*ck) = (uint8_t) ck_value;
 errors:
 	return status;
 }
@@ -164,12 +165,12 @@ errors:
  * @param ck:			Pointer to the computed checksum.
  * @return status:		Function executions status.
  */
-static NEOM8N_status_t NEOM8N_compute_nmea_checksum(char* nmea_rx_buf, unsigned char* ck) {
+static NEOM8N_status_t NEOM8N_compute_nmea_checksum(char* nmea_rx_buf, uint8_t* ck) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
-	unsigned char message_start_char_idx = 0;
-	unsigned char checksum_start_char_idx = 0;
-	unsigned char checksum_idx = 0;
+	uint8_t message_start_char_idx = 0;
+	uint8_t checksum_start_char_idx = 0;
+	uint8_t checksum_idx = 0;
 	// Get message start index (see algorithme on p.105 of NEO-M8 programming manual).
 	while ((nmea_rx_buf[message_start_char_idx] != NMEA_CHAR_MESSAGE_START) && (message_start_char_idx < NMEA_RX_BUFFER_SIZE)) {
 		message_start_char_idx++;
@@ -221,13 +222,13 @@ static NEOM8N_status_t NEOM8N_parse_nmea_gga(char* nmea_rx_buf, NEOM8N_position_
 	// Local variables
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	STRING_status_t string_status = STRING_SUCCESS;
-	unsigned char char_idx = 0;
-	unsigned char separator_idx = 0;
-	unsigned char field_idx = 0;
-	unsigned char alt_field_length = 0;
-	unsigned char alt_number_of_digits = 0;
-	unsigned char received_checksum = 0;
-	unsigned char computed_checksum = 0;
+	uint8_t char_idx = 0;
+	uint8_t separator_idx = 0;
+	uint8_t field_idx = 0;
+	uint8_t alt_field_length = 0;
+	uint8_t alt_number_of_digits = 0;
+	uint8_t received_checksum = 0;
+	uint8_t computed_checksum = 0;
 	int value = 0;
 	// Verify checksum.
 	status = NEOM8N_get_nmea_checksum(nmea_rx_buf, &received_checksum);
@@ -266,15 +267,15 @@ static NEOM8N_status_t NEOM8N_parse_nmea_gga(char* nmea_rx_buf, NEOM8N_position_
 				// Parse degrees.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 2, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> lat_degrees = (unsigned char) value;
+				gps_position -> lat_degrees = (uint8_t) value;
 				// Parse minutes.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 3]), STRING_FORMAT_DECIMAL, 2, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> lat_minutes = (unsigned char) value;
+				gps_position -> lat_minutes = (uint8_t) value;
 				// Parse seconds.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 6]), STRING_FORMAT_DECIMAL, 5, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> lat_seconds = (unsigned int) value;
+				gps_position -> lat_seconds = (uint32_t) value;
 				break;
 			// Field 3 = <N> or <S>.
 			case NMEA_GGA_FIELD_INDEX_NS:
@@ -300,15 +301,15 @@ static NEOM8N_status_t NEOM8N_parse_nmea_gga(char* nmea_rx_buf, NEOM8N_position_
 				// Parse degrees.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 3, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> long_degrees = (unsigned char) value;
+				gps_position -> long_degrees = (uint8_t) value;
 				// Parse minutes.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 4]), STRING_FORMAT_DECIMAL, 2, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> long_minutes = (unsigned char) value;
+				gps_position -> long_minutes = (uint8_t) value;
 				// Parse seconds.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 7]), STRING_FORMAT_DECIMAL, 5, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> long_seconds = (unsigned int) value;
+				gps_position -> long_seconds = (uint32_t) value;
 				break;
 			// Field 5 = <E> or <W>.
 			case NMEA_GGA_FIELD_INDEX_EW:
@@ -345,7 +346,7 @@ static NEOM8N_status_t NEOM8N_parse_nmea_gga(char* nmea_rx_buf, NEOM8N_position_
 				// Compute integer part.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, alt_number_of_digits, &value);
 				STRING_status_check(NEOM8N_ERROR_BASE_STRING);
-				gps_position -> altitude = (unsigned int) value;
+				gps_position -> altitude = (uint32_t) value;
 				// Rounding operation if fractionnal part exists.
 				if ((char_idx - (separator_idx + alt_number_of_digits) - 1) >= 2) {
 					// Convert tenth part.
@@ -388,17 +389,17 @@ errors:
  * 								0b <ZDA> <VTG> <VLW> <TXT> <RMC> <GSV> <GST> <GSA> <GRS> <GPQ> <GND> <GNQ> <GLQ> <GLL> <GGA> <GBS> <GBQ> <DTM>.
  * @return status:				Function execution status.
  */
-static NEOM8N_status_t NEOM8N_select_nmea_messages(unsigned int nmea_message_id_mask) {
+static NEOM8N_status_t NEOM8N_select_nmea_messages(uint32_t nmea_message_id_mask) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	LPUART_status_t lpuart1_status = LPUART_SUCCESS;
 	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
 	// See p.110 for NMEA messages ID.
 	char nmea_message_id[18] = {0x0A, 0x44, 0x09, 0x00, 0x01, 0x43, 0x42, 0x0D, 0x40, 0x06, 0x02, 0x07, 0x03, 0x04, 0x41, 0x0F, 0x05, 0x08};
-	unsigned char nmea_message_id_idx = 0;
+	uint8_t nmea_message_id_idx = 0;
 	// See p.174 for NEOM8N message format.
 	char neom8n_cfg_msg[NEOM8N_MSG_OVERHEAD_LENGTH+NEOM8N_CFG_MSG_PAYLOAD_LENGTH] = {0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	unsigned char neom8n_cfg_msg_idx = 0;
+	uint8_t neom8n_cfg_msg_idx = 0;
 	// Send commands.
 	for (nmea_message_id_idx=0 ; nmea_message_id_idx<18 ; nmea_message_id_idx++) {
 		// Byte 7 = is the ID of the message to enable or disable.
@@ -424,7 +425,7 @@ errors:
  * @param timeout_seconds:	Timeout in seconds.
  * @return status:			Function execution status.
  */
-static NEOM8N_status_t NEOM8N_start(unsigned int timeout_seconds) {
+static NEOM8N_status_t NEOM8N_start(uint32_t timeout_seconds) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	RTC_status_t rtc_status = RTC_SUCCESS;
@@ -435,10 +436,10 @@ static NEOM8N_status_t NEOM8N_start(unsigned int timeout_seconds) {
 	// Start DMA.
 	DMA1_stop_channel6();
 	neom8n_ctx.fill_buf1 = 1;
-	DMA1_set_channel6_dest_addr((unsigned int) &(neom8n_ctx.rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
+	DMA1_set_channel6_dest_addr((uint32_t) &(neom8n_ctx.rx_buf1), NMEA_RX_BUFFER_SIZE); // Start with buffer 1.
 	DMA1_start_channel6();
 	// Start LPUART.
-	NVIC_enable_interrupt(NVIC_IT_LPUART1);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_LPUART1);
 errors:
 	return status;
 }
@@ -451,7 +452,7 @@ static void NEOM8N_stop(void) {
 	// Stop DMA.
 	DMA1_stop_channel6();
 	// Stop LPUART.
-	NVIC_disable_interrupt(NVIC_IT_LPUART1);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_LPUART1);
 	// Stop wake-up timer.
 	RTC_stop_wakeup_timer();
 	RTC_clear_wakeup_timer_flag();
@@ -466,7 +467,7 @@ static void NEOM8N_stop(void) {
  */
 void NEOM8N_init(void) {
 	// Local variables.
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 #ifdef HW1_1
 	// Init backup pin.
 	GPIO_configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
@@ -486,16 +487,16 @@ void NEOM8N_init(void) {
  * @param line_end_flag:	Indicates if characters match interrupt occured (LPUART).
  * @return:					None.
  */
-void NEOM8N_switch_dma_buffer(unsigned char line_end_flag) {
+void NEOM8N_switch_dma_buffer(uint8_t line_end_flag) {
 	// Stop and start DMA transfer to switch buffer.
 	DMA1_stop_channel6();
 	// Switch buffer.
 	if (neom8n_ctx.fill_buf1 == 0) {
-		DMA1_set_channel6_dest_addr((unsigned int) &(neom8n_ctx.rx_buf1), NMEA_RX_BUFFER_SIZE); // Switch to buffer 1.
+		DMA1_set_channel6_dest_addr((uint32_t) &(neom8n_ctx.rx_buf1), NMEA_RX_BUFFER_SIZE); // Switch to buffer 1.
 		neom8n_ctx.fill_buf1 = 1;
 	}
 	else {
-		DMA1_set_channel6_dest_addr((unsigned int) &(neom8n_ctx.rx_buf2), NMEA_RX_BUFFER_SIZE); // Switch to buffer 2.
+		DMA1_set_channel6_dest_addr((uint32_t) &(neom8n_ctx.rx_buf2), NMEA_RX_BUFFER_SIZE); // Switch to buffer 2.
 		neom8n_ctx.fill_buf1 = 0;
 	}
 	// Update LF flag to start decoding or not.
@@ -508,7 +509,7 @@ void NEOM8N_switch_dma_buffer(unsigned char line_end_flag) {
  * @param vbckp_on:	Turn on (1) or off (0) GPS backup pin.
  * @return:			None.
  */
-void NEOM8N_set_backup(unsigned char vbckp_on) {
+void NEOM8N_set_backup(uint8_t vbckp_on) {
 #ifdef HW1_1
 	// Set backup pin.
 	GPIO_write(&GPIO_GPS_VBCKP, vbckp_on);
@@ -519,9 +520,9 @@ void NEOM8N_set_backup(unsigned char vbckp_on) {
  * @param:	None.
  * @return:	1 if the backup is active, 0 otherwise.
  */
-unsigned char NEOM8N_get_backup(void) {
+uint8_t NEOM8N_get_backup(void) {
 	// Local variables.
-	unsigned char backup = 0;
+	uint8_t backup = 0;
 #ifdef HW1_1
 	// Read backup pin.
 	backup = GPIO_read(&GPIO_GPS_VBCKP);
@@ -536,14 +537,14 @@ unsigned char NEOM8N_get_backup(void) {
  * @param fix_duration_seconds:	Pointer that will contain effective fix duration.
  * @return status:				Function execution status.
  */
-NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, unsigned int timeout_seconds, unsigned int vcap_min_mv, unsigned int* fix_duration_seconds) {
+NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vcap_min_mv, uint32_t* fix_duration_seconds) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	ADC_status_t adc1_status = ADC_SUCCESS;
 #ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 	NEOM8N_position_t local_position;
 #endif
-	unsigned char data_valid_flag = 0;
+	uint8_t data_valid_flag = 0;
 	// Reset flags.
 #ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 	neom8n_ctx.gga_same_altitude_count = 0;

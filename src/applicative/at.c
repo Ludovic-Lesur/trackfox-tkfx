@@ -28,6 +28,7 @@
 #include "sigfox_types.h"
 #include "spi.h"
 #include "string.h"
+#include "types.h"
 #include "usart.h"
 #include "version.h"
 
@@ -101,11 +102,11 @@ typedef struct {
 typedef struct {
 	// AT command buffer.
 	volatile char command_buf[AT_COMMAND_BUFFER_LENGTH];
-	volatile unsigned int command_buf_idx;
-	volatile unsigned char line_end_flag;
+	volatile uint32_t command_buf_idx;
+	volatile uint8_t line_end_flag;
 	PARSER_context_t parser;
 	char response_buf[AT_RESPONSE_BUFFER_LENGTH];
-	unsigned int response_buf_idx;
+	uint32_t response_buf_idx;
 	// Sigfox RC.
 	sfx_rc_t sigfox_rc;
 } AT_context_t;
@@ -170,11 +171,11 @@ static void AT_response_add_string(char* tx_string) {
  * @param print_prefix: Print base prefix is non zero.
  * @return:				None.
  */
-static void AT_response_add_value(int tx_value, STRING_format_t format, unsigned char print_prefix) {
+static void AT_response_add_value(int tx_value, STRING_format_t format, uint8_t print_prefix) {
 	// Local variables.
 	STRING_status_t string_status = STRING_SUCCESS;
 	char str_value[AT_STRING_VALUE_BUFFER_LENGTH];
-	unsigned char idx = 0;
+	uint8_t idx = 0;
 	// Reset string.
 	for (idx=0 ; idx<AT_STRING_VALUE_BUFFER_LENGTH ; idx++) str_value[idx] = STRING_CHAR_NULL;
 	// Convert value to string.
@@ -191,7 +192,7 @@ static void AT_response_add_value(int tx_value, STRING_format_t format, unsigned
 static void AT_response_send(void) {
 	// Local variables.
 	USART_status_t usart_status = USART_SUCCESS;
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	// Send response over UART.
 	usart_status = USART2_send_string(at_ctx.response_buf);
 	USART_error_check();
@@ -233,7 +234,7 @@ static void AT_print_status(ERROR_t status) {
  */
 static void AT_print_command_list(void) {
 	// Local variables.
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	// Commands loop.
 	for (idx=0 ; idx<(sizeof(AT_COMMAND_LIST) / sizeof(AT_command_t)) ; idx++) {
 		// Print syntax.
@@ -287,7 +288,7 @@ static void AT_print_sw_version(void) {
 static void AT_print_error_stack(void) {
 	// Local variables.
 	ERROR_t error_stack[ERROR_STACK_DEPTH] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	// Read stack.
 	ERROR_stack_read(error_stack);
 	// Print stack.
@@ -309,8 +310,8 @@ static void AT_print_error_stack(void) {
 static void AT_adc_callback(void) {
 	// Local variables.
 	ADC_status_t adc1_status = ADC_SUCCESS;
-	unsigned int voltage_mv = 0;
-	signed char tmcu_degrees = 0;
+	uint32_t voltage_mv = 0;
+	int8_t tmcu_degrees = 0;
 	// Trigger internal ADC conversions.
 	AT_response_add_string("ADC running...");
 	AT_response_add_string(AT_RESPONSE_END);
@@ -355,8 +356,8 @@ static void AT_ths_callback(void) {
 	// Local variables.
 	I2C_status_t i2c1_status = I2C_SUCCESS;
 	SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
-	signed char tamb_degrees = 0;
-	unsigned char hamb_percent = 0;
+	int8_t tamb_degrees = 0;
+	uint8_t hamb_percent = 0;
 	// Perform measurements.
 	i2c1_status = I2C1_power_on();
 	I2C1_error_check_print();
@@ -389,7 +390,7 @@ static void AT_acc_callback(void) {
 	// Local variables.
 	I2C_status_t i2c1_status = I2C_SUCCESS;
 	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;
-	unsigned char chip_id = 0;
+	uint8_t chip_id = 0;
 	// Get ID.
 	i2c1_status = I2C1_power_on();
 	I2C1_error_check_print();
@@ -417,7 +418,7 @@ static void AT_gps_callback(void) {
 	NEOM8N_status_t neom8n_status = NEOM8N_SUCCESS;
 	LPUART_status_t lpuart1_status = LPUART_SUCCESS;
 	int timeout_seconds = 0;
-	unsigned int fix_duration_seconds = 0;
+	uint32_t fix_duration_seconds = 0;
 	NEOM8N_position_t gps_position;
 	// Read timeout parameter.
 	parser_status = PARSER_get_parameter(&at_ctx.parser, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &timeout_seconds);
@@ -429,7 +430,7 @@ static void AT_gps_callback(void) {
 	AT_response_add_string("GPS running...");
 	AT_response_add_string(AT_RESPONSE_END);
 	AT_response_send();
-	neom8n_status = NEOM8N_get_position(&gps_position, (unsigned int) timeout_seconds, 0, &fix_duration_seconds);
+	neom8n_status = NEOM8N_get_position(&gps_position, (uint32_t) timeout_seconds, 0, &fix_duration_seconds);
 	NEOM8N_error_check_print();
 	// Latitude.
 	AT_response_add_string("Lat=");
@@ -489,12 +490,12 @@ static void AT_nvm_callback(void) {
 	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
 	NVM_status_t nvm_status = NVM_SUCCESS;
 	int address = 0;
-	unsigned char nvm_data = 0;
+	uint8_t nvm_data = 0;
 	// Read address parameters.
 	parser_status = PARSER_get_parameter(&at_ctx.parser, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &address);
 	PARSER_error_check_print();
 	// Read byte at requested address.
-	nvm_status = NVM_read_byte((unsigned short) address, &nvm_data);
+	nvm_status = NVM_read_byte((uint16_t) address, &nvm_data);
 	NVM_error_check_print();
 	// Print data.
 	AT_response_add_value(nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
@@ -511,8 +512,8 @@ errors:
 static void AT_get_id_callback(void) {
 	// Local variables.
 	NVM_status_t nvm_status = NVM_SUCCESS;
-	unsigned char idx = 0;
-	unsigned char id_byte = 0;
+	uint8_t idx = 0;
+	uint8_t id_byte = 0;
 	// Retrieve device ID in NVM.
 	for (idx=0 ; idx<ID_LENGTH ; idx++) {
 		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_ID + ID_LENGTH - idx - 1), &id_byte);
@@ -533,9 +534,9 @@ static void AT_set_id_callback(void) {
 	// Local variables.
 	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
 	NVM_status_t nvm_status = NVM_SUCCESS;
-	unsigned char device_id[ID_LENGTH];
-	unsigned char extracted_length = 0;
-	unsigned char idx = 0;
+	uint8_t device_id[ID_LENGTH];
+	uint8_t extracted_length = 0;
+	uint8_t idx = 0;
 	// Read ID parameter.
 	parser_status = PARSER_get_byte_array(&at_ctx.parser, STRING_CHAR_NULL, ID_LENGTH, 1, device_id, &extracted_length);
 	PARSER_error_check_print();
@@ -556,8 +557,8 @@ errors:
 static void AT_get_key_callback(void) {
 	// Local variables.
 	NVM_status_t nvm_status = NVM_SUCCESS;
-	unsigned char idx = 0;
-	unsigned char key_byte = 0;
+	uint8_t idx = 0;
+	uint8_t key_byte = 0;
 	// Retrieve device key in NVM.
 	for (idx=0 ; idx<AES_BLOCK_SIZE ; idx++) {
 		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_KEY + idx), &key_byte);
@@ -578,9 +579,9 @@ static void AT_set_key_callback(void) {
 	// Local variables.
 	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
 	NVM_status_t nvm_status = NVM_SUCCESS;
-	unsigned char device_key[AES_BLOCK_SIZE];
-	unsigned char extracted_length = 0;
-	unsigned char idx = 0;
+	uint8_t device_key[AES_BLOCK_SIZE];
+	uint8_t extracted_length = 0;
+	uint8_t idx = 0;
 	// Read key parameter.
 	parser_status = PARSER_get_byte_array(&at_ctx.parser, STRING_CHAR_NULL, AES_BLOCK_SIZE, 1, device_key, &extracted_length);
 	PARSER_error_check_print();
@@ -602,7 +603,7 @@ errors:
  */
 static void AT_print_dl_payload(sfx_u8* dl_payload) {
 	AT_response_add_string("+RX=");
-	unsigned char idx = 0;
+	uint8_t idx = 0;
 	for (idx=0 ; idx<SIGFOX_DOWNLINK_DATA_SIZE_BYTES ; idx++) {
 		AT_response_add_value(dl_payload[idx], STRING_FORMAT_HEXADECIMAL, 0);
 	}
@@ -690,7 +691,7 @@ static void AT_sf_callback(void) {
 	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
 	sfx_error_t sigfox_api_status = SFX_ERR_NONE;
 	sfx_u8 data[SIGFOX_UPLINK_DATA_MAX_SIZE_BYTES];
-	unsigned char extracted_length = 0;
+	uint8_t extracted_length = 0;
 	int bidir_flag = 0;
 	sfx_u8 dl_payload[SIGFOX_DOWNLINK_DATA_SIZE_BYTES];
 	// First try with 2 parameters.
@@ -739,7 +740,7 @@ errors:
  */
 static void AT_print_dl_phy_content(sfx_u8* dl_phy_content, int rssi_dbm) {
 	AT_response_add_string("+DL_PHY=");
-	unsigned char idx = 0;
+	uint8_t idx = 0;
 	for (idx=0 ; idx<SIGFOX_DOWNLINK_PHY_SIZE_BYTES ; idx++) {
 		AT_response_add_value(dl_phy_content[idx], STRING_FORMAT_HEXADECIMAL, 0);
 	}
@@ -803,7 +804,7 @@ static void AT_cw_callback(void) {
 		if (enable != 0) {
 			sigfox_api_status = SIGFOX_API_start_continuous_transmission((sfx_u32) frequency_hz, SFX_NO_MODULATION);
 			SIGFOX_API_error_check_print();
-			s2lp_status = S2LP_set_rf_output_power((signed char) power_dbm);
+			s2lp_status = S2LP_set_rf_output_power((int8_t) power_dbm);
 			S2LP_error_check_print();
 			AT_response_add_string("S2LP running...");
 			AT_response_add_string(AT_RESPONSE_END);
@@ -886,8 +887,8 @@ static void AT_rssi_callback(void) {
 	sfx_error_t sigfox_api_status = SFX_ERR_NONE;
 	int frequency_hz = 0;
 	int duration_s = 0;
-	signed short rssi_dbm = 0;
-	unsigned int report_loop = 0;
+	int16_t rssi_dbm = 0;
+	uint32_t report_loop = 0;
 	// Read frequency parameter.
 	parser_status = PARSER_get_parameter(&at_ctx.parser, STRING_FORMAT_DECIMAL, AT_CHAR_SEPARATOR, &frequency_hz);
 	PARSER_error_check_print();
@@ -953,8 +954,8 @@ static void AT_reset_parser(void) {
  */
 static void AT_decode(void) {
 	// Local variables.
-	unsigned int idx = 0;
-	unsigned char decode_success = 0;
+	uint32_t idx = 0;
+	uint8_t decode_success = 0;
 	// Empty or too short command.
 	if (at_ctx.command_buf_idx < AT_COMMAND_LENGTH_MIN) {
 		AT_print_status(ERROR_BASE_PARSER + PARSER_ERROR_UNKNOWN_COMMAND);
@@ -989,7 +990,7 @@ errors:
  */
 void AT_init(void) {
 	// Init context.
-	unsigned int idx = 0;
+	uint32_t idx = 0;
 	for (idx=0 ; idx<AT_COMMAND_BUFFER_LENGTH ; idx++) at_ctx.command_buf[idx] = '\0';
 	for (idx=0 ; idx<AT_RESPONSE_BUFFER_LENGTH ; idx++) at_ctx.response_buf[idx] = '\0';
 	at_ctx.response_buf_idx = 0;
@@ -1018,7 +1019,7 @@ void AT_task(void) {
  * @param rx_byte:	Incoming byte.
  * @return:			None.
  */
-void AT_fill_rx_buffer(unsigned char rx_byte) {
+void AT_fill_rx_buffer(uint8_t rx_byte) {
 	// Append byte if LF flag is not allready set.
 	if (at_ctx.line_end_flag == 0) {
 		// Check ending characters.
@@ -1042,7 +1043,7 @@ void AT_fill_rx_buffer(unsigned char rx_byte) {
  * @param test_result:	Test result.
  * @param rssi:			Downlink signal rssi in dBm.
  */
-void AT_print_test_result(unsigned char test_result, int rssi_dbm) {
+void AT_print_test_result(uint8_t test_result, int rssi_dbm) {
 	// Check result.
 	if (test_result == 0) {
 		AT_response_add_string("Test failed.");

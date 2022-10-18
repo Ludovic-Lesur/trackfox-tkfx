@@ -13,10 +13,11 @@
 #include "nvic.h"
 #include "rcc_reg.h"
 #include "spi_reg.h"
+#include "types.h"
 
 /*** DMA local global variables ***/
 
-static volatile unsigned char dma1_channel3_tcif = 0;
+static volatile uint8_t dma1_channel3_tcif = 0;
 
 /*** DMA local functions ***/
 
@@ -72,11 +73,11 @@ void DMA1_init_channel3(void) {
 	// Enable transfer complete interrupt (TCIE='1').
 	DMA1 -> CCR3 |= (0b11 << 12) | (0b1 << 7) | (0b1 << 4) | (0b1 << 1);
 	// Configure peripheral address.
-	DMA1 -> CPAR3 = (unsigned int) &(SPI1 -> DR); // Peripheral address = SPI1 TX register.
+	DMA1 -> CPAR3 = (uint32_t) &(SPI1 -> DR); // Peripheral address = SPI1 TX register.
 	// Configure channel 3 for SPI1 TX (request number 1).
 	DMA1 -> CSELR |= (0b0001 << 8); // DMA channel mapped on SPI1_TX (C3S='0001').
 	// Set interrupt priority.
-	NVIC_set_priority(NVIC_IT_DMA1_CH_2_3, 1);
+	NVIC_set_priority(NVIC_INTERRUPT_DMA1_CH_2_3, 1);
 }
 
 /* START DMA1 CHANNEL 3 TRANSFER.
@@ -87,7 +88,7 @@ void DMA1_start_channel3(void) {
 	// Clear all flags.
 	dma1_channel3_tcif = 0;
 	DMA1 -> IFCR |= 0x00000F00;
-	NVIC_enable_interrupt(NVIC_IT_DMA1_CH_2_3);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_DMA1_CH_2_3);
 	// Start transfer.
 	DMA1 -> CCR3 |= (0b1 << 0); // EN='1'.
 }
@@ -100,7 +101,7 @@ void DMA1_stop_channel3(void) {
 	// Stop transfer.
 	dma1_channel3_tcif = 0;
 	DMA1 -> CCR3 &= ~(0b1 << 0); // EN='0'.
-	NVIC_disable_interrupt(NVIC_IT_DMA1_CH_2_3);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_DMA1_CH_2_3);
 }
 
 /* SET DMA1 CHANNEL 3 SOURCE BUFFER ADDRESS.
@@ -108,7 +109,7 @@ void DMA1_stop_channel3(void) {
  * @param dest_buf_size:	Size of destination buffer.
  * @return:					None.
  */
-void DMA1_set_channel3_source_addr(unsigned int source_buf_addr, unsigned short source_buf_size) {
+void DMA1_set_channel3_source_addr(uint32_t source_buf_addr, uint16_t source_buf_size) {
 	// Set address and buffer size.
 	DMA1 -> CMAR3 = source_buf_addr;
 	DMA1 -> CNDTR3 = source_buf_size;
@@ -118,7 +119,7 @@ void DMA1_set_channel3_source_addr(unsigned int source_buf_addr, unsigned short 
  * @param:	None.
  * @return:	'1' if the transfer is complete, '0' otherwise.
  */
-unsigned char DMA1_get_channel3_status(void) {
+uint8_t DMA1_get_channel3_status(void) {
 	return dma1_channel3_tcif;
 }
 
@@ -139,11 +140,11 @@ void DMA1_init_channel6(void) {
 	// Enable transfer complete interrupt (TCIE='1').
 	DMA1 -> CCR6 |= (0b11 << 12) | (0b1 << 7) | (0b1 << 1);
 	// Configure peripheral address.
-	DMA1 -> CPAR6 = (unsigned int) &(LPUART1 -> RDR); // Peripheral address = LPUART RX register.
+	DMA1 -> CPAR6 = (uint32_t) &(LPUART1 -> RDR); // Peripheral address = LPUART RX register.
 	// Configure channel 3 for LPUART1 RX (request number 5).
 	DMA1 -> CSELR |= (0b0101 << 20); // DMA channel mapped on LPUART1_RX (C6S='0101').
 	// Set interrupt priority.
-	NVIC_set_priority(NVIC_IT_DMA1_CH_4_7, 1);
+	NVIC_set_priority(NVIC_INTERRUPT_DMA1_CH_4_7, 1);
 }
 
 /* START DMA1 CHANNEL 6 TRANSFER.
@@ -153,7 +154,7 @@ void DMA1_init_channel6(void) {
 void DMA1_start_channel6(void) {
 	// Clear all flags.
 	DMA1 -> IFCR |= 0x00F00000;
-	NVIC_enable_interrupt(NVIC_IT_DMA1_CH_4_7);
+	NVIC_enable_interrupt(NVIC_INTERRUPT_DMA1_CH_4_7);
 	// Start transfer.
 	DMA1 -> CCR6 |= (0b1 << 0); // EN='1'.
 }
@@ -165,7 +166,7 @@ void DMA1_start_channel6(void) {
 void DMA1_stop_channel6(void) {
 	// Stop transfer.
 	DMA1 -> CCR6 &= ~(0b1 << 0); // EN='0'.
-	NVIC_disable_interrupt(NVIC_IT_DMA1_CH_4_7);
+	NVIC_disable_interrupt(NVIC_INTERRUPT_DMA1_CH_4_7);
 }
 
 /* SET DMA1 CHANNEL 6 DESTINATION BUFFER ADDRESS.
@@ -173,7 +174,7 @@ void DMA1_stop_channel6(void) {
  * @param dest_buf_size:	Size of destination buffer.
  * @return:					None.
  */
-void DMA1_set_channel6_dest_addr(unsigned int dest_buf_addr, unsigned short dest_buf_size) {
+void DMA1_set_channel6_dest_addr(uint32_t dest_buf_addr, uint16_t dest_buf_size) {
 	// Set address and buffer size.
 	DMA1 -> CMAR6 = dest_buf_addr;
 	DMA1 -> CNDTR6 = dest_buf_size;

@@ -12,10 +12,11 @@
 #include "i2c.h"
 #include "mapping.h"
 #include "math.h"
+#include "types.h"
 
 /*** MMA8653FC local global variables ***/
 
-volatile unsigned char mma8653fc_motion_interrupt_flag = 0;
+volatile uint8_t mma8653fc_motion_interrupt_flag = 0;
 
 /*** MMA8653FC functions ***/
 
@@ -35,11 +36,11 @@ void MMA8653FC_init(void) {
  * @param chip_id:	Pointer that will contain chip ID.
  * @return status:	Function execution status.
  */
-MMA8653FC_status_t MMA8653FC_get_id(unsigned char* chip_id) {
+MMA8653FC_status_t MMA8653FC_get_id(uint8_t* chip_id) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
 	I2C_status_t i2c1_status = I2C_SUCCESS;
-	unsigned char local_addr = MMA8653FC_REG_WHO_AM_I;
+	uint8_t local_addr = MMA8653FC_REG_WHO_AM_I;
 	// Read register.
 	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
@@ -54,12 +55,12 @@ errors:
  * @param mma8653fc_config_size:	Length of the config array.
  * @return status:					Function execution status.
  */
-MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, unsigned char mma8653fc_config_size) {
+MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, uint8_t mma8653fc_config_size) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
 	I2C_status_t i2c1_status = I2C_SUCCESS;
-	unsigned char i2c_tx_data[2];
-	unsigned char reg_idx = 0;
+	uint8_t i2c_tx_data[2];
+	uint8_t reg_idx = 0;
 	// Write configuration.
 	for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
 		i2c_tx_data[0] = (mma8653fc_config[reg_idx].addr);
@@ -72,18 +73,18 @@ errors:
 }
 
 /* READ ACCELERATION DATA.
- * @param x:		Pointer to signed integer that will contain X-axis acceleration.
- * @param y:		Pointer to signed integer that will contain Y-axis acceleration.
- * @param z:		Pointer to signed integer that will contain Z-axis acceleration.
+ * @param x:		Pointer to int32_teger that will contain X-axis acceleration.
+ * @param y:		Pointer to int32_teger that will contain Y-axis acceleration.
+ * @param z:		Pointer to int32_teger that will contain Z-axis acceleration.
  * @return status:	Function execution status.
  */
-MMA8653FC_status_t MMA8653FC_get_data(signed int* x, signed int* y, signed int* z) {
+MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z) {
 	// Local variables.
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
 	I2C_status_t i2c1_status = I2C_SUCCESS;
-	unsigned int data = 0;
-	unsigned char reg_data = 0;
-	unsigned char local_addr = 0;
+	uint32_t data = 0;
+	uint8_t reg_data = 0;
+	uint8_t local_addr = 0;
 	// X-axis.
 	local_addr = MMA8653FC_REG_OUT_X_MSB;
 	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
@@ -154,6 +155,6 @@ void MMA8653FC_clear_motion_interrupt_flag(void) {
  * @param:									None.
  * @return mma8653fc_motion_interrupt_flag:	'1' if the motion interrupt occurred (EXTI line), '0' otherwise.
  */
-unsigned char MMA8653FC_get_motion_interrupt_flag(void) {
+uint8_t MMA8653FC_get_motion_interrupt_flag(void) {
 	return mma8653fc_motion_interrupt_flag;
 }
