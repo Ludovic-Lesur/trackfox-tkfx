@@ -6,6 +6,7 @@
  */
 
 #include "error.h"
+
 #include "types.h"
 
 /*** ERROR local global variables ***/

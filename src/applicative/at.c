@@ -154,7 +154,7 @@ static AT_context_t at_ctx;
  * @param tx_string:	String to add.
  * @return:				None.
  */
-static void AT_response_add_string(char_t* tx_string) {
+static void _AT_response_add_string(char_t* tx_string) {
 	// Fill TX buffer with new bytes.
 	while (*tx_string) {
 		at_ctx.response_buf[at_ctx.response_buf_idx++] = *(tx_string++);
@@ -171,7 +171,7 @@ static void AT_response_add_string(char_t* tx_string) {
  * @param print_prefix: Print base prefix is non zero.
  * @return:				None.
  */
-static void AT_response_add_value(int32_t tx_value, STRING_format_t format, uint8_t print_prefix) {
+static void _AT_response_add_value(int32_t tx_value, STRING_format_t format, uint8_t print_prefix) {
 	// Local variables.
 	STRING_status_t string_status = STRING_SUCCESS;
 	char str_value[AT_STRING_VALUE_BUFFER_LENGTH];
@@ -182,14 +182,14 @@ static void AT_response_add_value(int32_t tx_value, STRING_format_t format, uint
 	string_status = STRING_value_to_string(tx_value, format, print_prefix, str_value);
 	STRING_error_check();
 	// Add string.
-	AT_response_add_string(str_value);
+	_AT_response_add_string(str_value);
 }
 
 /* SEND AT REPONSE OVER AT INTERFACE.
  * @param:	None.
  * @return:	None.
  */
-static void AT_response_send(void) {
+static void _AT_response_send(void) {
 	// Local variables.
 	USART_status_t usart_status = USART_SUCCESS;
 	uint32_t idx = 0;
@@ -206,26 +206,26 @@ static void AT_response_send(void) {
  * @return:	None.
  */
 static void _AT_print_ok(void) {
-	AT_response_add_string("OK");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("OK");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 /* PRINT A STATUS THROUGH AT INTERFACE.
  * @param status:	Status to print.
  * @return:			None.
  */
-static void AT_print_status(ERROR_t status) {
-	AT_response_add_string("ERROR ");
+static void _AT_print_status(ERROR_t status) {
+	_AT_response_add_string("ERROR ");
 	if (status < 0x0100) {
-		AT_response_add_value(0, STRING_FORMAT_HEXADECIMAL, 1);
-		AT_response_add_value(status, STRING_FORMAT_HEXADECIMAL, 0);
+		_AT_response_add_value(0, STRING_FORMAT_HEXADECIMAL, 1);
+		_AT_response_add_value(status, STRING_FORMAT_HEXADECIMAL, 0);
 	}
 	else {
-		AT_response_add_value(status, STRING_FORMAT_HEXADECIMAL, 1);
+		_AT_response_add_value(status, STRING_FORMAT_HEXADECIMAL, 1);
 	}
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 /* PRINT ALL SUPPORTED AT COMMANDS.
@@ -238,15 +238,15 @@ static void _AT_print_command_list(void) {
 	// Commands loop.
 	for (idx=0 ; idx<(sizeof(AT_COMMAND_LIST) / sizeof(AT_command_t)) ; idx++) {
 		// Print syntax.
-		AT_response_add_string(AT_COMMAND_LIST[idx].syntax);
+		_AT_response_add_string(AT_COMMAND_LIST[idx].syntax);
 		// Print parameters.
-		AT_response_add_string(AT_COMMAND_LIST[idx].parameters);
-		AT_response_add_string(AT_RESPONSE_END);
+		_AT_response_add_string(AT_COMMAND_LIST[idx].parameters);
+		_AT_response_add_string(AT_RESPONSE_END);
 		// Print description.
-		AT_response_add_string(AT_RESPONSE_TAB);
-		AT_response_add_string(AT_COMMAND_LIST[idx].description);
-		AT_response_add_string(AT_RESPONSE_END);
-		AT_response_send();
+		_AT_response_add_string(AT_RESPONSE_TAB);
+		_AT_response_add_string(AT_COMMAND_LIST[idx].description);
+		_AT_response_add_string(AT_RESPONSE_END);
+		_AT_response_send();
 	}
 }
 
@@ -255,30 +255,30 @@ static void _AT_print_command_list(void) {
  * @return:	None.
  */
 static void _AT_print_sw_version(void) {
-	AT_response_add_string("GIT_VERSION=");
-	AT_response_add_string(GIT_VERSION);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
-	AT_response_add_string("GIT_MAJOR_VERSION=");
-	AT_response_add_value(GIT_MAJOR_VERSION, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
-	AT_response_add_string("GIT_MINOR_VERSION=");
-	AT_response_add_value(GIT_MINOR_VERSION, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
-	AT_response_add_string("GIT_COMMIT_INDEX=");
-	AT_response_add_value(GIT_COMMIT_INDEX, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
-	AT_response_add_string("GIT_COMMIT_ID=");
-	AT_response_add_value(GIT_COMMIT_ID, STRING_FORMAT_HEXADECIMAL, 1);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
-	AT_response_add_string("GIT_DIRTY_FLAG=");
-	AT_response_add_value(GIT_DIRTY_FLAG, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("GIT_VERSION=");
+	_AT_response_add_string(GIT_VERSION);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
+	_AT_response_add_string("GIT_MAJOR_VERSION=");
+	_AT_response_add_value(GIT_MAJOR_VERSION, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
+	_AT_response_add_string("GIT_MINOR_VERSION=");
+	_AT_response_add_value(GIT_MINOR_VERSION, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
+	_AT_response_add_string("GIT_COMMIT_INDEX=");
+	_AT_response_add_value(GIT_COMMIT_INDEX, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
+	_AT_response_add_string("GIT_COMMIT_ID=");
+	_AT_response_add_value(GIT_COMMIT_ID, STRING_FORMAT_HEXADECIMAL, 1);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
+	_AT_response_add_string("GIT_DIRTY_FLAG=");
+	_AT_response_add_value(GIT_DIRTY_FLAG, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 /* PRINT ERROR STACK.
@@ -292,14 +292,14 @@ static void _AT_print_error_stack(void) {
 	// Read stack.
 	ERROR_stack_read(error_stack);
 	// Print stack.
-	AT_response_add_string("[ ");
+	_AT_response_add_string("[ ");
 	for (idx=0 ; idx<ERROR_STACK_DEPTH ; idx++) {
-		AT_response_add_value((int) error_stack[idx], STRING_FORMAT_HEXADECIMAL, 1);
-		AT_response_add_string(" ");
+		_AT_response_add_value((int) error_stack[idx], STRING_FORMAT_HEXADECIMAL, 1);
+		_AT_response_add_string(" ");
 	}
-	AT_response_add_string("]");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("]");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 #ifdef AT_COMMANDS_SENSORS
@@ -313,9 +313,9 @@ static void _AT_adc_callback(void) {
 	uint32_t voltage_mv = 0;
 	int8_t tmcu_degrees = 0;
 	// Trigger internal ADC conversions.
-	AT_response_add_string("ADC running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("ADC running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	adc1_status = ADC1_power_on();
 	ADC1_error_check_print();
 	adc1_status = ADC1_perform_measurements();
@@ -324,26 +324,26 @@ static void _AT_adc_callback(void) {
 	// Source voltage.
 	adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &voltage_mv);
 	ADC1_error_check_print();
-	AT_response_add_string("Vsrc=");
-	AT_response_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("Vsrc=");
+	_AT_response_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
 	// Supercap voltage.
 	adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &voltage_mv);
 	ADC1_error_check_print();
-	AT_response_add_string("mV Vcap=");
-	AT_response_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("mV Vcap=");
+	_AT_response_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
 	// MCU voltage.
 	adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &voltage_mv);
 	ADC1_error_check_print();
-	AT_response_add_string("mV Vmcu=");
-	AT_response_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("mV Vmcu=");
+	_AT_response_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
 	// MCU temperature.
 	adc1_status = ADC1_get_tmcu(&tmcu_degrees);
 	ADC1_error_check_print();
-	AT_response_add_string("mV Tmcu=");
-	AT_response_add_value((int32_t) tmcu_degrees, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("dC");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("mV Tmcu=");
+	_AT_response_add_value((int32_t) tmcu_degrees, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("dC");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	ADC1_power_off();
 	return;
@@ -362,9 +362,9 @@ static void _AT_ths_callback(void) {
 	// Perform measurements.
 	i2c1_status = I2C1_power_on();
 	I2C1_error_check_print();
-	AT_response_add_string("SHT3X running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("SHT3X running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	sht3x_status = SHT3X_perform_measurements(SHT3X_I2C_ADDRESS);
 	SHT3X_error_check_print();
 	// Read data.
@@ -373,13 +373,13 @@ static void _AT_ths_callback(void) {
 	sht3x_status = SHT3X_get_humidity(&hamb_percent);
 	SHT3X_error_check_print();
 	// Print results.
-	AT_response_add_string("T=");
-	AT_response_add_value((int32_t) tamb_degrees, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("dC H=");
-	AT_response_add_value((int32_t) hamb_percent, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("%");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("T=");
+	_AT_response_add_value((int32_t) tamb_degrees, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("dC H=");
+	_AT_response_add_value((int32_t) hamb_percent, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("%");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	I2C1_power_off();
 	return;
@@ -400,10 +400,10 @@ static void _AT_acc_callback(void) {
 	mma8653fc_status = MMA8653FC_get_id(&chip_id);
 	MMA8653FC_error_check_print();
 	// Print data.
-	AT_response_add_string("MMA8653FC chip ID: ");
-	AT_response_add_value(chip_id, STRING_FORMAT_HEXADECIMAL, 1);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("MMA8653FC chip ID: ");
+	_AT_response_add_value(chip_id, STRING_FORMAT_HEXADECIMAL, 1);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	I2C1_power_off();
 	return;
@@ -430,38 +430,38 @@ static void _AT_gps_callback(void) {
 	lpuart1_status = LPUART1_power_on();
 	LPUART1_error_check_print();
 	// Start GPS fix.
-	AT_response_add_string("GPS running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("GPS running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	neom8n_status = NEOM8N_get_position(&gps_position, (uint32_t) timeout_seconds, 0, &fix_duration_seconds);
 	NEOM8N_error_check_print();
 	// Latitude.
-	AT_response_add_string("Lat=");
-	AT_response_add_value((gps_position.lat_degrees), STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("d");
-	AT_response_add_value((gps_position.lat_minutes), STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("'");
-	AT_response_add_value((gps_position.lat_seconds), STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("''");
-	AT_response_add_string(((gps_position.lat_north_flag) == 0) ? "S" : "N");
+	_AT_response_add_string("Lat=");
+	_AT_response_add_value((gps_position.lat_degrees), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("d");
+	_AT_response_add_value((gps_position.lat_minutes), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("'");
+	_AT_response_add_value((gps_position.lat_seconds), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("''");
+	_AT_response_add_string(((gps_position.lat_north_flag) == 0) ? "S" : "N");
 	// Longitude.
-	AT_response_add_string(" Long=");
-	AT_response_add_value((gps_position.long_degrees), STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("d");
-	AT_response_add_value((gps_position.long_minutes), STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("'");
-	AT_response_add_value((gps_position.long_seconds), STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("''");
-	AT_response_add_string(((gps_position.long_east_flag) == 0) ? "W" : "E");
+	_AT_response_add_string(" Long=");
+	_AT_response_add_value((gps_position.long_degrees), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("d");
+	_AT_response_add_value((gps_position.long_minutes), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("'");
+	_AT_response_add_value((gps_position.long_seconds), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("''");
+	_AT_response_add_string(((gps_position.long_east_flag) == 0) ? "W" : "E");
 	// Altitude.
-	AT_response_add_string(" Alt=");
-	AT_response_add_value((gps_position.altitude), STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string(" Alt=");
+	_AT_response_add_value((gps_position.altitude), STRING_FORMAT_DECIMAL, 0);
 	// Fix duration.
-	AT_response_add_string("m Fix=");
-	AT_response_add_value(fix_duration_seconds, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("s");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("m Fix=");
+	_AT_response_add_value(fix_duration_seconds, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("s");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	LPUART1_power_off();
 	return;
@@ -501,9 +501,9 @@ static void _AT_nvm_callback(void) {
 	nvm_status = NVM_read_byte((uint16_t) address, &nvm_data);
 	NVM_error_check_print();
 	// Print data.
-	AT_response_add_value(nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_value(nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	return;
 }
@@ -521,10 +521,10 @@ static void _AT_get_id_callback(void) {
 	for (idx=0 ; idx<ID_LENGTH ; idx++) {
 		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_ID + ID_LENGTH - idx - 1), &id_byte);
 		NVM_error_check_print();
-		AT_response_add_value(id_byte, STRING_FORMAT_HEXADECIMAL, (idx==0 ? 1 : 0));
+		_AT_response_add_value(id_byte, STRING_FORMAT_HEXADECIMAL, (idx==0 ? 1 : 0));
 	}
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	return;
 }
@@ -566,10 +566,10 @@ static void _AT_get_key_callback(void) {
 	for (idx=0 ; idx<AES_BLOCK_SIZE ; idx++) {
 		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_KEY + idx), &key_byte);
 		NVM_error_check_print();
-		AT_response_add_value(key_byte, STRING_FORMAT_HEXADECIMAL, (idx==0 ? 1 : 0));
+		_AT_response_add_value(key_byte, STRING_FORMAT_HEXADECIMAL, (idx==0 ? 1 : 0));
 	}
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 errors:
 	return;
 }
@@ -605,13 +605,13 @@ errors:
  * @return:				None.
  */
 static void AT_print_dl_payload(sfx_u8* dl_payload) {
-	AT_response_add_string("+RX=");
+	_AT_response_add_string("+RX=");
 	uint8_t idx = 0;
 	for (idx=0 ; idx<SIGFOX_DOWNLINK_DATA_SIZE_BYTES ; idx++) {
-		AT_response_add_value(dl_payload[idx], STRING_FORMAT_HEXADECIMAL, 0);
+		_AT_response_add_value(dl_payload[idx], STRING_FORMAT_HEXADECIMAL, 0);
 	}
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 /* AT$SO EXECUTION CALLBACK.
@@ -624,9 +624,9 @@ static void _AT_so_callback(void) {
 	// Send Sigfox OOB frame.
 	sigfox_api_status = SIGFOX_API_open(&at_ctx.sigfox_rc);
 	SIGFOX_API_error_check_print();
-	AT_response_add_string("Sigfox library running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("Sigfox library running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	sigfox_api_status = SIGFOX_API_send_outofband(SFX_OOB_SERVICE);
 	SIGFOX_API_error_check_print();
 	_AT_print_ok();
@@ -656,9 +656,9 @@ static void _AT_sb_callback(void) {
 		// Send Sigfox bit with specified downlink request.
 		sigfox_api_status = SIGFOX_API_open(&at_ctx.sigfox_rc);
 		SIGFOX_API_error_check_print();
-		AT_response_add_string("Sigfox library running...");
-		AT_response_add_string(AT_RESPONSE_END);
-		AT_response_send();
+		_AT_response_add_string("Sigfox library running...");
+		_AT_response_add_string(AT_RESPONSE_END);
+		_AT_response_send();
 		sigfox_api_status = SIGFOX_API_send_bit((sfx_bool) data, dl_payload, 2, (sfx_bool) bidir_flag);
 		SIGFOX_API_error_check_print();
 		if (bidir_flag != SFX_FALSE) {
@@ -672,9 +672,9 @@ static void _AT_sb_callback(void) {
 		// Send Sigfox bit with no downlink request (by default).
 		sigfox_api_status = SIGFOX_API_open(&at_ctx.sigfox_rc);
 		SIGFOX_API_error_check_print();
-		AT_response_add_string("Sigfox library running...");
-		AT_response_add_string(AT_RESPONSE_END);
-		AT_response_send();
+		_AT_response_add_string("Sigfox library running...");
+		_AT_response_add_string(AT_RESPONSE_END);
+		_AT_response_send();
 		sigfox_api_status = SIGFOX_API_send_bit((sfx_bool) data, dl_payload, 2, 0);
 		SIGFOX_API_error_check_print();
 	}
@@ -706,9 +706,9 @@ static void _AT_sf_callback(void) {
 		// Send Sigfox frame with specified downlink request.
 		sigfox_api_status = SIGFOX_API_open(&at_ctx.sigfox_rc);
 		SIGFOX_API_error_check_print();
-		AT_response_add_string("Sigfox library running...");
-		AT_response_add_string(AT_RESPONSE_END);
-		AT_response_send();
+		_AT_response_add_string("Sigfox library running...");
+		_AT_response_add_string(AT_RESPONSE_END);
+		_AT_response_send();
 		sigfox_api_status = SIGFOX_API_send_frame(data, extracted_length, dl_payload, 2, bidir_flag);
 		SIGFOX_API_error_check_print();
 		if (bidir_flag != 0) {
@@ -722,9 +722,9 @@ static void _AT_sf_callback(void) {
 		// Send Sigfox frame with no downlink request (by default).
 		sigfox_api_status = SIGFOX_API_open(&at_ctx.sigfox_rc);
 		SIGFOX_API_error_check_print();
-		AT_response_add_string("Sigfox library running...");
-		AT_response_add_string(AT_RESPONSE_END);
-		AT_response_send();
+		_AT_response_add_string("Sigfox library running...");
+		_AT_response_add_string(AT_RESPONSE_END);
+		_AT_response_send();
 		sigfox_api_status = SIGFOX_API_send_frame(data, extracted_length, dl_payload, 2, 0);
 		SIGFOX_API_error_check_print();
 	}
@@ -742,16 +742,16 @@ errors:
  * @return:				None.
  */
 static void AT_print_dl_phy_content(sfx_u8* dl_phy_content, int32_t rssi_dbm) {
-	AT_response_add_string("+DL_PHY=");
+	_AT_response_add_string("+DL_PHY=");
 	uint8_t idx = 0;
 	for (idx=0 ; idx<SIGFOX_DOWNLINK_PHY_SIZE_BYTES ; idx++) {
-		AT_response_add_value(dl_phy_content[idx], STRING_FORMAT_HEXADECIMAL, 0);
+		_AT_response_add_value(dl_phy_content[idx], STRING_FORMAT_HEXADECIMAL, 0);
 	}
-	AT_response_add_string(" RSSI=");
-	AT_response_add_value(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
-	AT_response_add_string("dBm");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string(" RSSI=");
+	_AT_response_add_value(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
+	_AT_response_add_string("dBm");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 /* AT$TM EXECUTION CALLBACK.
@@ -771,9 +771,9 @@ static void _AT_tm_callback(void) {
 	parser_status =  PARSER_get_parameter(&at_ctx.parser, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &test_mode);
 	PARSER_error_check_print();
 	// Call test mode function wth public key.
-	AT_response_add_string("Sigfox addon running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("Sigfox addon running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	sigfox_api_status = ADDON_SIGFOX_RF_PROTOCOL_API_test_mode((sfx_rc_enum_t) rc_index, (sfx_test_mode_t) test_mode);
 	SIGFOX_API_error_check_print();
 	_AT_print_ok();
@@ -809,9 +809,9 @@ static void _AT_cw_callback(void) {
 			SIGFOX_API_error_check_print();
 			s2lp_status = S2LP_set_rf_output_power((int8_t) power_dbm);
 			S2LP_error_check_print();
-			AT_response_add_string("S2LP running...");
-			AT_response_add_string(AT_RESPONSE_END);
-			AT_response_send();
+			_AT_response_add_string("S2LP running...");
+			_AT_response_add_string(AT_RESPONSE_END);
+			_AT_response_send();
 		}
 	}
 	else {
@@ -823,9 +823,9 @@ static void _AT_cw_callback(void) {
 		if (enable != 0) {
 			sigfox_api_status = SIGFOX_API_start_continuous_transmission((sfx_u32) frequency_hz, SFX_NO_MODULATION);
 			SIGFOX_API_error_check_print();
-			AT_response_add_string("S2LP running...");
-			AT_response_add_string(AT_RESPONSE_END);
-			AT_response_send();
+			_AT_response_add_string("S2LP running...");
+			_AT_response_add_string(AT_RESPONSE_END);
+			_AT_response_send();
 		}
 	}
 	_AT_print_ok();
@@ -856,9 +856,9 @@ static void _AT_dl_callback(void) {
 	SIGFOX_API_error_check_print();
 	sigfox_api_status = RF_API_change_frequency(frequency_hz);
 	SIGFOX_API_error_check_print();
-	AT_response_add_string("RX GFSK running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("RX GFSK running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	while (dl_status == DL_PASSED) {
 		sigfox_api_status = RF_API_wait_frame(dl_phy_content, &rssi_dbm, &dl_status);
 		SIGFOX_API_error_check_print();
@@ -867,9 +867,9 @@ static void _AT_dl_callback(void) {
 			AT_print_dl_phy_content(dl_phy_content, rssi_dbm);
 		}
 		else {
-			AT_response_add_string("RX timeout");
-			AT_response_add_string(AT_RESPONSE_END);
-			AT_response_send();
+			_AT_response_add_string("RX timeout");
+			_AT_response_add_string(AT_RESPONSE_END);
+			_AT_response_send();
 		}
 	}
 errors:
@@ -912,18 +912,18 @@ static void _AT_rssi_callback(void) {
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_RX);
 	S2LP_error_check_print();
 	// Measurement loop.
-	AT_response_add_string("S2LP running...");
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string("S2LP running...");
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 	while (report_loop < ((duration_s * 1000) / AT_RSSI_REPORT_PERIOD_MS)) {
 		// Read RSSI.
 		s2lp_status = S2LP_get_rssi(&rssi_dbm);
 		S2LP_error_check_print();
 		// Print RSSI.
-		AT_response_add_string("RSSI=");
-		AT_response_add_value(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
-		AT_response_add_string("dBm\n");
-		AT_response_send();
+		_AT_response_add_string("RSSI=");
+		_AT_response_add_value(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
+		_AT_response_add_string("dBm\n");
+		_AT_response_send();
 		// Report delay.
 		lptim1_status = LPTIM1_delay_milliseconds(AT_RSSI_REPORT_PERIOD_MS, 0);
 		LPTIM1_error_check_print();
@@ -961,7 +961,7 @@ static void AT_decode(void) {
 	uint8_t decode_success = 0;
 	// Empty or too short command.
 	if (at_ctx.command_buf_idx < AT_COMMAND_LENGTH_MIN) {
-		AT_print_status(ERROR_BASE_PARSER + PARSER_ERROR_UNKNOWN_COMMAND);
+		_AT_print_status(ERROR_BASE_PARSER + PARSER_ERROR_UNKNOWN_COMMAND);
 		goto errors;
 	}
 	// Update parser length.
@@ -977,7 +977,7 @@ static void AT_decode(void) {
 		}
 	}
 	if (decode_success == 0) {
-		AT_print_status(ERROR_BASE_PARSER + PARSER_ERROR_UNKNOWN_COMMAND); // Unknown command.
+		_AT_print_status(ERROR_BASE_PARSER + PARSER_ERROR_UNKNOWN_COMMAND); // Unknown command.
 		goto errors;
 	}
 errors:
@@ -1049,15 +1049,15 @@ void AT_fill_rx_buffer(uint8_t rx_byte) {
 void AT_print_test_result(uint8_t test_result, int rssi_dbm) {
 	// Check result.
 	if (test_result == 0) {
-		AT_response_add_string("Test failed.");
+		_AT_response_add_string("Test failed.");
 	}
 	else {
-		AT_response_add_string("Test passed. RSSI=");
-		AT_response_add_value(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
-		AT_response_add_string("dBm");
+		_AT_response_add_string("Test passed. RSSI=");
+		_AT_response_add_value(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
+		_AT_response_add_string("dBm");
 	}
-	AT_response_add_string(AT_RESPONSE_END);
-	AT_response_send();
+	_AT_response_add_string(AT_RESPONSE_END);
+	_AT_response_send();
 }
 
 #endif
