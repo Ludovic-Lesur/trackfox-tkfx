@@ -47,10 +47,6 @@
 // Number of GPIOs.
 #define S2LP_NUMBER_OF_GPIO					4
 
-
-
-
-
 /*** S2LP local functions ***/
 
 /* S2LP REGISTER WRITE FUNCTION.
@@ -58,7 +54,7 @@
  * @param value:	Value to write in register.
  * @return status:	Function execution status.
  */
-static S2LP_status_t S2LP_write_register(uint8_t addr, uint8_t value) {
+static S2LP_status_t _S2LP_write_register(uint8_t addr, uint8_t value) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	SPI_status_t spi_status = SPI_SUCCESS;
@@ -81,7 +77,7 @@ errors:
  * @param value:	Pointer to byte that will contain the register value to read.
  * @return status:	Function execution status.
  */
-static S2LP_status_t S2LP_read_register(uint8_t addr, uint8_t* value) {
+static S2LP_status_t _S2LP_read_register(uint8_t addr, uint8_t* value) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	SPI_status_t spi_status = SPI_SUCCESS;
@@ -190,7 +186,7 @@ S2LP_status_t S2LP_wait_for_state(S2LP_state_t new_state) {
 	uint32_t delay_ms = 0;
 	// Poll MC_STATE until state is reached.
 	do {
-		status = S2LP_read_register(S2LP_REG_MC_STATE0, &reg_value);
+		status = _S2LP_read_register(S2LP_REG_MC_STATE0, &reg_value);
 		if (status != S2LP_SUCCESS) goto errors;
 		state = (reg_value >> 1) & 0x7F;
 		// Internal delay.
@@ -221,7 +217,7 @@ S2LP_status_t S2LP_wait_for_oscillator(void) {
 	uint32_t delay_ms = 0;
 	// Poll MC_STATE until XO bit is set.
 	do {
-		status = S2LP_read_register(S2LP_REG_MC_STATE0, &reg_value);
+		status = _S2LP_read_register(S2LP_REG_MC_STATE0, &reg_value);
 		if (status != S2LP_SUCCESS) goto errors;
 		xo_on = (reg_value & 0x01);
 		// Internal delay.
@@ -254,11 +250,11 @@ S2LP_status_t S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator) {
 	}
 	// Set RFDIV to 0, disable external RCO, configure EXT_REF bit.
 	reg_value = (s2lp_oscillator == S2LP_OSCILLATOR_TCXO) ? 0xB0 : 0x30;
-	status = S2LP_write_register(S2LP_REG_XO_RCO_CONF0, reg_value);
+	status = _S2LP_write_register(S2LP_REG_XO_RCO_CONF0, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set digital clock divider according to crytal frequency.
 	reg_value = (S2LP_XO_FREQUENCY_HZ < S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) ? 0x3E : 0x2E;
-	status = S2LP_write_register(S2LP_REG_XO_RCO_CONF1, reg_value);
+	status = _S2LP_write_register(S2LP_REG_XO_RCO_CONF1, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -272,9 +268,9 @@ S2LP_status_t S2LP_configure_smps(S2LP_smps_setting_t smps_setting) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	// Configure divider and switching frequency.
-	status = S2LP_write_register(S2LP_REG_PM_CONF3, smps_setting.s2lp_smps_reg_pm_conf3);
+	status = _S2LP_write_register(S2LP_REG_PM_CONF3, smps_setting.s2lp_smps_reg_pm_conf3);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_write_register(S2LP_REG_PM_CONF2, smps_setting.s2lp_smps_reg_pm_conf2);
+	status = _S2LP_write_register(S2LP_REG_PM_CONF2, smps_setting.s2lp_smps_reg_pm_conf2);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -289,19 +285,19 @@ S2LP_status_t S2LP_configure_charge_pump(void) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t reg_value = 0;
 	// Set PLL_CP_ISEL to '010'.
-	status = S2LP_read_register(S2LP_REG_SYNT3, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_SYNT3, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set bits.
 	reg_value &= 0x1F;
 	reg_value |= (0b010 << 5);
 	// Write register.
-	status = S2LP_write_register(S2LP_REG_SYNT3, reg_value);
+	status = _S2LP_write_register(S2LP_REG_SYNT3, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set PLL_PFD_SPLIT_EN bit according to crystal frequency.
-	status = S2LP_read_register(S2LP_REG_SYNTH_CONFIG2, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_SYNTH_CONFIG2, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	reg_value = (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) ? 0xFB : 0x04;
-	status = S2LP_write_register(S2LP_REG_SYNTH_CONFIG2, reg_value);
+	status = _S2LP_write_register(S2LP_REG_SYNTH_CONFIG2, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -321,13 +317,13 @@ S2LP_status_t S2LP_set_modulation(S2LP_modulation_t modulation) {
 		goto errors;
 	}
 	// Read register.
-	status = S2LP_read_register(S2LP_REG_MOD2, &mod2_reg_value);
+	status = _S2LP_read_register(S2LP_REG_MOD2, &mod2_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Change required bits.
 	mod2_reg_value &= 0x0F;
 	mod2_reg_value |= (modulation << 4);
 	// Write register.
-	status = S2LP_write_register(S2LP_REG_MOD2, mod2_reg_value);
+	status = _S2LP_write_register(S2LP_REG_MOD2, mod2_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -353,12 +349,12 @@ S2LP_status_t S2LP_set_rf_frequency(uint32_t rf_frequency_hz) {
 	}
 	// Set IF to 300kHz.
 	if (S2LP_XO_FREQUENCY_HZ < S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
-		status = S2LP_write_register(S2LP_REG_IF_OFFSET_ANA, 0xB8);
+		status = _S2LP_write_register(S2LP_REG_IF_OFFSET_ANA, 0xB8);
 		if (status != S2LP_SUCCESS) goto errors;
 	}
 	// See equation p.27 of S2LP datasheet.
 	// Set CHNUM to 0.
-	status = S2LP_write_register(S2LP_REG_CHNUM, 0x00);
+	status = _S2LP_write_register(S2LP_REG_CHNUM, 0x00);
 	if (status != S2LP_SUCCESS) goto errors;
 	// B=4 for 868MHz (high band, BS=0). REFDIV was set to 0 in oscillator configuration function.
 	// SYNT = (fRF * 2^20 * B/2 * D) / (fXO) = (fRF * 2^21) / (fXO).
@@ -366,20 +362,20 @@ S2LP_status_t S2LP_set_rf_frequency(uint32_t rf_frequency_hz) {
 	synt_value *= rf_frequency_hz;
 	synt_value /= S2LP_XO_FREQUENCY_HZ;
 	// Write registers.
-	status = S2LP_read_register(S2LP_REG_SYNT3, &synt_reg_value);
+	status = _S2LP_read_register(S2LP_REG_SYNT3, &synt_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	synt_reg_value &= 0xE0; // BS=0 to select high band.
 	synt_reg_value |= ((synt_value >> 24) & 0x0F);
-	status = S2LP_write_register(S2LP_REG_SYNT3, synt_reg_value);
+	status = _S2LP_write_register(S2LP_REG_SYNT3, synt_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	synt_reg_value = (synt_value >> 16) & 0xFF;
-	status = S2LP_write_register(S2LP_REG_SYNT2, synt_reg_value);
+	status = _S2LP_write_register(S2LP_REG_SYNT2, synt_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	synt_reg_value = (synt_value >> 8) & 0xFF;
-	status = S2LP_write_register(S2LP_REG_SYNT1, synt_reg_value);
+	status = _S2LP_write_register(S2LP_REG_SYNT1, synt_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	synt_reg_value = (synt_value >> 0) & 0xFF;
-	status = S2LP_write_register(S2LP_REG_SYNT0, synt_reg_value);
+	status = _S2LP_write_register(S2LP_REG_SYNT0, synt_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -394,13 +390,13 @@ S2LP_status_t S2LP_set_fsk_deviation(S2LP_mantissa_exponent_t fsk_deviation_sett
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t mod1_reg_value = 0;
 	// Write registers.
-	status = S2LP_write_register(S2LP_REG_MOD0, fsk_deviation_setting.mantissa);
+	status = _S2LP_write_register(S2LP_REG_MOD0, fsk_deviation_setting.mantissa);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_read_register(S2LP_REG_MOD1, &mod1_reg_value);
+	status = _S2LP_read_register(S2LP_REG_MOD1, &mod1_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	mod1_reg_value &= 0xF0;
 	mod1_reg_value |= fsk_deviation_setting.exponent;
-	status = S2LP_write_register(S2LP_REG_MOD1, mod1_reg_value);
+	status = _S2LP_write_register(S2LP_REG_MOD1, mod1_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -415,15 +411,15 @@ S2LP_status_t S2LP_set_bitrate(S2LP_mantissa_exponent_t bit_rate_setting) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t mod2_reg_value = 0;
 	// Write registers.
-	status = S2LP_write_register(S2LP_REG_MOD4, (bit_rate_setting.mantissa >> 8) & 0x00FF);
+	status = _S2LP_write_register(S2LP_REG_MOD4, (bit_rate_setting.mantissa >> 8) & 0x00FF);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_write_register(S2LP_REG_MOD3, (bit_rate_setting.mantissa >> 0) & 0x00FF);
+	status = _S2LP_write_register(S2LP_REG_MOD3, (bit_rate_setting.mantissa >> 0) & 0x00FF);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_read_register(S2LP_REG_MOD2, &mod2_reg_value);
+	status = _S2LP_read_register(S2LP_REG_MOD2, &mod2_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	mod2_reg_value &= 0xF0;
 	mod2_reg_value |= (bit_rate_setting.exponent);
-	status = S2LP_write_register(S2LP_REG_MOD2, mod2_reg_value);
+	status = _S2LP_write_register(S2LP_REG_MOD2, mod2_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -458,21 +454,21 @@ S2LP_status_t S2LP_configure_gpio(uint8_t gpio_index, S2LP_gpio_mode_t gpio_mode
 		goto errors;
 	}
 	// Read corresponding register.
-	status = S2LP_read_register((S2LP_REG_GPIO0_CONF + gpio_index), &reg_value);
+	status = _S2LP_read_register((S2LP_REG_GPIO0_CONF + gpio_index), &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set required bits.
 	reg_value &= 0x04; // Bit 2 is reserved.
 	reg_value |= ((gpio_mode & 0x02) << 0);
 	reg_value |= ((gpio_function & 0x1F) << 3);
 	// Write register.
-	status = S2LP_write_register((S2LP_REG_GPIO0_CONF + gpio_index), reg_value);
+	status = _S2LP_write_register((S2LP_REG_GPIO0_CONF + gpio_index), reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Select FIFO flags.
-	status = S2LP_read_register(S2LP_REG_PROTOCOL2, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_PROTOCOL2, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	reg_value &= 0xFB;
 	reg_value |= ((fifo_flag_direction & 0x01) << 2);
-	status = S2LP_write_register(S2LP_REG_PROTOCOL2, reg_value);
+	status = _S2LP_write_register(S2LP_REG_PROTOCOL2, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -496,7 +492,7 @@ S2LP_status_t S2LP_set_fifo_threshold(S2LP_fifo_threshold_t fifo_threshold, uint
 		goto errors;
 	}
 	// Write register.
-	status = S2LP_write_register(fifo_threshold, threshold_value);
+	status = _S2LP_write_register(fifo_threshold, threshold_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -522,13 +518,13 @@ S2LP_status_t S2LP_configure_irq(S2LP_irq_index_t irq_index, uint8_t irq_enable)
 	reg_addr_offset = (irq_index / 8);
 	irq_bit_offset = (irq_index % 8);
 	// Read register.
-	status = S2LP_read_register((S2LP_REG_IRQ_MASK0 - reg_addr_offset), &reg_value);
+	status = _S2LP_read_register((S2LP_REG_IRQ_MASK0 - reg_addr_offset), &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set bit.
 	reg_value &= ~(0b1 << irq_bit_offset);
 	reg_value |= (((irq_enable == 0) ? 0b1 : 0b0) << irq_bit_offset);
 	// Program register.
-	status = S2LP_write_register((S2LP_REG_IRQ_MASK0 - reg_addr_offset), reg_value);
+	status = _S2LP_write_register((S2LP_REG_IRQ_MASK0 - reg_addr_offset), reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -543,13 +539,13 @@ S2LP_status_t S2LP_clear_irq_flags(void) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t reg_value = 0;
 	// Read IRQ status to clear flags.
-	status = S2LP_read_register(S2LP_REG_IRQ_STATUS3,  &reg_value);
+	status = _S2LP_read_register(S2LP_REG_IRQ_STATUS3,  &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_read_register(S2LP_REG_IRQ_STATUS2,  &reg_value);
+	status = _S2LP_read_register(S2LP_REG_IRQ_STATUS2,  &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_read_register(S2LP_REG_IRQ_STATUS1,  &reg_value);
+	status = _S2LP_read_register(S2LP_REG_IRQ_STATUS1,  &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_read_register(S2LP_REG_IRQ_STATUS0,  &reg_value);
+	status = _S2LP_read_register(S2LP_REG_IRQ_STATUS0,  &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -563,9 +559,9 @@ S2LP_status_t S2LP_set_packet_length(uint8_t packet_length_bytes) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	// Set length.
-	status = S2LP_write_register(S2LP_REG_PCKTLEN1, 0x00);
+	status = _S2LP_write_register(S2LP_REG_PCKTLEN1, 0x00);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_write_register(S2LP_REG_PCKTLEN0, packet_length_bytes);
+	status = _S2LP_write_register(S2LP_REG_PCKTLEN0, packet_length_bytes);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -586,19 +582,19 @@ S2LP_status_t S2LP_set_preamble_detector(uint8_t preamble_length_2bits, S2LP_pre
 		goto errors;
 	}
 	// Set length.
-	status = S2LP_read_register(S2LP_REG_PCKTCTRL6, &pcktctrlx_reg_value);
+	status = _S2LP_read_register(S2LP_REG_PCKTCTRL6, &pcktctrlx_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	pcktctrlx_reg_value &= 0xFC;
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL6, pcktctrlx_reg_value);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL6, pcktctrlx_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL5, preamble_length_2bits);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL5, preamble_length_2bits);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set pattern.
-	status = S2LP_read_register(S2LP_REG_PCKTCTRL3, &pcktctrlx_reg_value);
+	status = _S2LP_read_register(S2LP_REG_PCKTCTRL3, &pcktctrlx_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	pcktctrlx_reg_value &= 0xFC;
 	pcktctrlx_reg_value |= (preamble_pattern & 0x03);
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL3, pcktctrlx_reg_value);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL3, pcktctrlx_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -615,8 +611,8 @@ S2LP_status_t S2LP_set_sync_word(uint8_t* sync_word, uint8_t sync_word_length_bi
 	uint8_t sync_word_length_bytes = 0;
 	uint8_t generic_byte = 0;
 	// Check parameters.
-	if (sync_word == (void*) 0) {
-		status = S2LP_ERROR_SYNC_WORD;
+	if (sync_word == NULL) {
+		status = S2LP_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
 	if (sync_word_length_bits > S2LP_SYNC_WORD_LENGTH_BITS_MAX) {
@@ -629,15 +625,15 @@ S2LP_status_t S2LP_set_sync_word(uint8_t* sync_word, uint8_t sync_word_length_bi
 		sync_word_length_bytes++;
 	}
 	for (generic_byte=0 ; generic_byte<sync_word_length_bytes ; generic_byte++) {
-		status = S2LP_write_register((S2LP_REG_SYNC0 - generic_byte), sync_word[generic_byte]);
+		status = _S2LP_write_register((S2LP_REG_SYNC0 - generic_byte), sync_word[generic_byte]);
 		if (status != S2LP_SUCCESS) goto errors;
 	}
 	// Set length.
-	status = S2LP_read_register(S2LP_REG_PCKTCTRL6, &generic_byte);
+	status = _S2LP_read_register(S2LP_REG_PCKTCTRL6, &generic_byte);
 	if (status != S2LP_SUCCESS) goto errors;
 	generic_byte &= 0x03;
 	generic_byte |= (sync_word_length_bits << 2);
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL6, generic_byte);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL6, generic_byte);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -652,12 +648,12 @@ S2LP_status_t S2LP_disable_crc(void) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t reg_value = 0;
 	// Read register.
-	status = S2LP_read_register(S2LP_REG_PCKTCTRL1, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_PCKTCTRL1, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set bits.
 	reg_value &= 0x1F;
 	// Write register.
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL1, reg_value);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL1, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -672,19 +668,19 @@ S2LP_status_t S2LP_configure_pa(void) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t reg_value = 0;
 	// Disable PA power ramping and select slot 0.
-	status = S2LP_write_register(S2LP_REG_PA_POWER0, 0x00);
+	status = _S2LP_write_register(S2LP_REG_PA_POWER0, 0x00);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Disable FIR.
-	status = S2LP_read_register(S2LP_REG_PA_CONFIG1, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_PA_CONFIG1, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	reg_value &= 0xFD;
-	status = S2LP_write_register(S2LP_REG_PA_CONFIG1, reg_value);
+	status = _S2LP_write_register(S2LP_REG_PA_CONFIG1, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Enable interpolator.
-	S2LP_read_register(S2LP_REG_MOD1, &reg_value);
+	_S2LP_read_register(S2LP_REG_MOD1, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	reg_value |= 0x80;
-	status = S2LP_write_register(S2LP_REG_MOD1, reg_value);
+	status = _S2LP_write_register(S2LP_REG_MOD1, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -711,11 +707,11 @@ S2LP_status_t S2LP_set_rf_output_power(int8_t output_power_dbm) {
 	// Compute register value.
 	pa_reg_value = (uint8_t) (29 - 2 * output_power_dbm);
 	// Program register.
-	status = S2LP_read_register(S2LP_REG_PA_POWER1, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_PA_POWER1, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	reg_value &= 0x80;
 	reg_value |= (pa_reg_value & 0x7F);
-	status = S2LP_write_register(S2LP_REG_PA_POWER1, reg_value);
+	status = _S2LP_write_register(S2LP_REG_PA_POWER1, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -735,13 +731,13 @@ S2LP_status_t S2LP_set_tx_source(S2LP_tx_source_t tx_source) {
 		goto errors;
 	}
 	// Read register.
-	status = S2LP_read_register(S2LP_REG_PCKTCTRL1, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_PCKTCTRL1, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set bits.
 	reg_value &= 0xF3;
 	reg_value |= (tx_source << 2);
 	// Write register.
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL1, reg_value);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL1, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -760,8 +756,8 @@ S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes) {
 	uint8_t idx = 0;
 #endif
 	// Check parameters.
-	if (tx_data == (void*) 0) {
-		status = S2LP_ERROR_TX_DATA;
+	if (tx_data == NULL) {
+		status = S2LP_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
 	if (tx_data_length_bytes > S2LP_FIFO_SIZE_BYTES) {
@@ -811,13 +807,13 @@ S2LP_status_t S2LP_set_rx_source(S2LP_rx_source_t rx_source) {
 		goto errors;
 	}
 	// Read register.
-	status = S2LP_read_register(S2LP_REG_PCKTCTRL3, &reg_value);
+	status = _S2LP_read_register(S2LP_REG_PCKTCTRL3, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set bits.
 	reg_value &= 0xCF;
 	reg_value |= (rx_source << 4);
 	// Write register.
-	status = S2LP_write_register(S2LP_REG_PCKTCTRL3, reg_value);
+	status = _S2LP_write_register(S2LP_REG_PCKTCTRL3, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -833,7 +829,7 @@ S2LP_status_t S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting) {
 	uint8_t chflt_reg_value = 0;
 	// Write register.
 	chflt_reg_value = ((rxbw_setting.mantissa << 4) & 0xF0) + (rxbw_setting.exponent & 0x0F);
-	status = S2LP_write_register(S2LP_REG_CHFLT, chflt_reg_value);
+	status = _S2LP_write_register(S2LP_REG_CHFLT, chflt_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -848,12 +844,12 @@ S2LP_status_t S2LP_disable_equa_cs_ant_switch(void) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t ant_select_conf_reg_value = 0;
 	// Read register.
-	status = S2LP_read_register(S2LP_REG_ANT_SELECT_CONF, &ant_select_conf_reg_value);
+	status = _S2LP_read_register(S2LP_REG_ANT_SELECT_CONF, &ant_select_conf_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Disable equalization.
 	ant_select_conf_reg_value &= 0x83;
 	// Program register.
-	status = S2LP_write_register(S2LP_REG_ANT_SELECT_CONF, ant_select_conf_reg_value);
+	status = _S2LP_write_register(S2LP_REG_ANT_SELECT_CONF, ant_select_conf_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
 	return status;
@@ -867,8 +863,13 @@ S2LP_status_t S2LP_get_rssi(int16_t* rssi_dbm) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t rssi_level_reg_value = 0;
+	// Check parameter.
+	if (rssi_dbm == NULL) {
+		status = S2LP_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// Read register.
-	status = S2LP_read_register(S2LP_REG_RSSI_LEVEL, &rssi_level_reg_value);
+	status = _S2LP_read_register(S2LP_REG_RSSI_LEVEL, &rssi_level_reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Convert to dBm.
 	(*rssi_dbm) = (int16_t) rssi_level_reg_value - (int16_t) S2LP_RSSI_OFFSET_DB;
@@ -887,8 +888,8 @@ S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes) {
 	SPI_status_t spi_status = SPI_SUCCESS;
 	uint8_t idx = 0;
 	// Check parameters.
-	if (rx_data == (void*) 0) {
-		status = S2LP_ERROR_RX_DATA;
+	if (rx_data == NULL) {
+		status = S2LP_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
 	if (rx_data_length_bytes > S2LP_FIFO_SIZE_BYTES) {

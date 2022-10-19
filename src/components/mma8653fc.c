@@ -41,6 +41,11 @@ MMA8653FC_status_t MMA8653FC_get_id(uint8_t* chip_id) {
 	MMA8653FC_status_t status = MMA8653FC_SUCCESS;
 	I2C_status_t i2c1_status = I2C_SUCCESS;
 	uint8_t local_addr = MMA8653FC_REG_WHO_AM_I;
+	// Check parameter.
+	if (chip_id == NULL) {
+		status = MMA8653FC_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// Read register.
 	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);
 	I2C1_status_check(MMA8653FC_ERROR_BASE_I2C);
@@ -61,6 +66,14 @@ MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mm
 	I2C_status_t i2c1_status = I2C_SUCCESS;
 	uint8_t i2c_tx_data[2];
 	uint8_t reg_idx = 0;
+	if (mma8653fc_config == NULL) {
+		status = MMA8653FC_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
+	if (mma8653fc_config_size == 0) {
+		status = MMA8653FC_ERROR_CONFIG_SIZE;
+		goto errors;
+	}
 	// Write configuration.
 	for (reg_idx=0 ; reg_idx<mma8653fc_config_size ; reg_idx++) {
 		i2c_tx_data[0] = (mma8653fc_config[reg_idx].addr);
@@ -86,6 +99,11 @@ MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z) {
 	uint32_t data = 0;
 	uint8_t reg_data = 0;
 	uint8_t local_addr = 0;
+	// Check parameters.
+	if ((x == NULL) || (y == NULL) || (z == NULL)) {
+		status = MMA8653FC_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// X-axis.
 	local_addr = MMA8653FC_REG_OUT_X_MSB;
 	i2c1_status = I2C1_write(MMA8653FC_I2C_ADDRESS, &local_addr, 1, 0);

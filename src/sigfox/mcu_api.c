@@ -17,6 +17,7 @@
 #include "pwr.h"
 #include "rtc.h"
 #include "sigfox_types.h"
+#include "types.h"
 #ifdef ATM
 #include "at.h"
 #endif
@@ -28,8 +29,8 @@
 /*** MCU API local structures ***/
 
 typedef struct {
-	sfx_u8 malloc_buf[MCU_API_MALLOC_BUFFER_SIZE];
-	sfx_u32 timer_duration_seconds;
+	uint8_t malloc_buf[MCU_API_MALLOC_BUFFER_SIZE];
+	uint32_t timer_duration_seconds;
 } MCU_API_context_t;
 
 /*** MCU API local global variables ***/
@@ -199,7 +200,7 @@ sfx_u8 MCU_API_aes_128_cbc_encrypt(sfx_u8* encrypted_data, sfx_u8* data_to_encry
 		case CREDENTIALS_PRIVATE_KEY:
 			// Retrieve device key from NVM.
 			for (byte_idx=0 ; byte_idx<AES_BLOCK_SIZE ; byte_idx++) {
-				nvm_status = NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_KEY+byte_idx, &key_byte);
+				nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_KEY + byte_idx), &key_byte);
 				if (nvm_status != NVM_SUCCESS) goto errors;
 				local_key[byte_idx] = key_byte;
 			}
@@ -493,7 +494,7 @@ sfx_u8 MCU_API_get_device_id_and_payload_encryption_flag(sfx_u8 dev_id[ID_LENGTH
 	(*payload_encryption_enabled) = SFX_FALSE;
 	// Get device ID.
 	for (byte_idx=0 ; byte_idx<ID_LENGTH ; byte_idx++) {
-		nvm_status = NVM_read_byte(NVM_ADDRESS_SIGFOX_DEVICE_ID+byte_idx, &(dev_id[byte_idx]));
+		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_DEVICE_ID + byte_idx), &(dev_id[byte_idx]));
 		if (nvm_status != NVM_SUCCESS) goto errors;
 	}
 	return SFX_ERR_NONE;

@@ -390,7 +390,8 @@ int main (void) {
 			sht3x_status = SHT3X_perform_measurements(SHT3X_I2C_ADDRESS);
 			SHT3X_error_check();
 			I2C1_power_off();
-			SHT3X_get_temperature(&temperature_degrees);
+			sht3x_status = SHT3X_get_temperature(&temperature_degrees);
+			SHT3X_error_check();
 			math_status = MATH_one_complement(temperature_degrees, 7, &generic_data_u32);
 			MATH_error_check();
 			tkfx_ctx.tamb_degrees = (uint8_t) generic_data_u32;

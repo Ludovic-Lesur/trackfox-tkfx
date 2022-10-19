@@ -110,7 +110,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 	switch (rf_mode) {
 	case SFX_RF_MODE_TX:
 		// Configure GPIO.
-		GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+		GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
 		EXTI_configure_gpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_RISING_EDGE);
 		// Uplink.
 		s2lp_status = S2LP_configure_smps(S2LP_SMPS_TX);
@@ -132,7 +132,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		break;
 	case SFX_RF_MODE_RX:
 		// Configure GPIO.
-		GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_UP);
+		GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_UP);
 		EXTI_configure_gpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_FALLING_EDGE);
 		// Downlink.
 		s2lp_status = S2LP_configure_smps(S2LP_SMPS_RX);
@@ -317,7 +317,7 @@ errors:
  * \retval SFX_ERR_NONE:                                 No error
  * \retval RF_ERR_API_START_CONTINUOUS_TRANSMISSION:     Continuous Transmission Start error
  *******************************************************************/
-sfx_u8 RF_API_start_continuous_transmission (sfx_modulation_type_t type) {
+sfx_u8 RF_API_start_continuous_transmission(sfx_modulation_type_t type) {
 	// Local variables.
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	// Disable modulation.
@@ -344,7 +344,7 @@ errors:
  * \retval SFX_ERR_NONE:                                 No error
  * \retval RF_ERR_API_STOP_CONTINUOUS_TRANSMISSION:      Continuous Transmission Stop error
  *******************************************************************/
-sfx_u8 RF_API_stop_continuous_transmission (void) {
+sfx_u8 RF_API_stop_continuous_transmission(void) {
 	// Local variables.
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	// Stop radio.
