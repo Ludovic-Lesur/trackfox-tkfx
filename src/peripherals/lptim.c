@@ -149,7 +149,6 @@ LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, uint8_t stop_mode) {
 		while (((LPTIM1 -> ISR) & (0b1 << 1)) == 0);
 		// Clear flag.
 		LPTIM1 -> ICR |= (0b1 << 1);
-
 	}
 errors:
 	// Disable timer.

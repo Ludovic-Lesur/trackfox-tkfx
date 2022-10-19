@@ -81,7 +81,7 @@ void SPI1_power_off(void) {
 }
 
 /* SEND A BYTE THROUGH SPI1.
- * @param tx_data:	Data to send (8-bits).
+ * @param tx_data:	8-bits data to send.
  * @return status:	Function execution status.
  */
 SPI_status_t SPI1_write_byte(uint8_t tx_data) {
@@ -104,13 +104,18 @@ errors:
 }
 
 /* READ A BYTE FROM SPI1.
- * @param rx_data:	Pointer to byte that will contain the data to read (8-bits).
+ * @param rx_data:	Pointer to 8-bits value that will contain the data to read.
  * @return status:	Function execution status.
  */
 SPI_status_t SPI1_read_byte(uint8_t tx_data, uint8_t* rx_data) {
 	// Local variables.
 	SPI_status_t status = SPI_SUCCESS;
 	uint32_t loop_count = 0;
+	// Check parameters.
+	if (rx_data == NULL) {
+		status = SPI_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// Dummy read to DR to clear RXNE flag.
 	(*rx_data) = *((volatile uint8_t*) &(SPI1 -> DR));
 	// Wait for TXE flag.

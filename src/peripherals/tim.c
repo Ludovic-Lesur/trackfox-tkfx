@@ -70,6 +70,11 @@ TIM_status_t TIM21_get_lsi_frequency(uint32_t* lsi_frequency_hz) {
 	uint32_t tim21_ccr1_edge1 = 0;
 	uint32_t tim21_ccr1_edge8 = 0;
 	uint32_t loop_count = 0;
+	// Check parameters.
+	if (lsi_frequency_hz == NULL) {
+		status = TIM_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// Reset counter.
 	TIM21 -> CNT = 0;
 	TIM21 -> CCR1 = 0;

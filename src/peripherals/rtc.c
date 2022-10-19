@@ -7,7 +7,6 @@
 
 #include "rtc.h"
 
-#include "at.h"
 #include "exti.h"
 #include "exti_reg.h"
 #include "nvic.h"
@@ -98,6 +97,11 @@ void __attribute__((optimize("-O0"))) RTC_reset(void) {
 RTC_status_t __attribute__((optimize("-O0"))) RTC_init(uint8_t* rtc_use_lse, uint32_t lsi_freq_hz) {
 	// Local variables.
 	RTC_status_t status = RTC_SUCCESS;
+	// Check parameters.
+	if (rtc_use_lse == NULL) {
+		status = RTC_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// Manage RTC clock source.
 	if ((*rtc_use_lse) != 0) {
 		RCC -> CSR |= (0b01 << 16); // RTCSEL='01' (LSE).

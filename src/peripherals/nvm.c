@@ -21,7 +21,7 @@
  * @param:			None.
  * @return status:	Function execution status.
  */
-static NVM_status_t NVM_unlock(void) {
+static NVM_status_t _NVM_unlock(void) {
 	// Local variables.
 	NVM_status_t status = NVM_SUCCESS;
 	uint32_t loop_count = 0;
@@ -48,7 +48,7 @@ errors:
  * @param:			None.
  * @return status:	Function execution status.
  */
-static NVM_status_t NVM_lock(void) {
+static NVM_status_t _NVM_lock(void) {
 	// Local variables.
 	NVM_status_t status = NVM_SUCCESS;
 	uint32_t loop_count = 0;
@@ -80,24 +80,28 @@ void NVM_init(void) {
 
 /* READ A BYTE STORED IN NVM.
  * @param address_offset:	Address offset starting from NVM start address (expressed in bytes).
- * @param data:				Pointer to byte that will contain the value to read.
+ * @param data:				Pointer to 8-bits value that will contain the value to read.
  * @return status:			Function execution status.
  */
 NVM_status_t NVM_read_byte(NVM_address_t address_offset, uint8_t* data) {
 	// Local variables.
 	NVM_status_t status = NVM_SUCCESS;
-	// Check address.
+	// Check parameters.
 	if (address_offset >= EEPROM_SIZE_BYTES) {
 		status = NVM_ERROR_ADDRESS;
 		goto errors;
 	}
+	if (data == NULL) {
+		status = NVM_ERROR_NULL_PARAMETER;
+		goto errors;
+	}
 	// Unlock NVM.
-	status = NVM_unlock();
+	status = _NVM_unlock();
 	if (status != NVM_SUCCESS) goto errors;
 	// Read data.
 	(*data) = *((uint8_t*) (EEPROM_START_ADDRESS + address_offset));
 	// Lock NVM.
-	status = NVM_lock();
+	status = _NVM_lock();
 errors:
 	return status;
 }
@@ -111,16 +115,16 @@ NVM_status_t NVM_write_byte(NVM_address_t address_offset, uint8_t data) {
 	// Local variables.
 	NVM_status_t status = NVM_SUCCESS;
 	uint32_t loop_count = 0;
-	// Check address.
+	// Check parameters.
 	if (address_offset >= EEPROM_SIZE_BYTES) {
 		status = NVM_ERROR_ADDRESS;
 		goto errors;
 	}
 	// Unlock NVM.
-	status = NVM_unlock();
+	status = _NVM_unlock();
 	if (status != NVM_SUCCESS) goto errors;
 	// Write data.
-	(*((uint8_t*) (EEPROM_START_ADDRESS+address_offset))) = data;
+	(*((uint8_t*) (EEPROM_START_ADDRESS + address_offset))) = data;
 	// Wait end of operation.
 	while (((FLASH -> SR) & (0b1 << 0)) != 0) {
 		// Wait till BSY='1' or timeout.
@@ -131,7 +135,7 @@ NVM_status_t NVM_write_byte(NVM_address_t address_offset, uint8_t data) {
 		}
 	}
 	// Lock NVM.
-	status = NVM_lock();
+	status = _NVM_lock();
 errors:
 	return status;
 }

@@ -23,8 +23,6 @@ typedef enum {
 /*** LPTIM functions ***/
 
 void LPTIM1_init(uint32_t lsi_freq_hz);
-void LPTIM1_enable(void);
-void LPTIM1_disable(void);
 LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, uint8_t stop_mode);
 
 #define LPTIM1_status_check(error_base) { if (lptim1_status != LPTIM_SUCCESS) { status = error_base + lptim1_status; goto errors; }}
