@@ -44,6 +44,7 @@ typedef enum {
 	S2LP_ERROR_TX_DATA_LENGTH,
 	S2LP_ERROR_RX_SOURCE,
 	S2LP_ERROR_RX_DATA_LENGTH,
+	S2LP_ERROR_RSSI_TYPE,
 	S2LP_ERROR_BASE_SPI = 0x0100,
 	S2LP_ERROR_BASE_LPTIM = (S2LP_ERROR_BASE_SPI + SPI_ERROR_BASE_LAST),
 	S2LP_ERROR_BASE_LAST = (S2LP_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST)
@@ -192,6 +193,12 @@ typedef enum {
 	S2LP_IRQ_INDEX_LAST
 } S2LP_irq_index_t;
 
+typedef enum {
+	S2LP_RSSI_TYPE_RUN,
+	S2LP_RSSI_TYPE_SYNC_WORD,
+	S2LP_RSSI_TYPE_LAST
+} S2LP_rssi_t;
+
 // Generic structure for mantissa and exponent setting.
 typedef struct {
 	uint16_t mantissa;
@@ -268,7 +275,7 @@ S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes);
 S2LP_status_t S2LP_set_rx_source(S2LP_rx_source_t rx_source);
 S2LP_status_t S2LP_set_rx_bandwidth(S2LP_mantissa_exponent_t rxbw_setting);
 S2LP_status_t S2LP_disable_equa_cs_ant_switch(void);
-S2LP_status_t S2LP_get_rssi(int16_t* rssi_dbm);
+S2LP_status_t S2LP_get_rssi(S2LP_rssi_t rssi_type, int16_t* rssi_dbm);
 S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes);
 
 #define S2LP_status_check(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = error_base + s2lp_status; goto errors; }}

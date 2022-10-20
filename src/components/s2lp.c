@@ -522,7 +522,7 @@ S2LP_status_t S2LP_configure_irq(S2LP_irq_index_t irq_index, uint8_t irq_enable)
 	if (status != S2LP_SUCCESS) goto errors;
 	// Set bit.
 	reg_value &= ~(0b1 << irq_bit_offset);
-	reg_value |= (((irq_enable == 0) ? 0b1 : 0b0) << irq_bit_offset);
+	reg_value |= (((irq_enable == 0) ? 0b0 : 0b1) << irq_bit_offset);
 	// Program register.
 	status = _S2LP_write_register((S2LP_REG_IRQ_MASK0 - reg_addr_offset), reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
@@ -856,10 +856,11 @@ errors:
 }
 
 /* GET CURRENT RSSI LEVEL.
- * @param rssi_dbm:	Pointer that will contain RSSI in dBm.
- * @return status:	Function execution status.
+ * @param rssi_type:	RSSI type.
+ * @param rssi_dbm:		Pointer that will contain RSSI in dBm.
+ * @return status:		Function execution status.
  */
-S2LP_status_t S2LP_get_rssi(int16_t* rssi_dbm) {
+S2LP_status_t S2LP_get_rssi(S2LP_rssi_t rssi_type, int16_t* rssi_dbm) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t rssi_level_reg_value = 0;
@@ -868,8 +869,18 @@ S2LP_status_t S2LP_get_rssi(int16_t* rssi_dbm) {
 		status = S2LP_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
-	// Read register.
-	status = _S2LP_read_register(S2LP_REG_RSSI_LEVEL, &rssi_level_reg_value);
+	// Read accurate register.
+	switch (rssi_type) {
+	case S2LP_RSSI_TYPE_RUN:
+		status = _S2LP_read_register(S2LP_REG_RSSI_LEVEL_RUN, &rssi_level_reg_value);
+		break;
+	case S2LP_RSSI_TYPE_SYNC_WORD:
+		status = _S2LP_read_register(S2LP_REG_RSSI_LEVEL, &rssi_level_reg_value);
+		break;
+	default:
+		status = S2LP_ERROR_RSSI_TYPE;
+		break;
+	}
 	if (status != S2LP_SUCCESS) goto errors;
 	// Convert to dBm.
 	(*rssi_dbm) = (int16_t) rssi_level_reg_value - (int16_t) S2LP_RSSI_OFFSET_DB;

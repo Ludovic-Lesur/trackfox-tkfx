@@ -917,7 +917,7 @@ static void _AT_rssi_callback(void) {
 	_AT_response_send();
 	while (report_loop < ((duration_s * 1000) / AT_RSSI_REPORT_PERIOD_MS)) {
 		// Read RSSI.
-		s2lp_status = S2LP_get_rssi(&rssi_dbm);
+		s2lp_status = S2LP_get_rssi(S2LP_RSSI_TYPE_RUN, &rssi_dbm);
 		S2LP_error_check_print();
 		// Print RSSI.
 		_AT_response_add_string("RSSI=");

@@ -456,7 +456,7 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 		// Downlink frame received.
 		s2lp_status = S2LP_read_fifo(frame, RF_API_DOWNLINK_FRAME_LENGTH_BYTES);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
-		s2lp_status = S2LP_get_rssi(&rssi_dbm);
+		s2lp_status = S2LP_get_rssi(S2LP_RSSI_TYPE_SYNC_WORD, &rssi_dbm);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		// Update status.
 		(*state) = DL_PASSED;
