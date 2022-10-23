@@ -51,8 +51,8 @@
 #define TKFX_SIGFOX_MONITORING_DATA_LENGTH		9
 #define TKFX_SIGFOX_ERROR_STACK_DATA_LENGTH	(ERROR_STACK_DEPTH * 2)
 // Error values.
-#define TKFX_ERROR_VALUE_VOLTAGE_12BITS			0xFFF
-#define TKFX_ERROR_VALUE_VOLTAGE_16BITS			0xFFFF
+#define TKFX_ERROR_VALUE_ANALOG_12BITS			0xFFF
+#define TKFX_ERROR_VALUE_ANALOG_16BITS			0xFFFF
 #define TKFX_ERROR_VALUE_TEMPERATURE			0x7F
 #define TKFX_ERROR_VALUE_HUMIDITY				0xFF
 
@@ -184,6 +184,7 @@ typedef struct {
 	// Monitoring.
 	TKFX_status_t status;
 	uint8_t tamb_degrees;
+	uint8_t hamb_percent;
 	uint8_t tmcu_degrees;
 	uint32_t vsrc_mv;
 	uint32_t vcap_mv;
@@ -340,7 +341,8 @@ int main (void) {
 	NEOM8N_status_t neom8n_status = NEOM8N_SUCCESS;
 	sfx_error_t sigfox_api_status = SFX_ERR_NONE;
 	uint8_t idx = 0;
-	int8_t temperature_degrees = 0;
+	int8_t temperature = 0;
+	uint8_t generic_data_u8;
 	uint32_t generic_data_u32 = 0;
 	// Main loop.
 	while (1) {
@@ -390,28 +392,68 @@ int main (void) {
 			sht3x_status = SHT3X_perform_measurements(SHT3X_I2C_ADDRESS);
 			SHT3X_error_check();
 			I2C1_power_off();
-			sht3x_status = SHT3X_get_temperature(&temperature_degrees);
-			SHT3X_error_check();
-			math_status = MATH_one_complement(temperature_degrees, 7, &generic_data_u32);
-			MATH_error_check();
-			tkfx_ctx.tamb_degrees = (uint8_t) generic_data_u32;
+			// Reset data.
+			tkfx_ctx.tamb_degrees = TKFX_ERROR_VALUE_TEMPERATURE;
+			tkfx_ctx.hamb_percent = TKFX_ERROR_VALUE_HUMIDITY;
+			if (sht3x_status == SHT3X_SUCCESS) {
+				// Read temperature.
+				sht3x_status = SHT3X_get_temperature(&temperature);
+				SHT3X_error_check();
+				if (sht3x_status == SHT3X_SUCCESS) {
+					math_status = MATH_one_complement(temperature, 7, &generic_data_u32);
+					MATH_error_check();
+					if (math_status == MATH_SUCCESS) {
+						tkfx_ctx.tamb_degrees = (uint8_t) generic_data_u32;
+					}
+				}
+				// Read humidity.
+				sht3x_status = SHT3X_get_humidity(&generic_data_u8);
+				SHT3X_error_check();
+				if (sht3x_status == SHT3X_SUCCESS) {
+					tkfx_ctx.hamb_percent = generic_data_u8;
+				}
+			}
 			// Get voltages measurements.
 			adc1_status = ADC1_power_on();
 			ADC1_error_check();
 			adc1_status = ADC1_perform_measurements();
 			ADC1_error_check();
 			ADC1_power_off();
-			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &tkfx_ctx.vsrc_mv);
-			ADC1_error_check();
-			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &tkfx_ctx.vcap_mv);
-			ADC1_error_check();
-			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &tkfx_ctx.vmcu_mv);
-			ADC1_error_check();
-			adc1_status = ADC1_get_tmcu(&temperature_degrees);
-			ADC1_error_check();
-			math_status = MATH_one_complement(temperature_degrees, 7, &generic_data_u32);
-			MATH_error_check();
-			tkfx_ctx.tmcu_degrees = (uint8_t) generic_data_u32;
+			// Reset data.
+			tkfx_ctx.vsrc_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
+			tkfx_ctx.vcap_mv = TKFX_ERROR_VALUE_ANALOG_12BITS;
+			tkfx_ctx.vmcu_mv = TKFX_ERROR_VALUE_ANALOG_12BITS;
+			tkfx_ctx.tmcu_degrees = TKFX_ERROR_VALUE_TEMPERATURE;
+			if (adc1_status == ADC_SUCCESS) {
+				// Read Vsrc.
+				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &generic_data_u32);
+				ADC1_error_check();
+				if (adc1_status == ADC_SUCCESS) {
+					tkfx_ctx.vsrc_mv = generic_data_u32;
+				}
+				// Read Vcap.
+				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &generic_data_u32);
+				ADC1_error_check();
+				if (adc1_status == ADC_SUCCESS) {
+					tkfx_ctx.vcap_mv = generic_data_u32;
+				}
+				// Read Vmcu.
+				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &generic_data_u32);
+				ADC1_error_check();
+				if (adc1_status == ADC_SUCCESS) {
+					tkfx_ctx.vmcu_mv = generic_data_u32;
+				}
+				// Read Tmcu.
+				adc1_status = ADC1_get_tmcu(&temperature);
+				ADC1_error_check();
+				if (adc1_status == ADC_SUCCESS) {
+					math_status = MATH_one_complement(temperature, 7, &generic_data_u32);
+					MATH_error_check();
+					if (math_status == MATH_SUCCESS) {
+						tkfx_ctx.tmcu_degrees = (uint8_t) generic_data_u32;
+					}
+				}
+			}
 			// Get GPS backup status.
 			tkfx_ctx.status.gps_backup_status = NEOM8N_get_backup();
 			// Compute next state.
@@ -459,6 +501,7 @@ int main (void) {
 			IWDG_reload();
 			// Build Sigfox frame.
 			tkfx_ctx.sigfox_monitoring_data.tamb_degrees = tkfx_ctx.tamb_degrees;
+			tkfx_ctx.sigfox_monitoring_data.hamb_degrees = tkfx_ctx.hamb_percent;
 			tkfx_ctx.sigfox_monitoring_data.tmcu_degrees = tkfx_ctx.tmcu_degrees;
 			tkfx_ctx.sigfox_monitoring_data.vsrc_mv = tkfx_ctx.vsrc_mv;
 			tkfx_ctx.sigfox_monitoring_data.vcap_mv = tkfx_ctx.vcap_mv;
