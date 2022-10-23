@@ -553,7 +553,10 @@ int main (void) {
 			lpuart1_status = LPUART1_power_on();
 			LPUART1_error_check();
 			neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, ((tkfx_ctx.config) -> geoloc_timeout_seconds), ((tkfx_ctx.config) -> vcap_min_mv), &tkfx_ctx.geoloc_fix_duration_seconds);
-			NEOM8N_error_check();
+			// Do not store geoloc timeout error in stack since it is indicated by the dedicated frame.
+			if (neom8n_status != NEOM8N_ERROR_POSITION_TIMEOUT) {
+				NEOM8N_error_check();
+			}
 			LPUART1_power_off();
 			// Parse result.
 			tkfx_ctx.flags.geoloc_timeout = (neom8n_status == NEOM8N_SUCCESS) ? 0 : 1;
