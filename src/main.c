@@ -145,21 +145,6 @@ typedef union {
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_sigfox_geoloc_data_t;
 
-typedef struct {
-	uint32_t vcap_min_mv;
-	uint32_t geoloc_timeout_seconds;
-#ifdef SSM
-	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start conidition (set to 0 to disable filter).
-	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
-	uint32_t keep_alive_period_seconds;
-	uint32_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after an inactivity period.
-	uint32_t inactivity_threshold_seconds;
-#endif
-#ifdef PM
-	uint32_t geoloc_period_seconds;
-#endif
-} TKFX_config_t;
-
 // Device context.
 typedef struct {
 	// Global.
@@ -205,13 +190,6 @@ typedef struct {
 /*** MAIN global variables ***/
 
 static TKFX_context_t tkfx_ctx;
-#ifdef SSM
-//static const TKFX_config_t tkfx_config = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
-static const TKFX_config_t tkfx_config = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
-#endif
-#ifdef PM
-static const TKFX_config_t tkfx_config = {1500, 180, 300}; // Bike tracking configuration.
-#endif
 
 /*** MAIN functions ***/
 
@@ -226,7 +204,7 @@ static void TKFX_init_context(void) {
 	tkfx_ctx.flags.all = 0;
 	tkfx_ctx.flags.por = 1;
 #ifndef ATM
-	tkfx_ctx.config = &tkfx_config;
+	tkfx_ctx.config = &TKFX_CONFIG;
 #endif
 	tkfx_ctx.lsi_frequency_hz = 0;
 	tkfx_ctx.lse_running = 0;
