@@ -282,6 +282,7 @@ static void TKFX_init_hw(void) {
 	// Internal.
 	AES_init();
 	DMA1_init_channel3();
+	DMA1_init_channel6();
 	LPTIM1_init(tkfx_ctx.lsi_frequency_hz);
 	// Analog.
 	adc1_status = ADC1_init();
