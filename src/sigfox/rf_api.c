@@ -20,7 +20,6 @@
 #include "sigfox_api.h"
 #include "sigfox_types.h"
 #include "spi.h"
-#include "usart.h"
 
 /*** RF API local macros ***/
 
@@ -47,7 +46,7 @@ static const uint8_t RF_API_BIT0_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PROFILE_L
 #define RF_API_DOWNLINK_TIMEOUT_SECONDS			25
 #define RF_API_DOWNLINK_PREAMBLE_LENGTH_BITS	32 // 0xAAAAAAAA.
 #define RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS	16 // 0xB227.
-static uint8_t RF_API_DOWNLINK_SYNC_WORD[(RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS / 8)] = {0xB2, 0x27};
+static const uint8_t RF_API_DOWNLINK_SYNC_WORD[(RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS / 8)] = {0xB2, 0x27};
 
 /*** RF API local structures ***/
 
@@ -152,7 +151,7 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		// Downlink packet structure.
 		s2lp_status = S2LP_set_preamble_detector((RF_API_DOWNLINK_PREAMBLE_LENGTH_BITS / 2), S2LP_PREAMBLE_PATTERN_1010);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
-		s2lp_status = S2LP_set_sync_word(RF_API_DOWNLINK_SYNC_WORD, RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS);
+		s2lp_status = S2LP_set_sync_word((uint8_t*) RF_API_DOWNLINK_SYNC_WORD, RF_API_DOWNLINK_SYNC_WORD_LENGTH_BITS);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		s2lp_status = S2LP_set_packet_length(RF_API_DOWNLINK_FRAME_LENGTH_BYTES);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
@@ -421,13 +420,13 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	s2lp_status = S2LP_clear_irq_flags();
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
+	rf_api_ctx.s2lp_irq_flag = 0;
 	// Start radio.
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_RX);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	// Enable external GPIO.
 	EXTI_clear_all_flags();
 	NVIC_enable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
-	rf_api_ctx.s2lp_irq_flag = 0;
 	// Clear watchdog.
 	IWDG_reload();
 	// Enter stop mode until GPIO interrupt or RTC wake-up.
@@ -466,8 +465,6 @@ sfx_u8 RF_API_wait_frame(sfx_u8 *frame, sfx_s16 *rssi, sfx_rx_state_enum_t * sta
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_SABORT);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	s2lp_status = S2LP_wait_for_state(S2LP_STATE_READY);
-	if (s2lp_status != S2LP_SUCCESS) goto errors;
-	s2lp_status = S2LP_send_command(S2LP_COMMAND_FLUSHRXFIFO);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_STANDBY);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;

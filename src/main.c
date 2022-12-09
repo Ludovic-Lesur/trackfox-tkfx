@@ -196,7 +196,7 @@ static TKFX_context_t tkfx_ctx;
  * @param:	None.
  * @return:	None.
  */
-static void TKFX_init_context(void) {
+static void _TKFX_init_context(void) {
 	// Init context.
 	tkfx_ctx.state = TKFX_STATE_STARTUP;
 	tkfx_ctx.mode = TKFX_MODE_ACTIVE;
@@ -227,7 +227,7 @@ static void TKFX_init_context(void) {
  * @param:	None.
  * @return:	None.
  */
-static void TKFX_init_hw(void) {
+static void _TKFX_init_hw(void) {
 	// Local variables.
 	RCC_status_t rcc_status = RCC_SUCCESS;
 	RTC_status_t rtc_status = RTC_SUCCESS;
@@ -306,8 +306,8 @@ static void TKFX_init_hw(void) {
  */
 int main (void) {
 	// Init board.
-	TKFX_init_context();
-	TKFX_init_hw();
+	_TKFX_init_context();
+	_TKFX_init_hw();
 	// Local variables.
 	RTC_status_t rtc_status = RTC_SUCCESS;
 	I2C_status_t i2c1_status = I2C_SUCCESS;
@@ -702,8 +702,8 @@ int main (void) {
  */
 int main (void) {
 	// Init board.
-	TKFX_init_context();
-	TKFX_init_hw();
+	_TKFX_init_context();
+	_TKFX_init_hw();
 	// Local variables.
 	I2C_status_t i2c1_status = I2C_SUCCESS;
 	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;

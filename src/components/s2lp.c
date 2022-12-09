@@ -39,6 +39,7 @@
 #define S2LP_SYNC_WORD_LENGTH_BITS_MAX		32
 // RSSI offset.
 #define S2LP_RSSI_OFFSET_DB					146
+#define S2LP_RF_FRONT_END_GAIN_DB			0
 // FIFO.
 #define S2LP_TX_FIFO_USE_DMA // Use DMA to fill TX FIFO if defined, standard SPI access otherwise.
 #define S2LP_FIFO_THHRESHOLD_BYTES_MAX		0x7F
@@ -104,6 +105,7 @@ errors:
 void S2LP_init(void) {
 	// Configure TCXO power control pin.
 	GPIO_configure(&GPIO_TCXO_POWER_ENABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+	GPIO_write(&GPIO_TCXO_POWER_ENABLE, 0);
 }
 
 /* CONTROL EXTERNAL TCXO.
@@ -296,7 +298,12 @@ S2LP_status_t S2LP_configure_charge_pump(void) {
 	// Set PLL_PFD_SPLIT_EN bit according to crystal frequency.
 	status = _S2LP_read_register(S2LP_REG_SYNTH_CONFIG2, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
-	reg_value = (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) ? 0xFB : 0x04;
+	if (S2LP_XO_FREQUENCY_HZ >= S2LP_XO_HIGH_RANGE_THRESHOLD_HZ) {
+		reg_value &= 0xFB;
+	}
+	else {
+		reg_value |= 0x04;
+	}
 	status = _S2LP_write_register(S2LP_REG_SYNTH_CONFIG2, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 errors:
@@ -883,7 +890,7 @@ S2LP_status_t S2LP_get_rssi(S2LP_rssi_t rssi_type, int16_t* rssi_dbm) {
 	}
 	if (status != S2LP_SUCCESS) goto errors;
 	// Convert to dBm.
-	(*rssi_dbm) = (int16_t) rssi_level_reg_value - (int16_t) S2LP_RSSI_OFFSET_DB;
+	(*rssi_dbm) = (int16_t) rssi_level_reg_value - (int16_t) S2LP_RSSI_OFFSET_DB - (int16_t) S2LP_RF_FRONT_END_GAIN_DB;
 errors:
 	return status;
 }

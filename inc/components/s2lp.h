@@ -239,7 +239,6 @@ typedef struct {
 
 // GPIOs functions.
 void S2LP_init(void);
-void S2LP_disable(void);
 S2LP_status_t S2LP_tcxo(uint8_t tcxo_enable);
 S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable);
 
