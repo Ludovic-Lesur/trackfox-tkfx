@@ -19,9 +19,10 @@ The TrackFox board is based on the **STM32L041K6U6** of the STMicroelectronics L
 
 ## Structure
 The project is organized as follow:
-* `inc` and `src`: **source code** split in 5 layers:
+* `inc` and `src`: **source code** split in 6 layers:
     * `registers`: MCU **registers** adress definition.
     * `peripherals`: internal MCU **peripherals** drivers.
+    * `utils`: **utility** functions.
     * `components`: external **components** drivers.
     * `sigfox`: **Sigfox library** API and low level implementation.
     * `applicative`: high-level **application** layers.
