@@ -1,6 +1,0 @@
-r
-loadfile HW1_1/TKFX.hex
-verifyfile HW1_1/TKFX.hex
-r
-g
-qc

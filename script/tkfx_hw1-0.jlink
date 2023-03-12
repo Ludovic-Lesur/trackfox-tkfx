@@ -1,0 +1,6 @@
+r
+loadfile hw1-0/tkfx.hex
+verifyfile hw1-0/tkfx.hex
+r
+g
+qc
