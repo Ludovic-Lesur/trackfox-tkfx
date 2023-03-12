@@ -31,15 +31,15 @@
  */
 void __attribute__((optimize("-O0"))) EXTI0_1_IRQHandler(void) {
 	// Accelero IRQ (PA0 or PA1).
-	if (((EXTI -> PR) & (0b1 << (GPIO_ACCELERO_IRQ.pin_index))) != 0) {
+	if (((EXTI -> PR) & (0b1 << (GPIO_ACCELERO_IRQ.pin))) != 0) {
 #ifdef SSM
 		// Set motion interrupt flag.
-		if (((EXTI -> IMR) & (0b1 << (GPIO_ACCELERO_IRQ.pin_index))) != 0) {
+		if (((EXTI -> IMR) & (0b1 << (GPIO_ACCELERO_IRQ.pin))) != 0) {
 			MMA8653FC_set_motion_interrupt_flag();
 		}
 #endif
 		// Clear flag.
-		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.pin_index)); // PIFx='1' (writing '1' clears the bit).
+		EXTI -> PR |= (0b1 << (GPIO_ACCELERO_IRQ.pin)); // PIFx='1' (writing '1' clears the bit).
 	}
 }
 
@@ -57,13 +57,13 @@ void __attribute__((optimize("-O0"))) EXTI2_3_IRQHandler(void) {
  */
 void __attribute__((optimize("-O0"))) EXTI4_15_IRQHandler(void) {
 	// S2LP GPIO0 (PA12).
-	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.pin_index))) != 0) {
+	if (((EXTI -> PR) & (0b1 << (GPIO_S2LP_GPIO0.pin))) != 0) {
 		// Set applicative flag.
-		if (((EXTI -> IMR) & (0b1 << (GPIO_S2LP_GPIO0.pin_index))) != 0) {
+		if (((EXTI -> IMR) & (0b1 << (GPIO_S2LP_GPIO0.pin))) != 0) {
 			RF_API_set_irq_flag();
 		}
 		// Clear flag.
-		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.pin_index)); // PIFx='1' (writing '1' clears the bit).
+		EXTI -> PR |= (0b1 << (GPIO_S2LP_GPIO0.pin)); // PIFx='1' (writing '1' clears the bit).
 	}
 }
 
@@ -123,12 +123,12 @@ void EXTI_init(void) {
  */
 void EXTI_configure_gpio(const GPIO_pin_t* gpio, EXTI_trigger_t trigger) {
 	// Select GPIO port.
-	SYSCFG -> EXTICR[((gpio -> pin_index) / 4)] &= ~(0b1111 << (4 * ((gpio -> pin_index) % 4)));
-	SYSCFG -> EXTICR[((gpio -> pin_index) / 4)] |= ((gpio -> port_index) << (4 * ((gpio -> pin_index) % 4)));
+	SYSCFG -> EXTICR[((gpio -> pin) / 4)] &= ~(0b1111 << (4 * ((gpio -> pin) % 4)));
+	SYSCFG -> EXTICR[((gpio -> pin) / 4)] |= ((gpio -> port_index) << (4 * ((gpio -> pin) % 4)));
 	// Set mask.
-	EXTI -> IMR |= (0b1 << ((gpio -> pin_index))); // IMx='1'.
+	EXTI -> IMR |= (0b1 << ((gpio -> pin))); // IMx='1'.
 	// Select triggers.
-	_EXTI_set_trigger(trigger, (gpio -> pin_index));
+	_EXTI_set_trigger(trigger, (gpio -> pin));
 }
 
 /* CONFIGURE A LINE AS INTERNAL INTERRUPT SOURCE.
