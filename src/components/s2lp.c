@@ -118,7 +118,7 @@ S2LP_status_t S2LP_tcxo(uint8_t tcxo_enable) {
 	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
 	// Turn TCXO on or off.
 	GPIO_write(&GPIO_TCXO_POWER_ENABLE, tcxo_enable);
-	lptim1_status = LPTIM1_delay_milliseconds(100, 1);
+	lptim1_status = LPTIM1_delay_milliseconds(100, LPTIM_DELAY_MODE_STOP);
 	LPTIM1_status_check(S2LP_ERROR_BASE_LPTIM);
 errors:
 	return status;
@@ -138,7 +138,7 @@ S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable) {
 		// Put SDN low.
 		GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 		// Wait for reset time.
-		lptim1_status = LPTIM1_delay_milliseconds(100, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(100, LPTIM_DELAY_MODE_STOP);
 		LPTIM1_status_check(S2LP_ERROR_BASE_LPTIM);
 	}
 	else {
@@ -192,7 +192,7 @@ S2LP_status_t S2LP_wait_for_state(S2LP_state_t new_state) {
 		if (status != S2LP_SUCCESS) goto errors;
 		state = (reg_value >> 1) & 0x7F;
 		// Internal delay.
-		lptim1_status = LPTIM1_delay_milliseconds(S2LP_TIMEOUT_SUB_DELAY_MS, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(S2LP_TIMEOUT_SUB_DELAY_MS, LPTIM_DELAY_MODE_STOP);
 		LPTIM1_status_check(S2LP_ERROR_BASE_LPTIM);
 		// Exit if timeout.
 		delay_ms += S2LP_TIMEOUT_SUB_DELAY_MS;
@@ -223,7 +223,7 @@ S2LP_status_t S2LP_wait_for_oscillator(void) {
 		if (status != S2LP_SUCCESS) goto errors;
 		xo_on = (reg_value & 0x01);
 		// Internal delay.
-		lptim1_status = LPTIM1_delay_milliseconds(S2LP_TIMEOUT_SUB_DELAY_MS, 1);
+		lptim1_status = LPTIM1_delay_milliseconds(S2LP_TIMEOUT_SUB_DELAY_MS, LPTIM_DELAY_MODE_STOP);
 		LPTIM1_status_check(S2LP_ERROR_BASE_LPTIM);
 		// Exit if timeout.
 		delay_ms += S2LP_TIMEOUT_SUB_DELAY_MS;

@@ -228,7 +228,7 @@ ADC_status_t ADC1_init(void) {
 	}
 	// Enable ADC voltage regulator.
 	ADC1 -> CR |= (0b1 << 28);
-	lptim1_status = LPTIM1_delay_milliseconds(5, 0);
+	lptim1_status = LPTIM1_delay_milliseconds(5, LPTIM_DELAY_MODE_ACTIVE);
 	LPTIM1_status_check(ADC_ERROR_BASE_LPTIM);
 	// ADC configuration.
 	ADC1 -> CFGR2 |= (0b01 << 30); // Use (PCLK2/2) as ADCCLK = SYSCLK/2 (see RCC_init() function).
@@ -257,7 +257,7 @@ ADC_status_t ADC1_power_on(void) {
 	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
 	// Turn analog blocks on.
 	GPIO_write(&GPIO_ADC_POWER_ENABLE, 1);
-	lptim1_status = LPTIM1_delay_milliseconds(100, 0);
+	lptim1_status = LPTIM1_delay_milliseconds(100, LPTIM_DELAY_MODE_STOP);
 	LPTIM1_status_check(ADC_ERROR_BASE_LPTIM);
 errors:
 	return status;
@@ -294,7 +294,7 @@ ADC_status_t ADC1_perform_measurements(void) {
 	// Wake-up VREFINT and temperature sensor.
 	ADC1 -> CCR |= (0b11 << 22); // TSEN='1' and VREFEF='1'.
 	// Wait internal reference stabilization (max 3ms).
-	lptim1_status = LPTIM1_delay_milliseconds(10, 0);
+	lptim1_status = LPTIM1_delay_milliseconds(10, LPTIM_DELAY_MODE_ACTIVE);
 	LPTIM1_status_check(ADC_ERROR_BASE_LPTIM);
 	// Perform measurements.
 	status = _ADC1_compute_lm4040();

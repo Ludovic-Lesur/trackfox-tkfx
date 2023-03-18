@@ -917,7 +917,7 @@ static void _AT_rssi_callback(void) {
 		_AT_reply_add_string("dBm");
 		_AT_reply_send();
 		// Report delay.
-		lptim1_status = LPTIM1_delay_milliseconds(AT_RSSI_REPORT_PERIOD_MS, 0);
+		lptim1_status = LPTIM1_delay_milliseconds(AT_RSSI_REPORT_PERIOD_MS, LPTIM_DELAY_MODE_ACTIVE);
 		LPTIM1_error_check_print();
 		report_loop++;
 	}

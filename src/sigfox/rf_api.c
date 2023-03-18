@@ -11,7 +11,6 @@
 #include "exti.h"
 #include "iwdg.h"
 #include "mapping.h"
-#include "mode.h"
 #include "nvic.h"
 #include "pwr.h"
 #include "rcc.h"
@@ -277,7 +276,10 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 		rf_api_ctx.s2lp_fifo_buffer[(2 * s2lp_fifo_sample_idx) + 1] = RF_API_RAMP_AMPLITUDE_PROFILE_14DBM[s2lp_fifo_sample_idx]; // PA output power for ramp-down.
 	}
 	// Enter stop and wait for S2LP interrupt to transfer ramp-down buffer.
-	PWR_enter_stop_mode();
+	rf_api_ctx.s2lp_irq_flag = 0;
+	while (rf_api_ctx.s2lp_irq_flag == 0) {
+		PWR_enter_stop_mode();
+	}
 	s2lp_status = S2LP_write_fifo(rf_api_ctx.s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	// Padding bit to ensure ramp-down is completely transmitted.
@@ -285,11 +287,17 @@ sfx_u8 RF_API_send(sfx_u8 *stream, sfx_modulation_type_t type, sfx_u8 size) {
 		rf_api_ctx.s2lp_fifo_buffer[s2lp_fifo_sample_idx] = 0;
 	}
 	// Enter stop and wait for S2LP interrupt to transfer padding buffer.
-	PWR_enter_stop_mode();
+	rf_api_ctx.s2lp_irq_flag = 0;
+	while (rf_api_ctx.s2lp_irq_flag == 0) {
+		PWR_enter_stop_mode();
+	}
 	s2lp_status = S2LP_write_fifo(rf_api_ctx.s2lp_fifo_buffer, RF_API_S2LP_FIFO_BUFFER_LENGTH_BYTES);
 	if (s2lp_status != S2LP_SUCCESS) goto errors;
 	// Enter stop and wait for S2LP interrupt.
-	PWR_enter_stop_mode();
+	rf_api_ctx.s2lp_irq_flag = 0;
+	while (rf_api_ctx.s2lp_irq_flag == 0) {
+		PWR_enter_stop_mode();
+	}
 	// Disable external GPIO interrupt.
 	NVIC_disable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
 	// Stop radio.
