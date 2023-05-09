@@ -862,6 +862,64 @@ errors:
 	return status;
 }
 
+/* DISABLE AFC CORRECTION
+ * @param:			None.
+ * @return status:	Function execution status.
+ */
+S2LP_status_t S2LP_disable_afc(void) {
+	// Local variables.
+	S2LP_status_t status = S2LP_SUCCESS;
+	uint8_t afc2_reg_value = 0;
+	// Read register.
+	status = _S2LP_read_register(S2LP_REG_AFC2, &afc2_reg_value);
+	if (status != S2LP_SUCCESS) goto errors;
+	// Disable AFC.
+	afc2_reg_value &= 0x1F;
+	// Program register.
+	status = _S2LP_write_register(S2LP_REG_AFC2, afc2_reg_value);
+	if (status != S2LP_SUCCESS) goto errors;
+errors:
+	return status;
+}
+
+/* CONFIGURE CLOCK RECOVERY.
+ * @param:			None.
+ * @return status:	Function execution status.
+ */
+S2LP_status_t S2LP_configure_clock_recovery(void) {
+	// Local variables.
+	S2LP_status_t status = S2LP_SUCCESS;
+	uint8_t reg_value = 0;
+	// Configure registers.
+	reg_value = 0x20;
+	status = _S2LP_write_register(S2LP_REG_CLOCKREC2, reg_value);
+	if (status != S2LP_SUCCESS) goto errors;
+	reg_value = 0x70;
+	status = _S2LP_write_register(S2LP_REG_CLOCKREC1, reg_value);
+	if (status != S2LP_SUCCESS) goto errors;
+errors:
+	return status;
+}
+
+/* SET RSSI THRESHOLD.
+ * @param rssi_threshold_dbm:	Signal detection level in dBm.
+ * @return status:				Function execution status.
+ */
+S2LP_status_t S2LP_set_rssi_threshold(int16_t rssi_threshold_dbm) {
+	// Local variables.
+	S2LP_status_t status = S2LP_SUCCESS;
+	// Check parameter.
+	if ((rssi_threshold_dbm < (0 - S2LP_RSSI_OFFSET_DB)) || (rssi_threshold_dbm > (255 - S2LP_RSSI_OFFSET_DB))) {
+		status = S2LP_ERROR_RSSI_THRESHOLD;
+		goto errors;
+	}
+	// Program register.
+	status = _S2LP_write_register(S2LP_REG_RSSI_TH, (uint8_t) (rssi_threshold_dbm + S2LP_RSSI_OFFSET_DB));
+	if (status != S2LP_SUCCESS) goto errors;
+errors:
+	return status;
+}
+
 /* GET CURRENT RSSI LEVEL.
  * @param rssi_type:	RSSI type.
  * @param rssi_dbm:		Pointer that will contain RSSI in dBm.

@@ -40,6 +40,7 @@ static const uint8_t RF_API_BIT0_AMPLITUDE_PROFILE_14DBM[RF_API_SYMBOL_PROFILE_L
 #define RF_API_DOWNLINK_DATARATE				S2LP_DATARATE_600BPS
 #define RF_API_DOWNLINK_DEVIATION				S2LP_FDEV_800HZ
 #define RF_API_DOWNLINK_RX_BANDWIDTH			S2LP_RXBW_2KHZ1
+#define RF_API_DOWNLINK_RSSI_THRESHOLD_DBM		-139
 
 #define RF_API_DOWNLINK_FRAME_LENGTH_BYTES		15
 #define RF_API_DOWNLINK_TIMEOUT_SECONDS			25
@@ -143,6 +144,10 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		s2lp_status = S2LP_set_rx_bandwidth(RF_API_DOWNLINK_RX_BANDWIDTH);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
+		s2lp_status = S2LP_set_rssi_threshold(RF_API_DOWNLINK_RSSI_THRESHOLD_DBM);
+		if (s2lp_status != S2LP_SUCCESS) goto errors;
+		s2lp_status = S2LP_configure_clock_recovery();
+		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		s2lp_status = S2LP_configure_gpio(0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_NIRQ, 1);
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		s2lp_status = S2LP_configure_irq(S2LP_IRQ_INDEX_RX_DATA_READY, 1);
@@ -156,7 +161,9 @@ sfx_u8 RF_API_init(sfx_rf_mode_t rf_mode) {
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		s2lp_status = S2LP_disable_crc();
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
-		// Disable CS blanking, equalization and antenna switching.
+		// Disable AFC, CS blanking, equalization and antenna switching.
+		s2lp_status = S2LP_disable_afc();
+		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		s2lp_status = S2LP_disable_equa_cs_ant_switch();
 		if (s2lp_status != S2LP_SUCCESS) goto errors;
 		// FIFO.
