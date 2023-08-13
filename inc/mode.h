@@ -18,6 +18,10 @@
 
 /*** Tracker configuration ***/
 
+/*!******************************************************************
+ * \enum TKFX_configuration_t
+ * \brief Tracker configuration structure.
+ *******************************************************************/
 typedef struct {
 	uint32_t vcap_min_mv;
 	uint32_t geoloc_timeout_seconds;
@@ -31,14 +35,14 @@ typedef struct {
 #ifdef PM
 	uint32_t geoloc_period_seconds;
 #endif
-} TKFX_config_t;
+} TKFX_configuration_t;
 
 #ifdef SSM
 //static const TKFX_config_t TKFX_CONFIG = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
-static const TKFX_config_t TKFX_CONFIG = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
+static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
 #endif
 #ifdef PM
-static const TKFX_config_t TKFX_CONFIG = {1500, 180, 300}; // Bike tracking configuration.
+static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 300}; // Bike tracking configuration.
 #endif
 
 /*** Debug mode ***/

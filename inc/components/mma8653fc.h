@@ -21,6 +21,10 @@
 
 /*** MMA8653FC structures ***/
 
+/*!******************************************************************
+ * \enum MMA8653FC_status_t
+ * \brief MMA8653FC driver error codes.
+ *******************************************************************/
 typedef enum {
 	MMA8653FC_SUCCESS = 0,
 	MMA8653FC_ERROR_NULL_PARAMETER,
@@ -30,10 +34,16 @@ typedef enum {
 	MMA8653FC_ERROR_BASE_LAST = (MMA8653FC_ERROR_BASE_MATH + MATH_ERROR_BASE_LAST)
 } MMA8653FC_status_t;
 
+/*!******************************************************************
+ * \enum MMA8653FC_register_setting_t
+ * \brief MMA8653FC register structure.
+ *******************************************************************/
 typedef struct {
 	uint8_t addr;
 	uint8_t value;
 } MMA8653FC_register_setting_t;
+
+/*** MMA8653FC global variables ***/
 
 static const MMA8653FC_register_setting_t mma8653_active_config[MMA8653FC_ACTIVE_CONFIG_LENGTH] = {
 	{MMA8653FC_REG_CTRL_REG1, 0x00}, // ACTIVE='0' (standby mode required to program registers).
@@ -56,16 +66,97 @@ static const MMA8653FC_register_setting_t mma8653_sleep_config[MMA8653FC_SLEEP_C
 
 /*** MMA8653FC functions ***/
 
+/*!******************************************************************
+ * \fn void MMA8653FC_init(void)
+ * \brief Init MMA8653FC interface.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
 void MMA8653FC_init(void);
-MMA8653FC_status_t MMA8653FC_get_id(uint8_t* chip_id);
-MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, uint8_t mma8653fc_config_size);
-MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z);
-void MMA8653FC_set_motion_interrupt_flag(void);
-void MMA8653FC_clear_motion_interrupt_flag(void);
-uint8_t MMA8653FC_get_motion_interrupt_flag(void);
 
-#define MMA8653FC_status_check(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = error_base + mma8653fc_status; goto errors; }}
-#define MMA8653FC_error_check() { ERROR_status_check(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
-#define MMA8653FC_error_check_print() { ERROR_status_check_print(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
+/*!******************************************************************
+ * \fn void MMA8653FC_de_init(void)
+ * \brief Release MMA8653FC interface.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
+void MMA8653FC_de_init(void);
+
+/*!******************************************************************
+ * \fn MMA8653FC_status_t MMA8653FC_get_id(uint8_t* chip_id)
+ * \brief Read accelerometer chip ID.
+ * \param[in]  	none
+ * \param[out] 	chip_id: Pointer to the read chip ID.
+ * \retval		Function execution status.
+ *******************************************************************/
+MMA8653FC_status_t MMA8653FC_get_id(uint8_t* chip_id);
+
+/*!******************************************************************
+ * \fn MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, uint8_t mma8653fc_config_size)
+ * \brief Set accelerometer configuration.
+ * \param[in]  	mma8653fc_config: List of registers and values to set.
+ * \param[in]	mma8653fc_config_size: Size of the configuration.
+ * \param[out] 	none
+ * \retval		Function execution status.
+ *******************************************************************/
+MMA8653FC_status_t MMA8653FC_write_config(const MMA8653FC_register_setting_t* mma8653fc_config, uint8_t mma8653fc_config_size);
+
+/*!******************************************************************
+ * \fn MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z)
+ * \brief Read raw accelerometer data.
+ * \param[in]  	none
+ * \param[out] 	x: Pointer that will contain x axis acceleration value.
+ * \param[out] 	y: Pointer that will contain y axis acceleration value.
+ * \param[out] 	z: Pointer that will contain z axis acceleration value.
+ * \retval		Function execution status.
+ *******************************************************************/
+MMA8653FC_status_t MMA8653FC_get_data(int32_t* x, int32_t* y, int32_t* z);
+
+/*!******************************************************************
+ * \fn void MMA8653_enable_motion_interrupt(void)
+ * \brief Enable MMA8653FC motion interrupt.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
+void MMA8653_enable_motion_interrupt(void);
+
+/*!******************************************************************
+ * \fn void MMA8653_disable_motion_interrupt(void)
+ * \brief Disable MMA8653FC motion interrupt.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
+void MMA8653_disable_motion_interrupt(void);
+
+/*!******************************************************************
+ * \fn volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void)
+ * \brief Read MMA8653FC mption interrupt flag.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		Motion interrupt flag.
+ *******************************************************************/
+volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void);
+
+/*!******************************************************************
+ * \fn void MMA8653FC_clear_motion_interrupt_flag(void)
+ * \brief Clear MMA8653FC mption interrupt flag.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
+void MMA8653FC_clear_motion_interrupt_flag(void);
+
+/*******************************************************************/
+#define MMA8653FC_check_status(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = error_base + mma8653fc_status; goto errors; } }
+
+/*******************************************************************/
+#define MMA8653FC_stack_error(void) { ERROR_stack_error(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
+
+/*******************************************************************/
+#define MMA8653FC_print_error(void) { ERROR_print_error(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
 
 #endif /* __MMA8653FC_H__ */

@@ -1,7 +1,7 @@
 /*
  * aes.h
  *
- *  Created on: 18 apr. 2020
+ *  Created on: 19 jun. 2018
  *      Author: Ludo
  */
 
@@ -10,12 +10,12 @@
 
 #include "types.h"
 
-/*** AES macros ***/
-
-#define AES_BLOCK_SIZE 	16 // 128-bits is 16 bytes.
-
 /*** AES structures ***/
 
+/*!******************************************************************
+ * \enum AES_status_t
+ * \brief AES driver error codes.
+ *******************************************************************/
 typedef enum {
 	AES_SUCCESS = 0,
 	AES_ERROR_NULL_PARAMETER,
@@ -25,11 +25,41 @@ typedef enum {
 
 /*** AES functions ***/
 
+/*!******************************************************************
+ * \fn void AES_init(void)
+ * \brief Init AES peripheral.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
 void AES_init(void);
-AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* init_vector, uint8_t* key);
 
-#define AES_status_check(error_base) { if (aes_status != AES_SUCCESS) { status = error_base + aes_status; goto errors; }}
-#define AES_error_check() { ERROR_status_check(aes_status, AES_SUCCESS, ERROR_BASE_AES); }
-#define AES_error_check_print() { ERROR_status_check_print(aes_status, AES_SUCCESS, ERROR_BASE_AES); }
+/*!******************************************************************
+ * \fn void AES_de_init(void)
+ * \brief Release AES peripheral.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
+void AES_de_init(void);
+
+/*!******************************************************************
+ * \fn AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key
+ * \brief Compute AES-128.
+ * \param[in]  	data_in: Input data.
+ * \param[in]	key: AES key.
+ * \param[out] 	data_out: Output data.
+ * \retval		Function execution status.
+ *******************************************************************/
+AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key);
+
+/*******************************************************************/
+#define AES_check_status(error_base) { if (aes_status != AES_SUCCESS) { status = error_base + aes_status; goto errors; } }
+
+/*******************************************************************/
+#define AES_stack_error(void) { ERROR_stack_error(aes_status, AES_SUCCESS, ERROR_BASE_AES); }
+
+/*******************************************************************/
+#define AES_print_error(void) { ERROR_print_error(aes_status, AES_SUCCESS, ERROR_BASE_AES); }
 
 #endif /* __AES_H__ */
