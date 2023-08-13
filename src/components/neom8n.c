@@ -669,10 +669,6 @@ void NEOM8N_de_init(void) {
 	// Release LPUART and DMA.
 	DMA1_CH6_de_init();
 	LPUART1_de_init();
-#ifdef HW1_1
-	// Force pin to output low.
-	GPIO_write(&GPIO_GPS_VBCKP, 0);
-#endif
 }
 
 /*******************************************************************/

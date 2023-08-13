@@ -38,7 +38,7 @@ typedef struct {
 } TKFX_configuration_t;
 
 #ifdef SSM
-//static const TKFX_config_t TKFX_CONFIG = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
+//static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
 static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
 #endif
 #ifdef PM
