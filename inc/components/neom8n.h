@@ -23,6 +23,7 @@
  * \brief NEOM8N driver error codes.
  *******************************************************************/
 typedef enum {
+	// Driver errors.
 	NEOM8N_SUCCESS = 0,
 	NEOM8N_ERROR_NULL_PARAMETER,
 	NEOM8N_ERROR_NMEA_FRAME_RECEPTION,
@@ -41,11 +42,13 @@ typedef enum {
 	NEOM8N_ERROR_VCAP_THRESHOLD,
 	NEOM8N_ERROR_TIMEPULSE_FREQUENCY,
 	NEOM8N_ERROR_TIMEPULSE_DUTY_CYCLE,
+	// Low level drivers errors.
 	NEOM8N_ERROR_BASE_ADC = 0x0100,
 	NEOM8N_ERROR_BASE_LPUART = (NEOM8N_ERROR_BASE_ADC + ADC_ERROR_BASE_LAST),
 	NEOM8N_ERROR_BASE_LPTIM = (NEOM8N_ERROR_BASE_LPUART + LPUART_ERROR_BASE_LAST),
 	NEOM8N_ERROR_BASE_STRING = (NEOM8N_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST),
 	NEOM8N_ERROR_BASE_POWER = (NEOM8N_ERROR_BASE_STRING + STRING_ERROR_BASE_LAST),
+	// Last base value.
 	NEOM8N_ERROR_BASE_LAST = (NEOM8N_ERROR_BASE_POWER + POWER_ERROR_BASE_LAST)
 } NEOM8N_status_t;
 
@@ -162,12 +165,9 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 NEOM8N_status_t NEOM8N_configure_timepulse(NEOM8N_timepulse_config_t* timepulse_config);
 
 /*******************************************************************/
-#define NEOM8N_check_status(error_base) { if (neom8n_status != NEOM8N_SUCCESS) { status = error_base + neom8n_status; goto errors; } }
+#define NEOM8N_exit_error(error_base) { if (neom8n_status != NEOM8N_SUCCESS) { status = (error_base + neom8n_status); goto errors; } }
 
 /*******************************************************************/
-#define NEOM8N_stack_error(void) { ERROR_stack_error(neom8n_status, NEOM8N_SUCCESS, ERROR_BASE_NEOM8N); }
-
-/*******************************************************************/
-#define NEOM8N_print_error(void) { ERROR_print_error(neom8n_status, NEOM8N_SUCCESS, ERROR_BASE_NEOM8N); }
+#define NEOM8N_stack_error(void) { if (neom8n_status != NEOM8N_SUCCESS) { ERROR_stack_add(ERROR_BASE_NEOM8N + neom8n_status); } }
 
 #endif /* __NEOM8N_H__ */

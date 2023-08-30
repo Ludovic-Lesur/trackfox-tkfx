@@ -51,7 +51,7 @@ POWER_status_t POWER_enable(POWER_domain_t domain, LPTIM_delay_mode_t delay_mode
 		// Turn analog front-end on and init ADC.
 		GPIO_write(&GPIO_ADC_POWER_ENABLE, 1);
 		adc1_status = ADC1_init();
-		ADC1_check_status(POWER_ERROR_BASE_ADC);
+		ADC1_exit_error(POWER_ERROR_BASE_ADC);
 		delay_ms = POWER_ON_DELAY_MS_ANALOG;
 		break;
 	case POWER_DOMAIN_SENSORS:
@@ -82,7 +82,7 @@ POWER_status_t POWER_enable(POWER_domain_t domain, LPTIM_delay_mode_t delay_mode
 	// Power on delay.
 	if (delay_ms != 0) {
 		lptim1_status = LPTIM1_delay_milliseconds(delay_ms, delay_mode);
-		LPTIM1_check_status(POWER_ERROR_BASE_LPTIM);
+		LPTIM1_exit_error(POWER_ERROR_BASE_LPTIM);
 	}
 errors:
 	return status;
@@ -99,7 +99,7 @@ POWER_status_t POWER_disable(POWER_domain_t domain) {
 		// Turn analog front-end off and release ADC.
 		status = ADC1_de_init();
 		GPIO_write(&GPIO_ADC_POWER_ENABLE, 0);
-		ADC1_check_status(POWER_ERROR_BASE_ADC);
+		ADC1_exit_error(POWER_ERROR_BASE_ADC);
 		break;
 	case POWER_DOMAIN_SENSORS:
 		// Turn digital sensors off and release I2C interface.

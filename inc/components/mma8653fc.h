@@ -151,12 +151,9 @@ volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void);
 void MMA8653FC_clear_motion_interrupt_flag(void);
 
 /*******************************************************************/
-#define MMA8653FC_check_status(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = error_base + mma8653fc_status; goto errors; } }
+#define MMA8653FC_exit_error(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = (error_base + mma8653fc_status); goto errors; } }
 
 /*******************************************************************/
-#define MMA8653FC_stack_error(void) { ERROR_stack_error(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
-
-/*******************************************************************/
-#define MMA8653FC_print_error(void) { ERROR_print_error(mma8653fc_status, MMA8653FC_SUCCESS, ERROR_BASE_MMA8653FC); }
+#define MMA8653FC_stack_error(void) { if (mma8653fc_status != MMA8653FC_SUCCESS) { ERROR_stack_add(ERROR_BASE_MMA8653FC + mma8653fc_status); } }
 
 #endif /* __MMA8653FC_H__ */

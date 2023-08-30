@@ -8,7 +8,6 @@
 #include "spi.h"
 
 #include "gpio.h"
-#include "lptim.h"
 #include "mapping.h"
 #include "rcc_reg.h"
 #include "spi_reg.h"

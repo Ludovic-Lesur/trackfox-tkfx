@@ -23,10 +23,13 @@
  * \brief SHT3X driver error codes.
  *******************************************************************/
 typedef enum {
+	// Driver errors.
 	SHT3X_SUCCESS = 0,
 	SHT3X_ERROR_NULL_PARAMETER,
+	// Low level drivers errors.
 	SHT3X_ERROR_BASE_I2C = 0x0100,
 	SHT3X_ERROR_BASE_LPTIM = (SHT3X_ERROR_BASE_I2C + I2C_ERROR_BASE_LAST),
+	// Last base value.
 	SHT3X_ERROR_BASE_LAST = (SHT3X_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST)
 } SHT3X_status_t;
 
@@ -60,12 +63,9 @@ SHT3X_status_t SHT3X_get_temperature(int8_t* temperature_degrees);
 SHT3X_status_t SHT3X_get_humidity(uint8_t* humidity_percent);
 
 /*******************************************************************/
-#define SHT3X_check_status(error_base) { if (sht3x_status != SHT3X_SUCCESS) { status = error_base + sht3x_status; goto errors; } }
+#define SHT3X_exit_error(error_base) { if (sht3x_status != SHT3X_SUCCESS) { status = (error_base + sht3x_status); goto errors; } }
 
 /*******************************************************************/
-#define SHT3X_stack_error(void) { ERROR_stack_error(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT3X); }
-
-/*******************************************************************/
-#define SHT3X_print_error(void) { ERROR_print_error(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT3X); }
+#define SHT3X_stack_error(void) { if (sht3x_status != SHT3X_SUCCESS) { ERROR_stack_add(ERROR_BASE_SHT3X + sht3x_status); } }
 
 #endif /* __SHT3X_H__ */

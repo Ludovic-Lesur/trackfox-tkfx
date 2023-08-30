@@ -18,9 +18,11 @@
  * \brief USART driver error codes.
  *******************************************************************/
 typedef enum {
+	// Driver errors.
 	USART_SUCCESS = 0,
 	USART_ERROR_NULL_PARAMETER,
 	USART_ERROR_TX_TIMEOUT,
+	// Last base value.
 	USART_ERROR_BASE_LAST = 0x0100
 } USART_status_t;
 
@@ -89,12 +91,9 @@ USART_status_t USART2_write(uint8_t* data, uint32_t data_size_bytes);
 #endif
 
 /*******************************************************************/
-#define USART2_check_status(error_base) { if (usart2_status != USART_SUCCESS) { status = error_base + usart2_status; goto errors; } }
+#define USART2_exit_error(error_base) { if (usart2_status != USART_SUCCESS) { status = (error_base + usart2_status); goto errors; } }
 
 /*******************************************************************/
-#define USART2_stack_error(void) { ERROR_stack_error(usart2_status, USART_SUCCESS, ERROR_BASE_USART2); }
-
-/*******************************************************************/
-#define USART2_print_error(void) { ERROR_print_error(usart2_status, USART_SUCCESS, ERROR_BASE_USART2); }
+#define USART2_stack_error(void) { if (usart2_status != USART_SUCCESS) { ERROR_stack_add(ERROR_BASE_USART2 + usart2_status); } }
 
 #endif /* __USART_H__ */

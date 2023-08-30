@@ -26,6 +26,7 @@
  * \brief S2LP driver error codes.
  *******************************************************************/
 typedef enum {
+	// Driver errors.
 	S2LP_SUCCESS = 0,
 	S2LP_ERROR_NULL_PARAMETER,
 	S2LP_ERROR_COMMAND,
@@ -60,8 +61,10 @@ typedef enum {
 	S2LP_ERROR_RX_DATA_LENGTH,
 	S2LP_ERROR_RSSI_THRESHOLD,
 	S2LP_ERROR_RSSI_TYPE,
+	// Low level drivers errors.
 	S2LP_ERROR_BASE_SPI = 0x0100,
 	S2LP_ERROR_BASE_LPTIM = (S2LP_ERROR_BASE_SPI + SPI_ERROR_BASE_LAST),
+	// Last base value.
 	S2LP_ERROR_BASE_LAST = (S2LP_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST)
 } S2LP_status_t;
 
@@ -646,12 +649,9 @@ S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes);
 S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes);
 
 /*******************************************************************/
-#define S2LP_check_status(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = error_base + s2lp_status; goto errors; } }
+#define S2LP_exit_error(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = (error_base + s2lp_status); goto errors; } }
 
 /*******************************************************************/
-#define S2LP_stack_error(void) { ERROR_stack_error(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP); }
-
-/*******************************************************************/
-#define S2LP_print_error(void) { ERROR_print_error(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP); }
+#define S2LP_stack_error(void) { if (s2lp_status != S2LP_SUCCESS) { ERROR_stack_add(ERROR_BASE_S2LP + s2lp_status); } }
 
 #endif /* __S2LP_H__ */

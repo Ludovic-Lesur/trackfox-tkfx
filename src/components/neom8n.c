@@ -222,7 +222,7 @@ static NEOM8N_status_t _NEOM8N_get_nmea_checksum(char_t* nmea_rx_buf, uint8_t* c
 	}
 	// Convert hexa to value.
 	string_status = STRING_string_to_value(&(nmea_rx_buf[checksum_start_char_idx + 1]), STRING_FORMAT_HEXADECIMAL, 2, &ck_value);
-	STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+	STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 	// Cast to byte.
 	(*ck) = (uint8_t) ck_value;
 errors:
@@ -338,15 +338,15 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, NEOM8N_time_t
 				_NEOM8N_check_field_length(NMEA_ZDA_FIELD_SIZE_TIME);
 				// Parse hours.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> hours = (uint8_t) value;
 				// Parse minutes.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 3]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> minutes = (uint8_t) value;
 				// Parse seconds.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 5]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> seconds = (uint8_t) value;
 				break;
 			// Field 2 = day = <dd>.
@@ -355,7 +355,7 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, NEOM8N_time_t
 				_NEOM8N_check_field_length(NMEA_ZDA_FIELD_SIZE_DAY);
 				// Parse day.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> date = (uint8_t) value;
 				break;
 			// Field 3 = month = <mm>.
@@ -364,7 +364,7 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, NEOM8N_time_t
 				_NEOM8N_check_field_length(NMEA_ZDA_FIELD_SIZE_MONTH);
 				// Parse month.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> month = (uint8_t) value;
 				break;
 			// Field 4 = year = <yyyy>.
@@ -373,7 +373,7 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, NEOM8N_time_t
 				_NEOM8N_check_field_length(NMEA_ZDA_FIELD_SIZE_YEAR);
 				// Parse year.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 4, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> year = (uint16_t) value;
 				break;
 			// Unused or unknown fields.
@@ -470,15 +470,15 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_gga(char_t* nmea_rx_buf, NEOM8N_positi
 				_NEOM8N_check_field_length(NMEA_GGA_FIELD_SIZE_LAT);
 				// Parse degrees.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> lat_degrees = (uint8_t) value;
 				// Parse minutes.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 3]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> lat_minutes = (uint8_t) value;
 				// Parse seconds.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 6]), STRING_FORMAT_DECIMAL, 5, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> lat_seconds = (uint32_t) value;
 				break;
 			// Field 3 = <N> or <S>.
@@ -504,15 +504,15 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_gga(char_t* nmea_rx_buf, NEOM8N_positi
 				_NEOM8N_check_field_length(NMEA_GGA_FIELD_SIZE_LONG);
 				// Parse degrees.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, 3, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> long_degrees = (uint8_t) value;
 				// Parse minutes.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 4]), STRING_FORMAT_DECIMAL, 2, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> long_minutes = (uint8_t) value;
 				// Parse seconds.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 7]), STRING_FORMAT_DECIMAL, 5, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> long_seconds = (uint32_t) value;
 				break;
 			// Field 5 = <E> or <W>.
@@ -549,13 +549,13 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_gga(char_t* nmea_rx_buf, NEOM8N_positi
 				}
 				// Compute integer part.
 				string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + 1]), STRING_FORMAT_DECIMAL, alt_number_of_digits, &value);
-				STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_position -> altitude = (uint32_t) value;
 				// Rounding operation if fractionnal part exists.
 				if ((char_idx - (separator_idx + alt_number_of_digits) - 1) >= 2) {
 					// Convert tenth part.
 					string_status = STRING_string_to_value(&(nmea_rx_buf[separator_idx + alt_number_of_digits + 2]), STRING_FORMAT_DECIMAL, 1, &value);
-					STRING_check_status(NEOM8N_ERROR_BASE_STRING);
+					STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 					if (value >= 5) {
 						(*gps_position).altitude++;
 					}
@@ -613,10 +613,10 @@ static NEOM8N_status_t _NEOM8N_select_nmea_messages(uint32_t nmea_message_id_mas
 		if (status != NEOM8N_SUCCESS) goto errors;
 		// Send message.
 		lpuart1_status = LPUART1_write(neom8n_cfg_msg, (NEOM8N_MSG_OVERHEAD_SIZE + NEOM8N_CFG_MSG_PAYLOAD_SIZE));
-		LPUART1_check_status(NEOM8N_ERROR_BASE_LPUART);
+		LPUART1_exit_error(NEOM8N_ERROR_BASE_LPUART);
 		// Delay between messages.
 		lptim1_status = LPTIM1_delay_milliseconds(100, LPTIM_DELAY_MODE_SLEEP);
-		LPTIM1_check_status(NEOM8N_ERROR_BASE_LPTIM);
+		LPTIM1_exit_error(NEOM8N_ERROR_BASE_LPTIM);
 	}
 errors:
 	return status;
@@ -790,7 +790,7 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 	if (status != NEOM8N_SUCCESS) goto errors;
 	// Turn analog front-end on for supercap voltage measurements.
 	power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-	POWER_check_status(NEOM8N_ERROR_BASE_POWER);
+	POWER_exit_error(NEOM8N_ERROR_BASE_POWER);
 	// Start NMEA reception.
 	_NEOM8N_start(timeout_seconds);
 	// Loop until data is retrieved or timeout expired.
@@ -871,10 +871,10 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 			neom8n_ctx.flags.line_end = 0;
 			// Check supercap voltage.
 			adc1_status = ADC1_perform_measurements();
-			ADC1_check_status(NEOM8N_ERROR_BASE_ADC);
+			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC);
 			// Read data.
 			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &vcap_mv);
-			ADC1_check_status(NEOM8N_ERROR_BASE_ADC);
+			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC);
 			// Exit if supercap voltage falls below the given threshold.
 			if (vcap_mv < vcap_min_mv) {
 				status = NEOM8N_ERROR_VCAP_THRESHOLD;
@@ -938,7 +938,7 @@ NEOM8N_status_t NEOM8N_configure_timepulse(NEOM8N_timepulse_config_t* timepulse_
 	if (status != NEOM8N_SUCCESS) goto errors;
 	// Send message.
 	lpuart1_status = LPUART1_write(neom8n_cfg_tp5, (NEOM8N_MSG_OVERHEAD_SIZE + NEOM8N_CFG_TP5_PAYLOAD_SIZE));
-	LPUART1_check_status(NEOM8N_ERROR_BASE_LPUART);
+	LPUART1_exit_error(NEOM8N_ERROR_BASE_LPUART);
 errors:
 	return status;
 }

@@ -18,6 +18,7 @@
  * \brief TIM driver error codes.
  *******************************************************************/
 typedef enum {
+	// Driver errors.
 	TIM_SUCCESS = 0,
 	TIM_ERROR_NULL_PARAMETER,
 	TIM_ERROR_INTERRUPT_TIMEOUT,
@@ -25,7 +26,9 @@ typedef enum {
 	TIM_ERROR_DURATION_UNDERFLOW,
 	TIM_ERROR_DURATION_OVERFLOW,
 	TIM_ERROR_WAITING_MODE,
+	// Low level drivers errors.
 	TIM_ERROR_BASE_RCC = 0x0100,
+	// Last base value.
 	TIM_ERROR_BASE_LAST = (TIM_ERROR_BASE_RCC + RCC_ERROR_BASE_LAST)
 } TIM_status_t;
 
@@ -139,21 +142,15 @@ void TIM21_de_init(void);
 TIM_status_t TIM21_measure_lsi_frequency(uint32_t* lsi_frequency_hz);
 
 /*******************************************************************/
-#define TIM2_check_status(error_base) { if (tim2_status != TIM_SUCCESS) { status = error_base + tim2_status; goto errors; } }
+#define TIM2_exit_error(error_base) { if (tim2_status != TIM_SUCCESS) { status = (error_base + tim2_status); goto errors; } }
 
 /*******************************************************************/
-#define TIM2_stack_error(void) { ERROR_stack_error(tim2_status, TIM_SUCCESS, ERROR_BASE_TIM2); }
+#define TIM2_stack_error(void) { if (tim2_status != TIM_SUCCESS) { ERROR_stack_add(ERROR_BASE_TIM2 + tim2_status); } }
 
 /*******************************************************************/
-#define TIM2_print_error(void) { ERROR_print_error(tim2_status, TIM_SUCCESS, ERROR_BASE_TIM2); }
+#define TIM21_exit_error(error_base) { if (tim21_status != TIM_SUCCESS) { status = (error_base + tim21_status); goto errors; } }
 
 /*******************************************************************/
-#define TIM21_check_status(error_base) { if (tim21_status != TIM_SUCCESS) { status = error_base + tim21_status; goto errors; } }
-
-/*******************************************************************/
-#define TIM21_stack_error(void) { ERROR_stack_error(tim21_status, TIM_SUCCESS, ERROR_BASE_TIM21); }
-
-/*******************************************************************/
-#define TIM21_print_error(void) { ERROR_print_error(tim21_status, TIM_SUCCESS, ERROR_BASE_TIM21); }
+#define TIM21_stack_error(void) { if (tim21_status != TIM_SUCCESS) { ERROR_stack_add(ERROR_BASE_TIM21 + tim21_status); } }
 
 #endif /* __TIM_H__ */

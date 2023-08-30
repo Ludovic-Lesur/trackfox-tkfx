@@ -7,6 +7,7 @@
 
 #include "lptim.h"
 
+#include "error.h"
 #include "exti.h"
 #include "iwdg.h"
 #include "lptim_reg.h"
@@ -22,13 +23,12 @@
 
 #define LPTIM_ARR_MAX_VALUE			0xFFFF
 
-#define LPTIM_CLOCK_FREQUENCY_HZ	(RCC_LSE_FREQUENCY_HZ >> 3)
-
 #define LPTIM_DELAY_MS_MIN			2
-#define LPTIM_DELAY_MS_MAX			((LPTIM_ARR_MAX_VALUE * 1000) / (LPTIM_CLOCK_FREQUENCY_HZ))
+#define LPTIM_DELAY_MS_MAX			((LPTIM_ARR_MAX_VALUE * 1000) / (lptim_clock_frequency_hz))
 
 /*** LPTIM local global variables ***/
 
+static uint32_t lptim_clock_frequency_hz = 0;
 static volatile uint8_t lptim_wake_up = 0;
 
 /*** LPTIM local functions ***/
@@ -51,8 +51,25 @@ void __attribute__((optimize("-O0"))) LPTIM1_IRQHandler(void) {
 
 /*******************************************************************/
 void LPTIM1_init(void) {
-	// Configure clock source.
-	RCC -> CCIPR |= (0b11 << 18); // LPTIMSEL='01' (LSE clock selected).
+	// Local variables.
+	RCC_status_t rcc_status = RCC_SUCCESS;
+	uint32_t lsi_frequency_hz = 0;
+	// Select peripheral clock.
+	RCC -> CSR &= ~(0b11 << 16); // RTCSEL='10'.
+	// Check LSE status.
+	if (RCC_get_lse_status() != 0) {
+		// Use LSE.
+		RCC -> CCIPR |= (0b11 << 18); // LPTIMSEL='11'.
+		lptim_clock_frequency_hz = (RCC_LSE_FREQUENCY_HZ >> 3);
+	}
+	else {
+		// Use LSI.
+		RCC -> CCIPR |= (0b01 << 18); // LPTIMSEL='01'.
+		// Get effective LSI frequency.
+		rcc_status = RCC_measure_lsi_frequency(&lsi_frequency_hz);
+		RCC_stack_error();
+		lptim_clock_frequency_hz = (lsi_frequency_hz >> 3);
+	}
 	// Enable peripheral clock.
 	RCC -> APB1ENR |= (0b1 << 31); // LPTIM1EN='1'.
 	// Configure peripheral.
@@ -84,7 +101,7 @@ LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, LPTIM_delay_mode_t d
 	// Compute ARR value.
 	arr = (LPTIM1 -> ARR);
 	arr &= 0xFFFF0000;
-	arr |= ((((delay_ms - 1) * LPTIM_CLOCK_FREQUENCY_HZ) / (1000)) & 0x0000FFFF);
+	arr |= ((((delay_ms - 1) * lptim_clock_frequency_hz) / (1000)) & 0x0000FFFF);
 	LPTIM1 -> ARR = arr;
 	// Start timer.
 	lptim_wake_up = 0;

@@ -74,7 +74,7 @@ RTC_status_t RTC_init(void) {
 	uint8_t rtc_on_lse = 0;
 	uint32_t lsi_frequency_hz = 0;
 	uint32_t loop_count = 0;
-	// Select peripheral clock LSE.
+	// Select peripheral clock.
 	RCC -> CSR &= ~(0b11 << 16); // Reset bits 16-17.
 	// Check LSE status.
 	if (RCC_get_lse_status() != 0) {

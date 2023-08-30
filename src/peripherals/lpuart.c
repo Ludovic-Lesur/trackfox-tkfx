@@ -47,6 +47,26 @@ void __attribute__((optimize("-O0"))) LPUART1_IRQHandler(void) {
 	EXTI_clear_flag(EXTI_LINE_LPUART1);
 }
 
+/*******************************************************************/
+static LPUART_status_t _LPUART1_fill_tx_buffer(uint8_t tx_byte) {
+	// Local variables.
+	LPUART_status_t status = LPUART_SUCCESS;
+	uint32_t loop_count = 0;
+	// Fill transmit register.
+	LPUART1 -> TDR = tx_byte;
+	// Wait for transmission to complete.
+	while (((LPUART1 -> ISR) & (0b1 << 7)) == 0) {
+		// Wait for TXE='1' or timeout.
+		loop_count++;
+		if (loop_count > LPUART_TIMEOUT_COUNT) {
+			status = LPUART_ERROR_TX_TIMEOUT;
+			goto errors;
+		}
+	}
+errors:
+	return status;
+}
+
 /*** LPUART functions ***/
 
 /*******************************************************************/
@@ -104,25 +124,25 @@ void LPUART1_de_init(void) {
 LPUART_status_t LPUART1_write(uint8_t* data, uint32_t data_size_bytes) {
 	// Local variables.
 	LPUART_status_t status = LPUART_SUCCESS;
-	uint8_t idx = 0;
+	uint32_t idx = 0;
 	uint32_t loop_count = 0;
-	// Check parameters.
+	// Check parameter.
 	if (data == NULL) {
 		status = LPUART_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
-	// Byte loop.
+	// Fill TX buffer with new bytes.
 	for (idx=0 ; idx<data_size_bytes ; idx++) {
-		// Fill transmit register.
-		LPUART1 -> TDR = data[idx];
-		// Wait for transmission to complete.
-		while (((LPUART1 -> ISR) & (0b1 << 7)) == 0) {
-			// Wait for TXE='1' or timeout.
-			loop_count++;
-			if (loop_count > LPUART_TIMEOUT_COUNT) {
-				status = LPUART_ERROR_TX_TIMEOUT;
-				goto errors;
-			}
+		status = _LPUART1_fill_tx_buffer(data[idx]);
+		if (status != LPUART_SUCCESS) goto errors;
+	}
+	// Wait for TC flag.
+	while (((LPUART1 -> ISR) & (0b1 << 6)) == 0) {
+		// Exit if timeout.
+		loop_count++;
+		if (loop_count > LPUART_TIMEOUT_COUNT) {
+			status = LPUART_ERROR_TC_TIMEOUT;
+			goto errors;
 		}
 	}
 errors:

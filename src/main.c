@@ -195,6 +195,13 @@ static TKFX_context_t tkfx_ctx;
 
 /*** MAIN functions ***/
 
+/*******************************************************************/
+#define _TKFX_sigfox_ep_api_stack_error(void) { \
+	if (sigfox_ep_api_status != SIGFOX_EP_API_SUCCESS) { \
+		ERROR_stack_add(ERROR_BASE_SIGFOX_EP_API + sigfox_ep_api_status); \
+	} \
+}
+
 #if (defined SSM) || (defined PM)
 /*******************************************************************/
 static void _TKFX_init_context(void) {
@@ -272,15 +279,15 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 	lib_config.rc = &SIGFOX_RC1;
 	// Open library.
 	sigfox_ep_api_status = SIGFOX_EP_API_open(&lib_config);
-	ERROR_stack_error(sigfox_ep_api_status, SIGFOX_EP_API_SUCCESS, ERROR_BASE_SIGFOX_EP_API);
+	_TKFX_sigfox_ep_api_stack_error();
 	if (sigfox_ep_api_status == SIGFOX_EP_API_SUCCESS) {
 		// Send message.
 		sigfox_ep_api_status = SIGFOX_EP_API_send_application_message(application_message);
-		ERROR_stack_error(sigfox_ep_api_status, SIGFOX_EP_API_SUCCESS, ERROR_BASE_SIGFOX_EP_API);
+		_TKFX_sigfox_ep_api_stack_error();
 	}
 	// Close library.
 	sigfox_ep_api_status = SIGFOX_EP_API_close();
-	ERROR_stack_error(sigfox_ep_api_status, SIGFOX_EP_API_SUCCESS, ERROR_BASE_SIGFOX_EP_API);
+	_TKFX_sigfox_ep_api_stack_error();
 }
 #endif
 
@@ -298,7 +305,7 @@ int main (void) {
 	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;
 	NEOM8N_status_t neom8n_status = NEOM8N_SUCCESS;
 	SIGFOX_EP_API_application_message_t application_message;
-	ERROR_t error_code = 0;
+	ERROR_code_t error_code = 0;
 	uint8_t idx = 0;
 	int8_t temperature = 0;
 	uint8_t generic_data_u8;

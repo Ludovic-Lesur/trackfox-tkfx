@@ -17,9 +17,11 @@
  * \brief AES driver error codes.
  *******************************************************************/
 typedef enum {
+	// Driver errors.
 	AES_SUCCESS = 0,
 	AES_ERROR_NULL_PARAMETER,
 	AES_ERROR_TIMEOUT,
+	// Last base value.
 	AES_ERROR_BASE_LAST = 0x0100
 } AES_status_t;
 
@@ -54,12 +56,9 @@ void AES_de_init(void);
 AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key);
 
 /*******************************************************************/
-#define AES_check_status(error_base) { if (aes_status != AES_SUCCESS) { status = error_base + aes_status; goto errors; } }
+#define AES_exit_error(error_base) { if (aes_status != AES_SUCCESS) { status = (error_base + aes_status); goto errors; } }
 
 /*******************************************************************/
-#define AES_stack_error(void) { ERROR_stack_error(aes_status, AES_SUCCESS, ERROR_BASE_AES); }
-
-/*******************************************************************/
-#define AES_print_error(void) { ERROR_print_error(aes_status, AES_SUCCESS, ERROR_BASE_AES); }
+#define AES_stack_error(void) { if (aes_status != AES_SUCCESS) { ERROR_stack_add(ERROR_BASE_AES + aes_status); } }
 
 #endif /* __AES_H__ */

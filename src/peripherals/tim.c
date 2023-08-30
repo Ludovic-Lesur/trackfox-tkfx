@@ -20,23 +20,39 @@
 #define TIM_TIMEOUT_COUNT				1000000
 
 #define TIM2_CNT_VALUE_MAX				0xFFFF
-#define TIM2_ETRF_PRESCALER				16
-#define TIM2_ETRF_CLOCK_HZ				(RCC_LSE_FREQUENCY_HZ / TIM2_ETRF_PRESCALER)
+
+#define TIM2_TARGET_TRIGGER_CLOCK_HZ	2048
+
+#define TIM2_PRESCALER_ETRF_LSE			1
+#define TIM2_PRESCALER_PSC_LSE			((RCC_LSE_FREQUENCY_HZ) / (TIM2_TARGET_TRIGGER_CLOCK_HZ * TIM2_PRESCALER_ETRF_LSE))
+
+#define TIM2_PRESCALER_ETRF_HSI			8
+#define TIM2_PRESCAKER_PSC_HSI			((RCC_HSI_FREQUENCY_KHZ * 1000) / (TIM2_TARGET_TRIGGER_CLOCK_HZ * TIM2_PRESCALER_ETRF_HSI))
 
 #define TIM2_CLOCK_SWITCH_LATENCY_MS	2
 
 #define TIM2_TIMER_DURATION_MS_MIN		1
-#define TIM2_TIMER_DURATION_MS_MAX		((TIM2_CNT_VALUE_MAX * 1000) / (TIM2_ETRF_CLOCK_HZ))
+#define TIM2_TIMER_DURATION_MS_MAX		((TIM2_CNT_VALUE_MAX * 1000) / (tim2_ctx.etrf_clock_hz))
 
-#define TIM2_NUMBER_OF_CHANNELS			4
-#define TIM2_NUMBER_OF_USED_CHANNELS	3
-#define TIM2_CCRX_MASK_OFF				0xFFFF
-#define TIM2_PWM_FREQUENCY_HZ			10000
-#define TIM2_ARR_VALUE					((RCC_HSI_FREQUENCY_KHZ * 1000) / (TIM2_PWM_FREQUENCY_HZ))
+/*** TIM local structures ***/
+
+/*******************************************************************/
+typedef enum {
+	TIM2_TRIGGER_SOURCE_LSE = 0,
+	TIM2_TRIGGER_SOURCE_HSI,
+	TIM2_TRIGGER_SOURCE_LAST
+} TIM2_trigger_source_t;
+
+/*******************************************************************/
+typedef struct {
+	TIM2_trigger_source_t trigger_source;
+	uint32_t etrf_clock_hz;
+	volatile uint8_t channel_running[TIM2_CHANNEL_LAST];
+} TIM2_context_t;
 
 /*** TIM local global variables ***/
 
-static volatile uint8_t tim2_channel_running[TIM2_CHANNEL_LAST];
+static TIM2_context_t tim2_ctx;
 static volatile uint8_t tim21_flag = 0;
 
 /*** TIM local functions ***/
@@ -50,7 +66,7 @@ void __attribute__((optimize("-O0"))) TIM2_IRQHandler(void) {
 		// Check flag.
 		if (((TIM2 -> SR) & (0b1 << (channel_idx + 1))) != 0) {
 			// Reset flag.
-			tim2_channel_running[channel_idx] = 0;
+			tim2_ctx.channel_running[channel_idx] = 0;
 			// Clear flag.
 			TIM2 -> SR &= ~(0b1 << (channel_idx + 1));
 		}
@@ -77,15 +93,34 @@ void TIM2_init(void) {
 	uint8_t channel_idx = 0;
 	// Init context.
 	for (channel_idx=0 ; channel_idx<TIM2_CHANNEL_LAST ; channel_idx++) {
-		tim2_channel_running[channel_idx] = 0;
+		tim2_ctx.channel_running[channel_idx] = 0;
 	}
 	// Enable peripheral clock.
 	RCC -> APB1ENR |= (0b1 << 0); // TIM2EN='1'.
 	RCC -> APB1SMENR |= (0b1 << 0); // TIM2SMEN='1'.
-	// Use LSE/16 = 2048Hz as trigger (external clock mode 2).
-	TIM2 -> PSC = (TIM2_ETRF_PRESCALER - 1);
+	// Select trigger.
+	if (RCC_get_lse_status() != 0) {
+		// Use LSE as trigger.
+		RCC -> CR &= ~(0b1 << 5); // HSI16OUTEN='0'.
+		TIM2 -> SMCR |= (0b00 << 12); // No prescaler on ETRF.
+		TIM2 -> PSC = (TIM2_PRESCALER_PSC_LSE - 1);
+		TIM2 -> OR |= (0b101 << 0);
+		// Update context.
+		tim2_ctx.trigger_source = TIM2_TRIGGER_SOURCE_LSE;
+		tim2_ctx.etrf_clock_hz = ((RCC_LSE_FREQUENCY_HZ) / (TIM2_PRESCALER_ETRF_LSE * TIM2_PRESCALER_PSC_LSE));
+	}
+	else {
+		// Use HSI as trigger.
+		RCC -> CR |= (0b1 << 5); // HSI16OUTEN='1'.
+		TIM2 -> SMCR |= (0b11 << 12); // ETRF prescaler = 8 (minimum 4 due to CK_INT clock ratio constraint).
+		TIM2 -> PSC = (TIM2_PRESCAKER_PSC_HSI - 1);
+		TIM2 -> OR |= (0b011 << 0);
+		// Update context.
+		tim2_ctx.trigger_source = TIM2_TRIGGER_SOURCE_HSI;
+		tim2_ctx.etrf_clock_hz = ((RCC_HSI_FREQUENCY_KHZ * 1000) / (TIM2_PRESCALER_ETRF_HSI * TIM2_PRESCAKER_PSC_HSI));
+	}
+	// Use external clock mode 2.
 	TIM2 -> SMCR |= (0b1 << 14) | (0b111 << 4);
-	TIM2 -> OR |= (0b101 << 0);
 	// Configure channels 1-4 in output compare mode.
 	TIM2 -> CCMR1 &= 0xFFFF0000;
 	TIM2 -> CCMR2 &= 0xFFFF0000;
@@ -138,10 +173,10 @@ TIM_status_t TIM2_start(TIM2_channel_t channel, uint32_t duration_ms, TIM_waitin
 	if (waiting_mode == TIM_WAITING_MODE_LOW_POWER_SLEEP) {
 		local_duration_ms -= TIM2_CLOCK_SWITCH_LATENCY_MS;
 	}
-	compare_value = ((TIM2 -> CNT) + ((local_duration_ms * TIM2_ETRF_CLOCK_HZ) / (1000))) % TIM2_CNT_VALUE_MAX;
+	compare_value = ((TIM2 -> CNT) + ((local_duration_ms * tim2_ctx.etrf_clock_hz) / (1000))) % TIM2_CNT_VALUE_MAX;
 	TIM2 -> CCRx[channel] = compare_value;
 	// Update flag.
-	tim2_channel_running[channel] = 1;
+	tim2_ctx.channel_running[channel] = 1;
 	// Clear flag.
 	TIM2 -> SR &= ~(0b1 << (channel + 1));
 	// Enable channel.
@@ -170,10 +205,10 @@ TIM_status_t TIM2_stop(TIM2_channel_t channel) {
 	// Clear flag.
 	TIM2 -> SR &= ~(0b1 << (channel + 1));
 	// Update flag.
-	tim2_channel_running[channel] = 0;
+	tim2_ctx.channel_running[channel] = 0;
 	// Disable counter if all channels are stopped.
 	for (channel_idx=0 ; channel_idx<TIM2_CHANNEL_LAST ; channel_idx++) {
-		running_count += tim2_channel_running[channel_idx];
+		running_count += tim2_ctx.channel_running[channel_idx];
 	}
 	if (running_count == 0) {
 		TIM2 -> CR1 &= ~(0b1 << 0);
@@ -196,7 +231,7 @@ TIM_status_t TIM2_get_status(TIM2_channel_t channel, uint8_t* timer_has_elapsed)
 		goto errors;
 	}
 	// Update flag.
-	(*timer_has_elapsed) = (tim2_channel_running[channel] == 0) ? 1 : 0;
+	(*timer_has_elapsed) = (tim2_ctx.channel_running[channel] == 0) ? 1 : 0;
 errors:
 	return status;
 }
@@ -215,29 +250,39 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 	switch (waiting_mode) {
 	case TIM_WAITING_MODE_ACTIVE:
 		// Active loop.
-		while (tim2_channel_running[channel] != 0) {
+		while (tim2_ctx.channel_running[channel] != 0) {
 			IWDG_reload();
 		}
 		break;
 	case TIM_WAITING_MODE_SLEEP:
 		// Enter sleep mode.
-		while (tim2_channel_running[channel] != 0) {
+		while (tim2_ctx.channel_running[channel] != 0) {
 			PWR_enter_sleep_mode();
 			IWDG_reload();
 		}
 		break;
 	case TIM_WAITING_MODE_LOW_POWER_SLEEP:
-		// Switch to MSI.
-		rcc_status = RCC_switch_to_msi(RCC_MSI_RANGE_1_131KHZ);
-		RCC_check_status(TIM_ERROR_BASE_RCC);
-		// Enter low power sleep mode.
-		while (tim2_channel_running[channel] != 0) {
-			PWR_enter_low_power_sleep_mode();
-			IWDG_reload();
+		// Check trigger source.
+		if (tim2_ctx.trigger_source == TIM2_TRIGGER_SOURCE_LSE) {
+			// Switch to MSI.
+			rcc_status = RCC_switch_to_msi(RCC_MSI_RANGE_1_131KHZ);
+			RCC_exit_error(TIM_ERROR_BASE_RCC);
+			// Enter low power sleep mode.
+			while (tim2_ctx.channel_running[channel] != 0) {
+				PWR_enter_low_power_sleep_mode();
+				IWDG_reload();
+			}
+			// Go back to HSI.
+			rcc_status = RCC_switch_to_hsi();
+			RCC_exit_error(TIM_ERROR_BASE_RCC);
 		}
-		// Go back to HSI.
-		rcc_status = RCC_switch_to_hsi();
-		RCC_check_status(TIM_ERROR_BASE_RCC);
+		else {
+			// Enter sleep mode.
+			while (tim2_ctx.channel_running[channel] != 0) {
+				PWR_enter_sleep_mode();
+				IWDG_reload();
+			}
+		}
 		break;
 	default:
 		status = TIM_ERROR_WAITING_MODE;
