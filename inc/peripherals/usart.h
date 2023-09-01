@@ -96,4 +96,7 @@ USART_status_t USART2_write(uint8_t* data, uint32_t data_size_bytes);
 /*******************************************************************/
 #define USART2_stack_error(void) { if (usart2_status != USART_SUCCESS) { ERROR_stack_add(ERROR_BASE_USART2 + usart2_status); } }
 
+/*******************************************************************/
+#define USART2_stack_exit_error(error_code) { if (usart2_status != USART_SUCCESS) { ERROR_stack_add(ERROR_BASE_USART2 + usart2_status); status = error_code; goto errors; } }
+
 #endif /* __USART_H__ */

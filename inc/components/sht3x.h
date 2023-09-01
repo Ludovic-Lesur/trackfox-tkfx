@@ -68,4 +68,7 @@ SHT3X_status_t SHT3X_get_humidity(uint8_t* humidity_percent);
 /*******************************************************************/
 #define SHT3X_stack_error(void) { if (sht3x_status != SHT3X_SUCCESS) { ERROR_stack_add(ERROR_BASE_SHT3X + sht3x_status); } }
 
+/*******************************************************************/
+#define SHT3X_stack_exit_error(error_code) { if (sht3x_status != SHT3X_SUCCESS) { ERROR_stack_add(ERROR_BASE_SHT3X + sht3x_status); status = error_code; goto errors; } }
+
 #endif /* __SHT3X_H__ */

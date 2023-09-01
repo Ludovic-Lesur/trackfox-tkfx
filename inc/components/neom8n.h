@@ -43,8 +43,8 @@ typedef enum {
 	NEOM8N_ERROR_TIMEPULSE_FREQUENCY,
 	NEOM8N_ERROR_TIMEPULSE_DUTY_CYCLE,
 	// Low level drivers errors.
-	NEOM8N_ERROR_BASE_ADC = 0x0100,
-	NEOM8N_ERROR_BASE_LPUART = (NEOM8N_ERROR_BASE_ADC + ADC_ERROR_BASE_LAST),
+	NEOM8N_ERROR_BASE_ADC1 = 0x0100,
+	NEOM8N_ERROR_BASE_LPUART = (NEOM8N_ERROR_BASE_ADC1 + ADC_ERROR_BASE_LAST),
 	NEOM8N_ERROR_BASE_LPTIM = (NEOM8N_ERROR_BASE_LPUART + LPUART_ERROR_BASE_LAST),
 	NEOM8N_ERROR_BASE_STRING = (NEOM8N_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST),
 	NEOM8N_ERROR_BASE_POWER = (NEOM8N_ERROR_BASE_STRING + STRING_ERROR_BASE_LAST),
@@ -169,5 +169,8 @@ NEOM8N_status_t NEOM8N_configure_timepulse(NEOM8N_timepulse_config_t* timepulse_
 
 /*******************************************************************/
 #define NEOM8N_stack_error(void) { if (neom8n_status != NEOM8N_SUCCESS) { ERROR_stack_add(ERROR_BASE_NEOM8N + neom8n_status); } }
+
+/*******************************************************************/
+#define NEOM8N_stack_exit_error(error_code) { if (neom8n_status != NEOM8N_SUCCESS) { ERROR_stack_add(ERROR_BASE_NEOM8N + neom8n_status); status = error_code; goto errors; } }
 
 #endif /* __NEOM8N_H__ */

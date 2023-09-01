@@ -654,4 +654,7 @@ S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes);
 /*******************************************************************/
 #define S2LP_stack_error(void) { if (s2lp_status != S2LP_SUCCESS) { ERROR_stack_add(ERROR_BASE_S2LP + s2lp_status); } }
 
+/*******************************************************************/
+#define S2LP_stack_exit_error(error_code) { if (s2lp_status != S2LP_SUCCESS) { ERROR_stack_add(ERROR_BASE_S2LP + s2lp_status); status = error_code; goto errors; } }
+
 #endif /* __S2LP_H__ */

@@ -7,6 +7,8 @@
 
 #include "error.h"
 
+#include "sigfox_ep_api.h"
+#include "sigfox_error.h"
 #include "types.h"
 
 /*** ERROR local macros ***/
@@ -39,10 +41,7 @@ void ERROR_stack_add(ERROR_code_t code) {
 	// Add error code.
 	error_ctx.stack[error_ctx.stack_idx] = code;
 	// Increment index.
-	error_ctx.stack_idx++;
-	if (error_ctx.stack_idx >= ERROR_STACK_DEPTH) {
-		error_ctx.stack_idx = 0;
-	}
+	error_ctx.stack_idx = ((error_ctx.stack_idx + 1) % ERROR_STACK_DEPTH);
 }
 
 /*******************************************************************/
@@ -69,4 +68,26 @@ uint8_t ERROR_stack_is_empty(void) {
 		}
 	}
 	return is_empty;
+}
+
+/*******************************************************************/
+void ERROR_import_sigfox_stack(void) {
+	// Local variables.
+	SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
+	ERROR_code_t error_code;
+	SIGFOX_ERROR_t sigfox_error;
+	do {
+		// Read error stack.
+		sigfox_ep_api_status = SIGFOX_EP_API_unstack_error(&sigfox_error);
+		if (sigfox_ep_api_status != SIGFOX_EP_API_SUCCESS) goto errors;
+		// Check value.
+		if (sigfox_error.code != SIGFOX_EP_API_SUCCESS) {
+			// Convert source to base.
+			error_code = ((ERROR_BASE_SIGFOX_EP_LIB + (sigfox_error.source * 0x0100)) + sigfox_error.code);
+			ERROR_stack_add(error_code);
+		}
+	}
+	while (sigfox_error.code != SIGFOX_EP_API_SUCCESS);
+errors:
+	return;
 }

@@ -871,10 +871,10 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 			neom8n_ctx.flags.line_end = 0;
 			// Check supercap voltage.
 			adc1_status = ADC1_perform_measurements();
-			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC);
+			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC1);
 			// Read data.
 			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &vcap_mv);
-			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC);
+			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC1);
 			// Exit if supercap voltage falls below the given threshold.
 			if (vcap_mv < vcap_min_mv) {
 				status = NEOM8N_ERROR_VCAP_THRESHOLD;

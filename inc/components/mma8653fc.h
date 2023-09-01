@@ -156,4 +156,7 @@ void MMA8653FC_clear_motion_interrupt_flag(void);
 /*******************************************************************/
 #define MMA8653FC_stack_error(void) { if (mma8653fc_status != MMA8653FC_SUCCESS) { ERROR_stack_add(ERROR_BASE_MMA8653FC + mma8653fc_status); } }
 
+/*******************************************************************/
+#define MMA8653FC_stack_exit_error(error_code) { if (mma8653fc_status != MMA8653FC_SUCCESS) { ERROR_stack_add(ERROR_BASE_MMA8653FC + mma8653fc_status); status = error_code; goto errors; } }
+
 #endif /* __MMA8653FC_H__ */

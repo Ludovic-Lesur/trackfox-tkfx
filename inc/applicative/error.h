@@ -32,6 +32,10 @@
 #include "power.h"
 #include "s2lp.h"
 #include "sht3x.h"
+// Sigfox.
+#include "sigfox_error.h"
+
+/*** ERROR structures ***/
 
 /*!******************************************************************
  * \enum ERROR_base_t
@@ -39,8 +43,6 @@
  *******************************************************************/
 typedef enum {
 	SUCCESS = 0,
-	ERROR_BUSY,
-	ERROR_SIGFOX_RC,
 	// Peripherals.
 	ERROR_BASE_ADC1 = 0x0100,
 	ERROR_BASE_AES = (ERROR_BASE_ADC1 + ADC_ERROR_BASE_LAST),
@@ -65,12 +67,11 @@ typedef enum {
 	ERROR_BASE_NEOM8N = (ERROR_BASE_MMA8653FC + MMA8653FC_ERROR_BASE_LAST),
 	ERROR_BASE_POWER = (ERROR_BASE_NEOM8N + NEOM8N_ERROR_BASE_LAST),
 	ERROR_BASE_S2LP = (ERROR_BASE_POWER + POWER_ERROR_BASE_LAST),
-	ERROR_BASE_SHT3X = (ERROR_BASE_NEOM8N + NEOM8N_ERROR_BASE_LAST),
+	ERROR_BASE_SHT3X = (ERROR_BASE_S2LP + S2LP_ERROR_BASE_LAST),
 	// Sigfox.
-	ERROR_BASE_SIGFOX_MCU_API = (ERROR_BASE_SHT3X + SHT3X_ERROR_BASE_LAST),
-	ERROR_BASE_SIGFOX_RF_API = (ERROR_BASE_SIGFOX_MCU_API + 0x0100),
-	ERROR_BASE_SIGFOX_EP_API = (ERROR_BASE_SIGFOX_RF_API + 0x0100),
-	ERROR_BASE_SIGFOX_EP_ADDON_RFP = (ERROR_BASE_SIGFOX_EP_API + 0x0100),
+	ERROR_BASE_SIGFOX_EP_LIB = (ERROR_BASE_SHT3X + SHT3X_ERROR_BASE_LAST),
+	ERROR_BASE_SIGFOX_EP_ADDON_RFP = (ERROR_BASE_SIGFOX_EP_LIB + (SIGFOX_ERROR_SOURCE_LAST * 0x0100)),
+	// Last base value.
 	ERROR_BASE_LAST = (ERROR_BASE_SIGFOX_EP_ADDON_RFP + 0x0100)
 } ERROR_base_t;
 
@@ -117,5 +118,14 @@ ERROR_code_t ERROR_stack_read(void);
  * \retval		1 if the error stack is empty, 0 otherwise.
  *******************************************************************/
 uint8_t ERROR_stack_is_empty(void);
+
+/*!******************************************************************
+ * \fn void ERROR_import_sigfox_stack(void)
+ * \brief Import the Sigfox EP lib error stack in the MCU stack.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		none
+ *******************************************************************/
+void ERROR_import_sigfox_stack(void);
 
 #endif /* __ERROR_H__ */

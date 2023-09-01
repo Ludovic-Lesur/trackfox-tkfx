@@ -195,13 +195,6 @@ static TKFX_context_t tkfx_ctx;
 
 /*** MAIN functions ***/
 
-/*******************************************************************/
-#define _TKFX_sigfox_ep_api_stack_error(void) { \
-	if (sigfox_ep_api_status != SIGFOX_EP_API_SUCCESS) { \
-		ERROR_stack_add(ERROR_BASE_SIGFOX_EP_API + sigfox_ep_api_status); \
-	} \
-}
-
 #if (defined SSM) || (defined PM)
 /*******************************************************************/
 static void _TKFX_init_context(void) {
@@ -279,15 +272,15 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 	lib_config.rc = &SIGFOX_RC1;
 	// Open library.
 	sigfox_ep_api_status = SIGFOX_EP_API_open(&lib_config);
-	_TKFX_sigfox_ep_api_stack_error();
+	SIGFOX_EP_API_stack_error();
 	if (sigfox_ep_api_status == SIGFOX_EP_API_SUCCESS) {
 		// Send message.
 		sigfox_ep_api_status = SIGFOX_EP_API_send_application_message(application_message);
-		_TKFX_sigfox_ep_api_stack_error();
+		SIGFOX_EP_API_stack_error();
 	}
 	// Close library.
 	sigfox_ep_api_status = SIGFOX_EP_API_close();
-	_TKFX_sigfox_ep_api_stack_error();
+	SIGFOX_EP_API_stack_error();
 }
 #endif
 
@@ -557,6 +550,8 @@ int main (void) {
 			tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
 			break;
 		case TKFX_STATE_ERROR_STACK:
+			// Import Sigfox library error stack.
+			ERROR_import_sigfox_stack();
 			// Check stack.
 			if (ERROR_stack_is_empty() == 0) {
 				// Read error stack.
@@ -570,8 +565,6 @@ int main (void) {
 				application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_error_stack_data);
 				application_message.ul_payload_size_bytes = TKFX_SIGFOX_ERROR_STACK_DATA_SIZE;
 				_TKFX_send_sigfox_message(&application_message);
-				// Reset error stack.
-				ERROR_stack_init();
 			}
 			// Enter sleep mode.
 			tkfx_ctx.state = TKFX_STATE_OFF;

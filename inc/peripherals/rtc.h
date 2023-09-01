@@ -66,4 +66,7 @@ void RTC_clear_wakeup_timer_flag(void);
 /*******************************************************************/
 #define RTC_stack_error(void) { if (rtc_status != RTC_SUCCESS) { ERROR_stack_add(ERROR_BASE_RTC + rtc_status); } }
 
+/*******************************************************************/
+#define RTC_stack_exit_error(error_code) { if (rtc_status != RTC_SUCCESS) { ERROR_stack_add(ERROR_BASE_RTC + rtc_status); status = error_code; goto errors; } }
+
 #endif /* __RTC_H__ */

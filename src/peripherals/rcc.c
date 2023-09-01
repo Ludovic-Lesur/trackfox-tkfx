@@ -184,7 +184,7 @@ RCC_status_t RCC_measure_lsi_frequency(uint32_t* lsi_frequency_hz) {
 	for (sample_idx=0 ; sample_idx<RCC_LSI_AVERAGING_COUNT ; sample_idx++) {
 		// Perform measurement.
 		tim21_status = TIM21_measure_lsi_frequency(&lsi_frequency_sample);
-		TIM21_stack_error(RCC_ERROR_BASE_TIM);
+		TIM21_stack_error();
 		(*lsi_frequency_hz) = (((*lsi_frequency_hz) * sample_idx) + lsi_frequency_sample) / (sample_idx + 1);
 	}
 	// Check value.

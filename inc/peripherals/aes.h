@@ -61,4 +61,7 @@ AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key);
 /*******************************************************************/
 #define AES_stack_error(void) { if (aes_status != AES_SUCCESS) { ERROR_stack_add(ERROR_BASE_AES + aes_status); } }
 
+/*******************************************************************/
+#define AES_stack_exit_error(error_code) { if (aes_status != AES_SUCCESS) { ERROR_stack_add(ERROR_BASE_AES + aes_status); status = error_code; goto errors; } }
+
 #endif /* __AES_H__ */
