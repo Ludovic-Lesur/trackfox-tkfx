@@ -112,7 +112,7 @@ void DMA1_CH6_start(void);
 void DMA1_CH6_stop(void);
 
 /*!******************************************************************
- * \fn void DMA1_CH6_set_destination_address(uint32_t destination_buffer_addr, uint16_t destination_buffer_size
+ * \fn void DMA1_CH6_set_destination_address(uint32_t destination_buffer_addr, uint16_t destination_buffer_size)
  * \brief Set DMA1 channel 6 destination buffer.
  * \param[in]  	destination_buffer_addr: Destination buffer address.
  * \param[in] 	destination_buffer_size: Destination buffer size (number of bytes to transfer).

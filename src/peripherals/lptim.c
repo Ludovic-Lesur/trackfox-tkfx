@@ -19,12 +19,12 @@
 
 /*** LPTIM local macros ***/
 
-#define LPTIM_TIMEOUT_COUNT			1000000
+#define LPTIM_TIMEOUT_COUNT		1000000
 
-#define LPTIM_ARR_MAX_VALUE			0xFFFF
+#define LPTIM_ARR_MAX_VALUE		0xFFFF
 
-#define LPTIM_DELAY_MS_MIN			2
-#define LPTIM_DELAY_MS_MAX			((LPTIM_ARR_MAX_VALUE * 1000) / (lptim_clock_frequency_hz))
+#define LPTIM_DELAY_MS_MIN		2
+#define LPTIM_DELAY_MS_MAX		((LPTIM_ARR_MAX_VALUE * 1000) / (lptim_clock_frequency_hz))
 
 /*** LPTIM local global variables ***/
 

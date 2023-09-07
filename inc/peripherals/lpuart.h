@@ -53,7 +53,7 @@ void LPUART1_init(LPUART_character_match_irq_cb_t irq_callback);
 void LPUART1_de_init(void);
 
 /*!******************************************************************
- * \fn LPUART_status_t LPUART1_write(uint8_t* data, uint8_t data_size_bytes)
+ * \fn LPUART_status_t LPUART1_write(uint8_t* data, uint32_t data_size_bytes)
  * \brief Send data over LPUART1.
  * \param[in]	data: Byte array to send.
  * \param[in]	data_size_bytes: Number of bytes to send.
