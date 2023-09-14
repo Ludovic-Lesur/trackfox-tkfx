@@ -23,6 +23,8 @@
 #define RCC_LSI_FREQUENCY_MIN_HZ	26000
 #define RCC_LSI_FREQUENCY_MAX_HZ	56000
 
+/*** RCC local functions ***/
+
 /*******************************************************************/
 void __attribute__((optimize("-O0"))) RCC_IRQHandler(void) {
 	// Clear all flags.

@@ -9,8 +9,8 @@
 
 #include "exti.h"
 #include "gpio.h"
-#include "mode.h"
 #include "mapping.h"
+#include "mode.h"
 #include "nvic.h"
 #include "rcc.h"
 #include "rcc_reg.h"
@@ -74,7 +74,7 @@ void USART2_init(USART_rx_irq_cb_t irq_callback) {
 	USART2 -> CR3 |= (0b1 << 12) | (0b1 << 23); // No overrun detection (OVRDIS='1') and clock enable in stop mode (UCESM='1').
 	brr = (RCC_HSI_FREQUENCY_KHZ * 1000);
 	brr /= USART_BAUD_RATE;
-	USART2 -> BRR = (brr & 0x000FFFFF); // BRR = (256*fCK)/(baud rate).
+	USART2 -> BRR = (brr & 0x000FFFFF); // BRR = (fCK)/(baud rate).
 	// Configure interrupt.
 	USART2 -> CR1 |= (0b1 << 5); // RXNEIE='1'.
 	// Enable transmitter and receiver.

@@ -22,8 +22,10 @@
 
 #define ADC_FULL_SCALE_12BITS			4095
 
-#define ADC_LM4040_VOLTAGE_MV			2048
 #define ADC_VMCU_DEFAULT_MV				3000
+
+#define ADC_LM4040_VOLTAGE_MV			2048
+#define ADC_LM4040_DEFAULT_12BITS		((ADC_LM4040_VOLTAGE_MV * ADC_FULL_SCALE_12BITS) / (ADC_VMCU_DEFAULT_MV))
 
 #define ADC_TIMEOUT_COUNT				1000000
 
@@ -157,10 +159,6 @@ static ADC_status_t _ADC1_compute_all_channels(void) {
 	ADC_status_t status = ADC_SUCCESS;
 	uint8_t idx = 0;
 	uint32_t voltage_12bits = 0;
-#if (defined LVRM) || (defined DDRM) || (defined RRM)
-	uint64_t num = 0;
-	uint64_t den = 0;
-#endif
 	// Channels loop.
 	for (idx=0 ; idx<ADC_DATA_INDEX_LAST ; idx++) {
 		// Get raw result.
@@ -220,9 +218,8 @@ ADC_status_t ADC1_init(void) {
 	uint8_t idx = 0;
 	uint32_t loop_count = 0;
 	// Init context.
-	adc_ctx.lm4040_12bits = 0;
+	adc_ctx.lm4040_12bits = ADC_LM4040_DEFAULT_12BITS;
 	for (idx=0 ; idx<ADC_DATA_INDEX_LAST ; idx++) adc_ctx.data[idx] = 0;
-	adc_ctx.data[ADC_DATA_INDEX_VMCU_MV] = ADC_VMCU_DEFAULT_MV;
 	adc_ctx.tmcu_degrees = 0;
 	// Init GPIOs.
 	GPIO_configure(&GPIO_ADC1_IN6, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
@@ -252,6 +249,7 @@ ADC_status_t ADC1_init(void) {
 	}
 	// Enable ADC peripheral.
 	ADC1 -> CR |= (0b1 << 0); // ADEN='1'.
+	loop_count = 0;
 	while (((ADC1 -> ISR) & (0b1 << 0)) == 0) {
 		// Wait for ADC to be ready (ADRDY='1') or timeout.
 		loop_count++;
