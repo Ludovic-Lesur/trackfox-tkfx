@@ -75,12 +75,12 @@ typedef struct {
 	// Latitude.
 	uint8_t lat_degrees;
 	uint8_t lat_minutes;
-	uint32_t lat_seconds; // = (fractionnal part of minutes * 100000).
+	uint32_t lat_seconds; // = (fractional part of minutes * 100000).
 	uint8_t lat_north_flag; // 0=south, 1=north.
 	// Longitude.
 	uint8_t long_degrees;
 	uint8_t long_minutes;
-	uint32_t long_seconds; // = (fractionnal part of minutes * 100000).
+	uint32_t long_seconds; // = (fractional part of minutes * 100000).
 	uint8_t long_east_flag; // 0=west, 1=east.
 	// Altitude.
 	uint32_t altitude;

@@ -152,7 +152,7 @@ static AT_context_t at_ctx;
 #ifdef ATM
 /*******************************************************************/
 static void _AT_fill_rx_buffer(uint8_t rx_byte) {
-	// Append byte if line end flag is not allready set.
+	// Append byte if line end flag is not already set.
 	if (at_ctx.line_end_flag == 0) {
 		// Check ending characters.
 		if ((rx_byte == STRING_CHAR_CR) || (rx_byte == STRING_CHAR_LF)) {

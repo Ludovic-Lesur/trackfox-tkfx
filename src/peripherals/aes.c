@@ -27,7 +27,7 @@ void AES_init(void) {
 
 /*******************************************************************/
 void AES_de_init(void) {
-	// disble peripheral clock.
+	// Disable peripheral clock.
 	RCC -> AHBENR &= ~(0b1 << 24); // CRYPTOEN='0'.
 }
 
@@ -51,7 +51,7 @@ AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key) {
 		data_32bits |= key[(idx << 2) + 1] << 16;
 		data_32bits |= key[(idx << 2) + 2] << 8;
 		data_32bits |= key[(idx << 2) + 3] << 0;
-		// Fill registrers.
+		// Fill registers.
 		AES -> KEYR[3 - idx] = data_32bits;
 		AES -> IVR[idx] = 0;
 	}
@@ -68,7 +68,7 @@ AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key) {
 		// Fill input data register.
 		AES -> DINR = data_32bits;
 	}
-	// Wait for algorithme to complete.
+	// Wait for algorithm to complete.
 	while (((AES -> SR) & (0b1 << 0)) == 0) {
 		// Wait for CCF='1' or timeout.
 		loop_count++;
@@ -77,9 +77,9 @@ AES_status_t AES_encrypt(uint8_t* data_in, uint8_t* data_out, uint8_t* key) {
 			goto errors;
 		}
 	}
-	// Get result (returned most signifiant 32-bits word first).
+	// Get result (returned most significant 32-bits word first).
 	for (idx=0 ; idx<4 ; idx++) {
-		// Read output data register (most signifiant 32-bits word first).
+		// Read output data register (most significant 32-bits word first).
 		data_32bits = (AES -> DOUTR);
 		// Split 32-bits word into 4 bytes.
 		data_out[(idx << 2) + 0] = (data_32bits >> 24) & 0xFF;

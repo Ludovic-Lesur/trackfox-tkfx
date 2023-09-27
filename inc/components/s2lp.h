@@ -469,7 +469,7 @@ S2LP_status_t S2LP_set_rx_bandwidth(uint32_t rx_bandwidth_hz);
 
 /*!******************************************************************
  * \fn S2LP_status_t S2LP_disable_equa_cs_ant_switch(void)
- * \brief Disable S2LP equializer, CS blancking and antenna switch.
+ * \brief Disable S2LP equalizer, CS blanking and antenna switch.
  * \param[in]	none
  * \param[out] 	none
  * \retval		Function execution status.
@@ -591,7 +591,7 @@ S2LP_status_t S2LP_set_packet_length(uint8_t packet_length_bytes);
 
 /*!******************************************************************
  * \fn S2LP_status_t S2LP_set_preamble_detector(uint8_t length_2bits, S2LP_preamble_pattern_t pattern)
- * \brief Configure S2LP premable detector.
+ * \brief Configure S2LP preamble detector.
  * \param[in]  	preamble_length_2bits: Number of bits pair of the preamble.
  * \param[in]	preamble_pattern: Preamble pattern to search for.
  * \param[out] 	none
