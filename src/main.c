@@ -390,19 +390,19 @@ int main (void) {
 				if (adc1_status == ADC_SUCCESS) {
 					tkfx_ctx.vsrc_mv = generic_data_u32;
 				}
-				// Read Vcap.
+				// Read VCAP.
 				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &generic_data_u32);
 				ADC1_stack_error();
 				if (adc1_status == ADC_SUCCESS) {
 					tkfx_ctx.vcap_mv = generic_data_u32;
 				}
-				// Read Vmcu.
+				// Read VMCU.
 				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &generic_data_u32);
 				ADC1_stack_error();
 				if (adc1_status == ADC_SUCCESS) {
 					tkfx_ctx.vmcu_mv = generic_data_u32;
 				}
-				// Read Tmcu.
+				// Read TMCU.
 				adc1_status = ADC1_get_tmcu(&temperature);
 				ADC1_stack_error();
 				if (adc1_status == ADC_SUCCESS) {

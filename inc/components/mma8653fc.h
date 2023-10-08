@@ -134,7 +134,7 @@ void MMA8653_disable_motion_interrupt(void);
 
 /*!******************************************************************
  * \fn volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void)
- * \brief Read MMA8653FC mption interrupt flag.
+ * \brief Read MMA8653FC motion interrupt flag.
  * \param[in]  	none
  * \param[out] 	none
  * \retval		Motion interrupt flag.
@@ -143,7 +143,7 @@ volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void);
 
 /*!******************************************************************
  * \fn void MMA8653FC_clear_motion_interrupt_flag(void)
- * \brief Clear MMA8653FC mption interrupt flag.
+ * \brief Clear MMA8653FC motion interrupt flag.
  * \param[in]  	none
  * \param[out] 	none
  * \retval		none

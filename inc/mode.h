@@ -26,7 +26,7 @@ typedef struct {
 	uint32_t vcap_min_mv;
 	uint32_t geoloc_timeout_seconds;
 #ifdef SSM
-	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start conidition (set to 0 to disable filter).
+	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition (set to 0 to disable filter).
 	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
 	uint32_t keep_alive_period_seconds;
 	uint32_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after an inactivity period.

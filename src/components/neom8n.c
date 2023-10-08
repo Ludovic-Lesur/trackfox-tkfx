@@ -367,7 +367,7 @@ static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, NEOM8N_time_t
 				STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 				gps_time -> month = (uint8_t) value;
 				break;
-			// Field 4 = year = yyyys.
+			// Field 4 = year = yyyy.
 			case NMEA_ZDA_FIELD_INDEX_YEAR:
 				// Check field length.
 				_NEOM8N_check_field_length(NMEA_ZDA_FIELD_SIZE_YEAR);
