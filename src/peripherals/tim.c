@@ -12,6 +12,7 @@
 #include "pwr.h"
 #include "rcc.h"
 #include "rcc_reg.h"
+#include "rtc.h"
 #include "tim_reg.h"
 #include "types.h"
 
@@ -33,6 +34,8 @@
 
 #define TIM2_TIMER_DURATION_MS_MIN		1
 #define TIM2_TIMER_DURATION_MS_MAX		((TIM2_CNT_VALUE_MAX * 1000) / (tim2_ctx.etrf_clock_hz))
+
+#define TIM2_WATCHDOG_PERIOD_SECONDS	((TIM2_TIMER_DURATION_MS_MAX / 1000) + 5)
 
 /*** TIM local structures ***/
 
@@ -83,6 +86,25 @@ void __attribute__((optimize("-O0"))) TIM21_IRQHandler(void) {
 		}
 		TIM21 -> SR &= ~(0b1 << 1);
 	}
+}
+
+/*******************************************************************/
+TIM_status_t _TIM2_internal_watchdog(uint32_t time_start, uint32_t* time_reference) {
+	// Local variables.
+	TIM_status_t status = TIM_SUCCESS;
+	uint32_t time = RTC_get_time_seconds();
+	// If the RTC is correctly clocked, it will be used as internal watchdog and the IWDG can be reloaded.
+	// If the RTC is not running anymore due to a clock failure, the IWDG is not reloaded and will reset the MCU.
+	if (time != (*time_reference)) {
+		// Update time reference and reload IWDG.
+		(*time_reference) = time;
+		IWDG_reload();
+	}
+	// Internal watchdog.
+	if (time > (time_start + TIM2_WATCHDOG_PERIOD_SECONDS)) {
+		status = TIM_ERROR_COMPLETION_WATCHDOG;
+	}
+	return status;
 }
 
 /*** TIM functions ***/
@@ -241,6 +263,8 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 	// Local variables.
 	TIM_status_t status = TIM_SUCCESS;
 	RCC_status_t rcc_status = RCC_SUCCESS;
+	uint32_t time_start = RTC_get_time_seconds();
+	uint32_t time_reference = 0;
 	// Check parameters.
 	if (channel >= TIM2_CHANNEL_LAST) {
 		status = TIM_ERROR_CHANNEL;
@@ -251,14 +275,18 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 	case TIM_WAITING_MODE_ACTIVE:
 		// Active loop.
 		while (tim2_ctx.channel_running[channel] != 0) {
-			IWDG_reload();
+			// Internal watchdog.
+			status = _TIM2_internal_watchdog(time_start, &time_reference);
+			if (status != TIM_SUCCESS) goto errors;
 		}
 		break;
 	case TIM_WAITING_MODE_SLEEP:
 		// Enter sleep mode.
 		while (tim2_ctx.channel_running[channel] != 0) {
 			PWR_enter_sleep_mode();
-			IWDG_reload();
+			// Internal watchdog.
+			status = _TIM2_internal_watchdog(time_start, &time_reference);
+			if (status != TIM_SUCCESS) goto errors;
 		}
 		break;
 	case TIM_WAITING_MODE_LOW_POWER_SLEEP:
@@ -270,7 +298,9 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 			// Enter low power sleep mode.
 			while (tim2_ctx.channel_running[channel] != 0) {
 				PWR_enter_low_power_sleep_mode();
-				IWDG_reload();
+				// Internal watchdog.
+				status = _TIM2_internal_watchdog(time_start, &time_reference);
+				if (status != TIM_SUCCESS) goto errors;
 			}
 			// Go back to HSI.
 			rcc_status = RCC_switch_to_hsi();
@@ -280,7 +310,9 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 			// Enter sleep mode.
 			while (tim2_ctx.channel_running[channel] != 0) {
 				PWR_enter_sleep_mode();
-				IWDG_reload();
+				// Internal watchdog.
+				status = _TIM2_internal_watchdog(time_start, &time_reference);
+				if (status != TIM_SUCCESS) goto errors;
 			}
 		}
 		break;

@@ -9,7 +9,6 @@
 
 #include "error.h"
 #include "exti.h"
-#include "iwdg.h"
 #include "lptim_reg.h"
 #include "nvic.h"
 #include "pwr.h"
@@ -85,7 +84,7 @@ LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, LPTIM_delay_mode_t d
 	LPTIM_status_t status = LPTIM_SUCCESS;
 	uint32_t arr = 0;
 	// Check delay.
-	if (delay_ms > LPTIM_DELAY_MS_MAX) {
+	if ((delay_ms > LPTIM_DELAY_MS_MAX) || (delay_ms > (IWDG_FREE_DELAY_SECONDS_MAX * 1000))) {
 		status = LPTIM_ERROR_DELAY_OVERFLOW;
 		goto errors;
 	}
@@ -110,9 +109,7 @@ LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, LPTIM_delay_mode_t d
 	switch (delay_mode) {
 	case LPTIM_DELAY_MODE_ACTIVE:
 		// Active loop.
-		while (((LPTIM1 -> ISR) & (0b1 << 1)) == 0) {
-			IWDG_reload();
-		}
+		while (((LPTIM1 -> ISR) & (0b1 << 1)) == 0);
 		break;
 	case LPTIM_DELAY_MODE_SLEEP:
 		// Enable interrupt.
@@ -120,7 +117,6 @@ LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, LPTIM_delay_mode_t d
 		// Enter sleep mode.
 		while (lptim_wake_up == 0) {
 			PWR_enter_sleep_mode();
-			IWDG_reload();
 		}
 		// Disable interrupt.
 		NVIC_disable_interrupt(NVIC_INTERRUPT_LPTIM1);
@@ -131,7 +127,6 @@ LPTIM_status_t LPTIM1_delay_milliseconds(uint32_t delay_ms, LPTIM_delay_mode_t d
 		// Enter stop mode.
 		while (lptim_wake_up == 0) {
 			PWR_enter_stop_mode();
-			IWDG_reload();
 		}
 		// Disable interrupt.
 		NVIC_disable_interrupt(NVIC_INTERRUPT_LPTIM1);

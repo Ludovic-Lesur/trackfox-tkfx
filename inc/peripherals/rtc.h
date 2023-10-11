@@ -60,6 +60,15 @@ volatile uint8_t RTC_get_wakeup_timer_flag(void);
  *******************************************************************/
 void RTC_clear_wakeup_timer_flag(void);
 
+/*!******************************************************************
+ * \fn uint32_t RTC_get_time_seconds(void)
+ * \brief Read MCU operating time in seconds.
+ * \param[in]  	none
+ * \param[out] 	none
+ * \retval		Current time in seconds.
+ *******************************************************************/
+uint32_t RTC_get_time_seconds(void);
+
 /*******************************************************************/
 #define RTC_exit_error(error_base) { if (rtc_status != RTC_SUCCESS) { status = (error_base + rtc_status); goto errors; } }
 
