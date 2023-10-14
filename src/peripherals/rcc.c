@@ -27,8 +27,8 @@
 
 /*******************************************************************/
 void __attribute__((optimize("-O0"))) RCC_IRQHandler(void) {
-	// Clear all flags.
-	RCC -> CICR |= (0b11 << 0);
+	// Clear flag.
+	RCC -> CICR |= (0b1 << 0);
 }
 
 /*******************************************************************/
@@ -57,6 +57,9 @@ RCC_status_t _RCC_enable_lse(void) {
 		// Wait for LSERDY='1' ready flag or timeout.
 		loop_count++;
 		if (loop_count > RCC_TIMEOUT_COUNT) {
+			// Switch LSE off.
+			RCC -> CSR &= ~(0b1 << 8); // LSEON='0'.
+			// Exit loop.
 			status = RCC_ERROR_LSE_READY;
 			goto errors;
 		}

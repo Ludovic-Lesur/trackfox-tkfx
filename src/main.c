@@ -233,7 +233,8 @@ static void _TKFX_init_hw(void) {
 	NVIC_init();
 	// Init power module and clock tree.
 	PWR_init();
-	RCC_init();
+	rcc_status = RCC_init();
+	RCC_stack_error();
 	// Init GPIOs.
 	GPIO_init();
 	EXTI_init();
