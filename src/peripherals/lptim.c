@@ -9,6 +9,7 @@
 
 #include "error.h"
 #include "exti.h"
+#include "iwdg.h"
 #include "lptim_reg.h"
 #include "nvic.h"
 #include "pwr.h"

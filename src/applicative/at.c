@@ -45,6 +45,14 @@
 #define AT_STRING_VALUE_BUFFER_SIZE		16
 // Duration of RSSI command.
 #define AT_RSSI_REPORT_PERIOD_MS		500
+// Enabled commands.
+#define AT_COMMAND_SENSORS
+#define AT_COMMAND_NVM
+#define AT_COMMAND_GPS
+#define AT_COMMAND_SIGFOX_EP_LIB
+#define AT_COMMAND_SIGFOX_ADDON_RFP
+#define AT_COMMAND_CW
+#define AT_COMMAND_RSSI
 
 /*** AT callbacks declaration ***/
 
@@ -55,25 +63,39 @@ static void _AT_print_command_list(void);
 static void _AT_print_sw_version(void);
 static void _AT_print_error_stack(void);
 /*******************************************************************/
+#ifdef AT_COMMAND_SENSORS
 static void _AT_adc_callback(void);
 static void _AT_ths_callback(void);
 static void _AT_acc_callback(void);
+#endif
 /*******************************************************************/
+#ifdef AT_COMMAND_GPS
 static void _AT_gps_callback(void);
+#endif
 /*******************************************************************/
+#ifdef AT_COMMAND_NVM
 static void _AT_nvm_callback(void);
 static void _AT_get_id_callback(void);
 static void _AT_set_id_callback(void);
 static void _AT_get_key_callback(void);
 static void _AT_set_key_callback(void);
+#endif
 /*******************************************************************/
+#ifdef AT_COMMAND_SIGFOX_EP_LIB
 static void _AT_sb_callback(void);
 static void _AT_sf_callback(void);
+#endif
 /*******************************************************************/
+#ifdef AT_COMMAND_SIGFOX_ADDON_RFP
 static void _AT_tm_callback(void);
+#endif
 /*******************************************************************/
+#ifdef AT_COMMAND_CW
 static void _AT_cw_callback(void);
+#endif
+#ifdef AT_COMMAND_RSSI
 static void _AT_rssi_callback(void);
+#endif
 #endif
 
 /*** AT local structures ***/
@@ -112,20 +134,34 @@ static const AT_command_t AT_COMMAND_LIST[] = {
 	{PARSER_MODE_COMMAND, "AT$V?", STRING_NULL, "Get SW version", _AT_print_sw_version},
 	{PARSER_MODE_COMMAND, "AT$ERROR?", STRING_NULL, "Read error stack", _AT_print_error_stack},
 	{PARSER_MODE_COMMAND, "AT$RST", STRING_NULL, "Reset MCU", PWR_software_reset},
+#ifdef AT_COMMAND_SENSORS
 	{PARSER_MODE_COMMAND, "AT$ADC?", STRING_NULL, "Get ADC data", _AT_adc_callback},
 	{PARSER_MODE_COMMAND, "AT$THS?", STRING_NULL, "Get temperature and humidity", _AT_ths_callback},
 	{PARSER_MODE_COMMAND, "AT$ACC?", STRING_NULL, "Read accelerometer chip ID", _AT_acc_callback},
+#endif
+#ifdef AT_COMMAND_GPS
 	{PARSER_MODE_HEADER,  "AT$GPS=", "timeout[s]", "Get GPS position", _AT_gps_callback},
+#endif
+#ifdef AT_COMMAND_NVM
 	{PARSER_MODE_HEADER,  "AT$NVM=", "address[dec]", "Get NVM data", _AT_nvm_callback},
 	{PARSER_MODE_COMMAND, "AT$ID?", STRING_NULL, "Get Sigfox EP ID", _AT_get_id_callback},
 	{PARSER_MODE_HEADER,  "AT$ID=", "id[hex]", "Set Sigfox EP ID", _AT_set_id_callback},
 	{PARSER_MODE_COMMAND, "AT$KEY?", STRING_NULL, "Get Sigfox EP key", _AT_get_key_callback},
 	{PARSER_MODE_HEADER,  "AT$KEY=", "key[hex]", "Set Sigfox EP key", _AT_set_key_callback},
+#endif
+#ifdef AT_COMMAND_SIGFOX_EP_LIB
 	{PARSER_MODE_HEADER,  "AT$SB=", "data[bit],(bidir_flag[bit])", "Sigfox send bit", _AT_sb_callback},
 	{PARSER_MODE_HEADER,  "AT$SF=", "data[hex],(bidir_flag[bit])", "Sigfox send frame", _AT_sf_callback},
+#endif
+#ifdef AT_COMMAND_SIGFOX_ADDON_RFP
 	{PARSER_MODE_HEADER,  "AT$TM=", "rc_index[dec],test_mode[dec]", "Sigfox RFP test mode", _AT_tm_callback},
+#endif
+#ifdef AT_COMMAND_CW
 	{PARSER_MODE_HEADER,  "AT$CW=", "frequency[hz],enable[bit],(output_power[dbm])", "Continuous wave", _AT_cw_callback},
+#endif
+#ifdef AT_COMMAND_RSSI
 	{PARSER_MODE_HEADER,  "AT$RSSI=", "frequency[hz],duration[s]", "Continuous RSSI measurement", _AT_rssi_callback},
+#endif
 };
 static AT_context_t at_ctx;
 #endif
@@ -299,7 +335,7 @@ static void _AT_print_error_stack(void) {
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SENSORS)
 /*******************************************************************/
 static void _AT_adc_callback(void) {
 	// Local variables.
@@ -349,7 +385,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SENSORS)
 /*******************************************************************/
 static void _AT_ths_callback(void) {
 	// Local variables.
@@ -388,7 +424,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SENSORS)
 /*******************************************************************/
 static void _AT_acc_callback(void) {
 	// Local variables.
@@ -418,7 +454,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_GPS)
 /*******************************************************************/
 static void _AT_gps_callback(void) {
 	// Local variables.
@@ -476,7 +512,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_NVM)
 /*******************************************************************/
 static void _AT_nvm_callback(void) {
 	// Local variables.
@@ -501,7 +537,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_NVM)
 /*******************************************************************/
 static void _AT_get_id_callback(void) {
 	// Local variables.
@@ -524,7 +560,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_NVM)
 /*******************************************************************/
 static void _AT_set_id_callback(void) {
 	// Local variables.
@@ -550,7 +586,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_NVM)
 /*******************************************************************/
 static void _AT_get_key_callback(void) {
 	// Local variables.
@@ -573,7 +609,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_NVM)
 /*******************************************************************/
 static void _AT_set_key_callback(void) {
 	// Local variables.
@@ -599,7 +635,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SIGFOX_EP_LIB)
 /*******************************************************************/
 static void _AT_print_dl_payload(void) {
 	// Local variables.
@@ -619,7 +655,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SIGFOX_EP_LIB)
 /*******************************************************************/
 static void _AT_sb_callback(void) {
 	// Local variables.
@@ -679,7 +715,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SIGFOX_EP_LIB)
 /*******************************************************************/
 static void _AT_sf_callback(void) {
 	// Local variables.
@@ -743,7 +779,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_SIGFOX_ADDON_RFP)
 /*******************************************************************/
 static void _AT_tm_callback(void) {
 	// Local variables.
@@ -785,7 +821,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_CW)
 /*******************************************************************/
 static void _AT_cw_callback(void) {
 	// Local variables.
@@ -859,7 +895,7 @@ errors:
 }
 #endif
 
-#ifdef ATM
+#if (defined ATM) && (defined AT_COMMAND_RSSI)
 /*******************************************************************/
 static void _AT_rssi_callback(void) {
 	// Local variables.

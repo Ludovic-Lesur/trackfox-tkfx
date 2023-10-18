@@ -124,7 +124,7 @@ void TIM2_init(void) {
 	if (RCC_get_lse_status() != 0) {
 		// Use LSE as trigger.
 		RCC -> CR &= ~(0b1 << 5); // HSI16OUTEN='0'.
-		TIM2 -> SMCR |= (0b00 << 12); // No prescaler on ETRF.
+		TIM2 -> SMCR &= ~(0b11 << 12); // No prescaler on ETRF.
 		TIM2 -> PSC = (TIM2_PRESCALER_PSC_LSE - 1);
 		TIM2 -> OR |= (0b101 << 0);
 		// Update context.
