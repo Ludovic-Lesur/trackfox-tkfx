@@ -829,7 +829,6 @@ static void _AT_cw_callback(void) {
 	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
 	RF_API_status_t rf_api_status = RF_API_SUCCESS;
 	RF_API_radio_parameters_t radio_params;
-	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	int32_t enable = 0;
 	int32_t frequency_hz = 0;
 	int32_t power_dbm = 0;
@@ -874,12 +873,8 @@ static void _AT_cw_callback(void) {
 		rf_api_status = RF_API_init(&radio_params);
 		RF_API_check_status(ERROR_BASE_SIGFOX_EP_LIB + (SIGFOX_ERROR_SOURCE_RF_API * 0x0100) + rf_api_status);
 		// Start CW.
-		s2lp_status = S2LP_send_command(S2LP_COMMAND_READY);
-		if (s2lp_status != S2LP_SUCCESS) goto errors;
-		s2lp_status = S2LP_wait_for_state(S2LP_STATE_READY);
-		if (s2lp_status != S2LP_SUCCESS) goto errors;
-		s2lp_status = S2LP_send_command(S2LP_COMMAND_TX);
-		if (s2lp_status != S2LP_SUCCESS) goto errors;
+		rf_api_status = RF_API_start_continuous_wave();
+		RF_API_check_status(ERROR_BASE_SIGFOX_EP_LIB + (SIGFOX_ERROR_SOURCE_RF_API * 0x0100) + rf_api_status);
 		_AT_reply_add_string("CW running...");
 		_AT_reply_send();
 	}

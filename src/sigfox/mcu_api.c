@@ -317,7 +317,7 @@ errors:
 }
 #endif
 
-#ifdef CERTIFICATION
+#if (defined CERTIFICATION) && (defined BIDIRECTIONAL)
 /*******************************************************************/
 MCU_API_status_t MCU_API_print_dl_payload(sfx_u8 *dl_payload, sfx_u8 dl_payload_size, sfx_s16 rssi_dbm) {
 	// Local variables.

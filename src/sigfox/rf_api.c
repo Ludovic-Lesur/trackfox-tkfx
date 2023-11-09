@@ -701,6 +701,27 @@ errors:
 }
 #endif
 
+#ifdef CERTIFICATION
+/*******************************************************************/
+RF_API_status_t RF_API_start_continuous_wave(void) {
+	// Local variables.
+	RF_API_status_t status = RF_API_SUCCESS;
+	S2LP_status_t s2lp_status = S2LP_SUCCESS;
+	// Lock PLL.
+	s2lp_status = S2LP_send_command(S2LP_COMMAND_LOCKTX);
+	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+	s2lp_status = S2LP_wait_for_state(S2LP_STATE_LOCK);
+	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+	// Start radio.
+	s2lp_status = S2LP_send_command(S2LP_COMMAND_TX);
+	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+	s2lp_status = S2LP_wait_for_state(S2LP_STATE_TX);
+	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+errors:
+	RETURN();
+}
+#endif
+
 #ifdef VERBOSE
 /*******************************************************************/
 RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) {
