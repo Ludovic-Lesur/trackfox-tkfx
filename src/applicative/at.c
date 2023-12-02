@@ -211,6 +211,8 @@ static void _AT_reply_add_string(char_t* tx_string) {
 	// Fill TX buffer with new bytes.
 	while (*tx_string) {
 		_AT_reply_add_char(*(tx_string++));
+		// Detect rollover.
+		if (at_ctx.reply_size == 0) break;
 	}
 }
 #endif

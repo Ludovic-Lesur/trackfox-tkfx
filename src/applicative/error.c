@@ -76,6 +76,7 @@ void ERROR_import_sigfox_stack(void) {
 	SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
 	ERROR_code_t error_code;
 	SIGFOX_ERROR_t sigfox_error;
+	uint32_t error_count = 0;
 	do {
 		// Read error stack.
 		sigfox_ep_api_status = SIGFOX_EP_API_unstack_error(&sigfox_error);
@@ -85,7 +86,11 @@ void ERROR_import_sigfox_stack(void) {
 			// Convert source to base.
 			error_code = ((ERROR_BASE_SIGFOX_EP_LIB + (sigfox_error.source * 0x0100)) + sigfox_error.code);
 			ERROR_stack_add(error_code);
+			// Increment count.
+			error_count++;
 		}
+		// Error detection.
+		if (error_count > ERROR_STACK) goto errors;
 	}
 	while (sigfox_error.code != SIGFOX_EP_API_SUCCESS);
 errors:
