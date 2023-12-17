@@ -538,9 +538,8 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 		break;
 #endif
 	default:
-		// Return error.
-		status = RF_API_ERROR_MODE;
-		goto errors;
+		EXIT_ERROR(RF_API_ERROR_MODE);
+		break;
 	}
 errors:
 	RETURN();
