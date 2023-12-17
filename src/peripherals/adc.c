@@ -12,6 +12,7 @@
 #include "lptim.h"
 #include "mapping.h"
 #include "math.h"
+#include "mode.h"
 #include "rcc_reg.h"
 #include "types.h"
 
@@ -66,7 +67,7 @@ typedef struct {
 static const ADC_input_t ADC_INPUTS[ADC_DATA_INDEX_LAST] = {
 	{ADC_CHANNEL_LM4040, ADC_CONVERSION_TYPE_VMCU, 0},
 	{ADC_CHANNEL_VSRC, ADC_CONVERSION_TYPE_VOLTAGE_ATTENUATION, 10},
-	{ADC_CHANNEL_VCAP, ADC_CONVERSION_TYPE_VOLTAGE_ATTENUATION, 1},
+	{ADC_CHANNEL_VCAP, ADC_CONVERSION_TYPE_VOLTAGE_ATTENUATION, TKFX_VCAP_VOLTAGE_DIVIDER_RATIO},
 };
 static ADC_context_t adc_ctx;
 

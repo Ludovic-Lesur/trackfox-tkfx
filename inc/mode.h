@@ -19,6 +19,8 @@
 
 /*** Board options ***/
 
+#define TKFX_VCAP_VOLTAGE_DIVIDER_RATIO		1
+
 /*!******************************************************************
  * \enum TKFX_configuration_t
  * \brief Tracker configuration structure.

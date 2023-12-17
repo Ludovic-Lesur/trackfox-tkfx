@@ -40,10 +40,9 @@
 #define TKFX_SIGFOX_STARTUP_DATA_SIZE			8
 #define TKFX_SIGFOX_GEOLOC_DATA_SIZE			11
 #define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_SIZE	3
-#define TKFX_SIGFOX_MONITORING_DATA_SIZE		9
+#define TKFX_SIGFOX_MONITORING_DATA_SIZE		7
 #define TKFX_SIGFOX_ERROR_STACK_DATA_SIZE		12
 // Error values.
-#define TKFX_ERROR_VALUE_ANALOG_12BITS			0xFFF
 #define TKFX_ERROR_VALUE_ANALOG_16BITS			0xFFFF
 #define TKFX_ERROR_VALUE_TEMPERATURE			0x7F
 #define TKFX_ERROR_VALUE_HUMIDITY				0xFF
@@ -114,10 +113,8 @@ typedef union {
 	struct {
 		unsigned tamb_degrees : 8;
 		unsigned hamb_degrees : 8;
-		unsigned tmcu_degrees : 8;
 		unsigned vsrc_mv : 16;
-		unsigned vcap_mv : 12;
-		unsigned vmcu_mv : 12;
+		unsigned vcap_mv : 16;
 		unsigned status : 8;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_sigfox_monitoring_data_t;
@@ -169,10 +166,8 @@ typedef struct {
 	TKFX_status_t status;
 	uint8_t tamb_degrees;
 	uint8_t hamb_percent;
-	uint8_t tmcu_degrees;
 	uint32_t vsrc_mv;
 	uint32_t vcap_mv;
-	uint32_t vmcu_mv;
 	TKFX_sigfox_monitoring_data_t sigfox_monitoring_data;
 	// Geoloc.
 	NEOM8N_position_t geoloc_position;
@@ -378,9 +373,7 @@ int main (void) {
 			POWER_stack_error();
 			// Reset data.
 			tkfx_ctx.vsrc_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
-			tkfx_ctx.vcap_mv = TKFX_ERROR_VALUE_ANALOG_12BITS;
-			tkfx_ctx.vmcu_mv = TKFX_ERROR_VALUE_ANALOG_12BITS;
-			tkfx_ctx.tmcu_degrees = TKFX_ERROR_VALUE_TEMPERATURE;
+			tkfx_ctx.vcap_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
 			if (adc1_status == ADC_SUCCESS) {
 				// Read Vsrc.
 				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &generic_data_u32);
@@ -393,22 +386,6 @@ int main (void) {
 				ADC1_stack_error();
 				if (adc1_status == ADC_SUCCESS) {
 					tkfx_ctx.vcap_mv = generic_data_u32;
-				}
-				// Read VMCU.
-				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &generic_data_u32);
-				ADC1_stack_error();
-				if (adc1_status == ADC_SUCCESS) {
-					tkfx_ctx.vmcu_mv = generic_data_u32;
-				}
-				// Read TMCU.
-				adc1_status = ADC1_get_tmcu(&temperature);
-				ADC1_stack_error();
-				if (adc1_status == ADC_SUCCESS) {
-					math_status = MATH_int32_to_signed_magnitude((int32_t) temperature, 7, &generic_data_u32);
-					MATH_stack_error();
-					if (math_status == MATH_SUCCESS) {
-						tkfx_ctx.tmcu_degrees = (uint8_t) generic_data_u32;
-					}
 				}
 			}
 			// Get GPS backup status.
@@ -464,10 +441,8 @@ int main (void) {
 			// Build Sigfox frame.
 			tkfx_ctx.sigfox_monitoring_data.tamb_degrees = tkfx_ctx.tamb_degrees;
 			tkfx_ctx.sigfox_monitoring_data.hamb_degrees = tkfx_ctx.hamb_percent;
-			tkfx_ctx.sigfox_monitoring_data.tmcu_degrees = tkfx_ctx.tmcu_degrees;
 			tkfx_ctx.sigfox_monitoring_data.vsrc_mv = tkfx_ctx.vsrc_mv;
 			tkfx_ctx.sigfox_monitoring_data.vcap_mv = tkfx_ctx.vcap_mv;
-			tkfx_ctx.sigfox_monitoring_data.vmcu_mv = tkfx_ctx.vmcu_mv;
 			tkfx_ctx.sigfox_monitoring_data.status = tkfx_ctx.status.all;
 			// Send uplink monitoring frame.
 			application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_600BPS;
