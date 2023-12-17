@@ -337,7 +337,6 @@ void S2LP_de_init(void) {
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
 	GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	// Configure chip select pin.
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Release SPI.
 	SPI1_de_init();
@@ -425,7 +424,7 @@ S2LP_status_t S2LP_set_oscillator(S2LP_oscillator_t oscillator) {
 	reg_value = (oscillator == S2LP_OSCILLATOR_TCXO) ? 0xB0 : 0x30;
 	status = _S2LP_write_register(S2LP_REG_XO_RCO_CONF0, reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
-	// Set digital clock divider according to crytal frequency.
+	// Set digital clock divider according to crystal frequency.
 	status = _S2LP_read_register(S2LP_REG_XO_RCO_CONF1, &reg_value);
 	if (status != S2LP_SUCCESS) goto errors;
 	reg_value &= 0xEF;
@@ -929,9 +928,13 @@ S2LP_status_t S2LP_get_irq_flag(S2LP_irq_index_t irq_index, uint8_t* irq_flag) {
 	uint8_t reg_value = 0;
 	uint8_t reg_addr_offset = 0;
 	uint8_t irq_bit_offset = 0;
-	// Check parameter.
+	// Check parameters.
 	if (irq_index >= S2LP_IRQ_INDEX_LAST) {
 		status = S2LP_ERROR_IRQ_INDEX;
+		goto errors;
+	}
+	if (irq_flag == NULL) {
+		status = S2LP_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
 	// Get register and bit offsets.

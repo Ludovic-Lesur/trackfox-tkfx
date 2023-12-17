@@ -7,29 +7,34 @@
 
 #include "at.h"
 
+// Peripherals.
 #include "adc.h"
-#include "error.h"
 #include "lptim.h"
-#include "manuf/mcu_api.h"
-#include "manuf/rf_api.h"
-#include "math.h"
-#include "mma8653fc.h"
-#include "mode.h"
-#include "neom8n.h"
 #include "nvic.h"
 #include "nvm.h"
-#include "parser.h"
 #include "pwr.h"
+#include "usart.h"
+// Utils.
+#include "math.h"
+#include "parser.h"
+#include "string.h"
+#include "types.h"
+// Components.
+#include "mma8653fc.h"
+#include "neom8n.h"
+#include "power.h"
 #include "s2lp.h"
 #include "sht3x.h"
-#include "sigfox_ep_api.h"
+// Sigfox.
+#include "manuf/rf_api.h"
 #include "sigfox_ep_addon_rfp_api.h"
+#include "sigfox_ep_api.h"
 #include "sigfox_error.h"
 #include "sigfox_rc.h"
 #include "sigfox_types.h"
-#include "string.h"
-#include "types.h"
-#include "usart.h"
+// Applicative.
+#include "error.h"
+#include "mode.h"
 #include "version.h"
 
 /*** AT local macros ***/
@@ -46,11 +51,11 @@
 // Duration of RSSI command.
 #define AT_RSSI_REPORT_PERIOD_MS		500
 // Enabled commands.
-#define AT_COMMAND_SENSORS
 #define AT_COMMAND_NVM
+#define AT_COMMAND_SENSORS
 #define AT_COMMAND_GPS
 #define AT_COMMAND_SIGFOX_EP_LIB
-#define AT_COMMAND_SIGFOX_ADDON_RFP
+#define AT_COMMAND_SIGFOX_EP_ADDON_RFP
 #define AT_COMMAND_CW
 #define AT_COMMAND_RSSI
 
@@ -63,6 +68,14 @@ static void _AT_print_command_list(void);
 static void _AT_print_sw_version(void);
 static void _AT_print_error_stack(void);
 /*******************************************************************/
+#ifdef AT_COMMAND_NVM
+static void _AT_nvm_callback(void);
+static void _AT_get_id_callback(void);
+static void _AT_set_id_callback(void);
+static void _AT_get_key_callback(void);
+static void _AT_set_key_callback(void);
+#endif
+/*******************************************************************/
 #ifdef AT_COMMAND_SENSORS
 static void _AT_adc_callback(void);
 static void _AT_ths_callback(void);
@@ -73,20 +86,12 @@ static void _AT_acc_callback(void);
 static void _AT_gps_callback(void);
 #endif
 /*******************************************************************/
-#ifdef AT_COMMAND_NVM
-static void _AT_nvm_callback(void);
-static void _AT_get_id_callback(void);
-static void _AT_set_id_callback(void);
-static void _AT_get_key_callback(void);
-static void _AT_set_key_callback(void);
-#endif
-/*******************************************************************/
 #ifdef AT_COMMAND_SIGFOX_EP_LIB
 static void _AT_sb_callback(void);
 static void _AT_sf_callback(void);
 #endif
 /*******************************************************************/
-#ifdef AT_COMMAND_SIGFOX_ADDON_RFP
+#ifdef AT_COMMAND_SIGFOX_EP_ADDON_RFP
 static void _AT_tm_callback(void);
 #endif
 /*******************************************************************/
@@ -134,6 +139,13 @@ static const AT_command_t AT_COMMAND_LIST[] = {
 	{PARSER_MODE_COMMAND, "AT$V?", STRING_NULL, "Get SW version", _AT_print_sw_version},
 	{PARSER_MODE_COMMAND, "AT$ERROR?", STRING_NULL, "Read error stack", _AT_print_error_stack},
 	{PARSER_MODE_COMMAND, "AT$RST", STRING_NULL, "Reset MCU", PWR_software_reset},
+#ifdef AT_COMMAND_NVM
+	{PARSER_MODE_HEADER,  "AT$NVM=", "address[dec]", "Get NVM data", _AT_nvm_callback},
+	{PARSER_MODE_COMMAND, "AT$ID?", STRING_NULL, "Get Sigfox EP ID", _AT_get_id_callback},
+	{PARSER_MODE_HEADER,  "AT$ID=", "id[hex]", "Set Sigfox EP ID", _AT_set_id_callback},
+	{PARSER_MODE_COMMAND, "AT$KEY?", STRING_NULL, "Get Sigfox EP key", _AT_get_key_callback},
+	{PARSER_MODE_HEADER,  "AT$KEY=", "key[hex]", "Set Sigfox EP key", _AT_set_key_callback},
+#endif
 #ifdef AT_COMMAND_SENSORS
 	{PARSER_MODE_COMMAND, "AT$ADC?", STRING_NULL, "Get ADC data", _AT_adc_callback},
 	{PARSER_MODE_COMMAND, "AT$THS?", STRING_NULL, "Get temperature and humidity", _AT_ths_callback},
@@ -142,18 +154,11 @@ static const AT_command_t AT_COMMAND_LIST[] = {
 #ifdef AT_COMMAND_GPS
 	{PARSER_MODE_HEADER,  "AT$GPS=", "timeout[s]", "Get GPS position", _AT_gps_callback},
 #endif
-#ifdef AT_COMMAND_NVM
-	{PARSER_MODE_HEADER,  "AT$NVM=", "address[dec]", "Get NVM data", _AT_nvm_callback},
-	{PARSER_MODE_COMMAND, "AT$ID?", STRING_NULL, "Get Sigfox EP ID", _AT_get_id_callback},
-	{PARSER_MODE_HEADER,  "AT$ID=", "id[hex]", "Set Sigfox EP ID", _AT_set_id_callback},
-	{PARSER_MODE_COMMAND, "AT$KEY?", STRING_NULL, "Get Sigfox EP key", _AT_get_key_callback},
-	{PARSER_MODE_HEADER,  "AT$KEY=", "key[hex]", "Set Sigfox EP key", _AT_set_key_callback},
-#endif
 #ifdef AT_COMMAND_SIGFOX_EP_LIB
 	{PARSER_MODE_HEADER,  "AT$SB=", "data[bit],(bidir_flag[bit])", "Sigfox send bit", _AT_sb_callback},
 	{PARSER_MODE_HEADER,  "AT$SF=", "data[hex],(bidir_flag[bit])", "Sigfox send frame", _AT_sf_callback},
 #endif
-#ifdef AT_COMMAND_SIGFOX_ADDON_RFP
+#ifdef AT_COMMAND_SIGFOX_EP_ADDON_RFP
 	{PARSER_MODE_HEADER,  "AT$TM=", "rc_index[dec],test_mode[dec]", "Sigfox RFP test mode", _AT_tm_callback},
 #endif
 #ifdef AT_COMMAND_CW
@@ -337,6 +342,129 @@ static void _AT_print_error_stack(void) {
 }
 #endif
 
+#if (defined ATM) && (defined AT_COMMAND_NVM)
+/*******************************************************************/
+static void _AT_nvm_callback(void) {
+	// Local variables.
+	ERROR_code_t status = SUCCESS;
+	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
+	NVM_status_t nvm_status = NVM_SUCCESS;
+	int32_t address = 0;
+	uint8_t nvm_data = 0;
+	// Read address parameters.
+	parser_status = PARSER_get_parameter(&at_ctx.parser, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &address);
+	PARSER_stack_exit_error(ERROR_BASE_PARSER + parser_status);
+	// Read byte at requested address.
+	nvm_status = NVM_read_byte((uint16_t) address, &nvm_data);
+	NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
+	// Print data.
+	_AT_reply_add_value(nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
+	_AT_reply_send();
+	_AT_print_ok();
+errors:
+	_AT_print_error(status);
+	return;
+}
+#endif
+
+#if (defined ATM) && (defined AT_COMMAND_NVM)
+/*******************************************************************/
+static void _AT_get_id_callback(void) {
+	// Local variables.
+	ERROR_code_t status = SUCCESS;
+	NVM_status_t nvm_status = NVM_SUCCESS;
+	uint8_t idx = 0;
+	uint8_t id_byte = 0;
+	// Retrieve device ID in NVM.
+	for (idx=0 ; idx<SIGFOX_EP_ID_SIZE_BYTES ; idx++) {
+		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_ID + idx), &id_byte);
+		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
+		_AT_reply_add_value(id_byte, STRING_FORMAT_HEXADECIMAL, ((idx == 0) ? 1 : 0));
+	}
+	_AT_reply_send();
+	_AT_print_ok();
+	return;
+errors:
+	_AT_print_error(status);
+	return;
+}
+#endif
+
+#if (defined ATM) && (defined AT_COMMAND_NVM)
+/*******************************************************************/
+static void _AT_set_id_callback(void) {
+	// Local variables.
+	ERROR_code_t status = SUCCESS;
+	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
+	NVM_status_t nvm_status = NVM_SUCCESS;
+	uint8_t sigfox_ep_id[SIGFOX_EP_ID_SIZE_BYTES];
+	uint8_t extracted_length = 0;
+	uint8_t idx = 0;
+	// Read ID parameter.
+	parser_status = PARSER_get_byte_array(&at_ctx.parser, STRING_CHAR_NULL, SIGFOX_EP_ID_SIZE_BYTES, 1, sigfox_ep_id, &extracted_length);
+	PARSER_stack_exit_error(ERROR_BASE_PARSER + parser_status);
+	// Write device ID in NVM.
+	for (idx=0 ; idx<SIGFOX_EP_ID_SIZE_BYTES ; idx++) {
+		nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_EP_ID + idx), sigfox_ep_id[idx]);
+		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
+	}
+	_AT_print_ok();
+	return;
+errors:
+	_AT_print_error(status);
+	return;
+}
+#endif
+
+#if (defined ATM) && (defined AT_COMMAND_NVM)
+/*******************************************************************/
+static void _AT_get_key_callback(void) {
+	// Local variables.
+	ERROR_code_t status = SUCCESS;
+	NVM_status_t nvm_status = NVM_SUCCESS;
+	uint8_t idx = 0;
+	uint8_t key_byte = 0;
+	// Retrieve device key in NVM.
+	for (idx=0 ; idx<SIGFOX_EP_KEY_SIZE_BYTES ; idx++) {
+		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_KEY + idx), &key_byte);
+		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
+		_AT_reply_add_value(key_byte, STRING_FORMAT_HEXADECIMAL, ((idx == 0) ? 1 : 0));
+	}
+	_AT_reply_send();
+	_AT_print_ok();
+	return;
+errors:
+	_AT_print_error(status);
+	return;
+}
+#endif
+
+#if (defined ATM) && (defined AT_COMMAND_NVM)
+/*******************************************************************/
+static void _AT_set_key_callback(void) {
+	// Local variables.
+	ERROR_code_t status = SUCCESS;
+	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
+	NVM_status_t nvm_status = NVM_SUCCESS;
+	uint8_t sigfox_ep_key[SIGFOX_EP_KEY_SIZE_BYTES];
+	uint8_t extracted_length = 0;
+	uint8_t idx = 0;
+	// Read key parameter.
+	parser_status = PARSER_get_byte_array(&at_ctx.parser, STRING_CHAR_NULL, SIGFOX_EP_KEY_SIZE_BYTES, 1, sigfox_ep_key, &extracted_length);
+	PARSER_stack_exit_error(ERROR_BASE_PARSER + parser_status);
+	// Write device ID in NVM.
+	for (idx=0 ; idx<SIGFOX_EP_KEY_SIZE_BYTES ; idx++) {
+		nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_EP_KEY + idx), sigfox_ep_key[idx]);
+		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
+	}
+	_AT_print_ok();
+	return;
+errors:
+	_AT_print_error(status);
+	return;
+}
+#endif
+
 #if (defined ATM) && (defined AT_COMMAND_SENSORS)
 /*******************************************************************/
 static void _AT_adc_callback(void) {
@@ -361,20 +489,23 @@ static void _AT_adc_callback(void) {
 	ADC1_stack_exit_error(ERROR_BASE_ADC1 + adc1_status);
 	_AT_reply_add_string("Vsrc=");
 	_AT_reply_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
+	_AT_reply_add_string("mV ");
 	// Supercap voltage.
 	adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &voltage_mv);
 	ADC1_stack_exit_error(ERROR_BASE_ADC1 + adc1_status);
-	_AT_reply_add_string("mV Vcap=");
+	_AT_reply_add_string("Vcap=");
 	_AT_reply_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
+	_AT_reply_add_string("mV ");
 	// MCU voltage.
 	adc1_status = ADC1_get_data(ADC_DATA_INDEX_VMCU_MV, &voltage_mv);
 	ADC1_stack_exit_error(ERROR_BASE_ADC1 + adc1_status);
-	_AT_reply_add_string("mV Vmcu=");
+	_AT_reply_add_string("Vmcu=");
 	_AT_reply_add_value((int32_t) voltage_mv, STRING_FORMAT_DECIMAL, 0);
+	_AT_reply_add_string("mV ");
 	// MCU temperature.
 	adc1_status = ADC1_get_tmcu(&tmcu_degrees);
 	ADC1_stack_exit_error(ERROR_BASE_ADC1 + adc1_status);
-	_AT_reply_add_string("mV Tmcu=");
+	_AT_reply_add_string("Tmcu=");
 	_AT_reply_add_value((int32_t) tmcu_degrees, STRING_FORMAT_DECIMAL, 0);
 	_AT_reply_add_string("dC");
 	_AT_reply_send();
@@ -509,129 +640,6 @@ static void _AT_gps_callback(void) {
 	return;
 errors:
 	POWER_disable(POWER_DOMAIN_GPS);
-	_AT_print_error(status);
-	return;
-}
-#endif
-
-#if (defined ATM) && (defined AT_COMMAND_NVM)
-/*******************************************************************/
-static void _AT_nvm_callback(void) {
-	// Local variables.
-	ERROR_code_t status = SUCCESS;
-	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
-	NVM_status_t nvm_status = NVM_SUCCESS;
-	int32_t address = 0;
-	uint8_t nvm_data = 0;
-	// Read address parameters.
-	parser_status = PARSER_get_parameter(&at_ctx.parser, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &address);
-	PARSER_stack_exit_error(ERROR_BASE_PARSER + parser_status);
-	// Read byte at requested address.
-	nvm_status = NVM_read_byte((uint16_t) address, &nvm_data);
-	NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
-	// Print data.
-	_AT_reply_add_value(nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
-	_AT_reply_send();
-	_AT_print_ok();
-errors:
-	_AT_print_error(status);
-	return;
-}
-#endif
-
-#if (defined ATM) && (defined AT_COMMAND_NVM)
-/*******************************************************************/
-static void _AT_get_id_callback(void) {
-	// Local variables.
-	ERROR_code_t status = SUCCESS;
-	NVM_status_t nvm_status = NVM_SUCCESS;
-	uint8_t idx = 0;
-	uint8_t id_byte = 0;
-	// Retrieve device ID in NVM.
-	for (idx=0 ; idx<SIGFOX_EP_ID_SIZE_BYTES ; idx++) {
-		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_ID + idx), &id_byte);
-		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
-		_AT_reply_add_value(id_byte, STRING_FORMAT_HEXADECIMAL, ((idx == 0) ? 1 : 0));
-	}
-	_AT_reply_send();
-	_AT_print_ok();
-	return;
-errors:
-	_AT_print_error(status);
-	return;
-}
-#endif
-
-#if (defined ATM) && (defined AT_COMMAND_NVM)
-/*******************************************************************/
-static void _AT_set_id_callback(void) {
-	// Local variables.
-	ERROR_code_t status = SUCCESS;
-	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
-	NVM_status_t nvm_status = NVM_SUCCESS;
-	uint8_t sigfox_ep_id[SIGFOX_EP_ID_SIZE_BYTES];
-	uint8_t extracted_length = 0;
-	uint8_t idx = 0;
-	// Read ID parameter.
-	parser_status = PARSER_get_byte_array(&at_ctx.parser, STRING_CHAR_NULL, SIGFOX_EP_ID_SIZE_BYTES, 1, sigfox_ep_id, &extracted_length);
-	PARSER_stack_exit_error(ERROR_BASE_PARSER + parser_status);
-	// Write device ID in NVM.
-	for (idx=0 ; idx<SIGFOX_EP_ID_SIZE_BYTES ; idx++) {
-		nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_EP_ID + idx), sigfox_ep_id[idx]);
-		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
-	}
-	_AT_print_ok();
-	return;
-errors:
-	_AT_print_error(status);
-	return;
-}
-#endif
-
-#if (defined ATM) && (defined AT_COMMAND_NVM)
-/*******************************************************************/
-static void _AT_get_key_callback(void) {
-	// Local variables.
-	ERROR_code_t status = SUCCESS;
-	NVM_status_t nvm_status = NVM_SUCCESS;
-	uint8_t idx = 0;
-	uint8_t key_byte = 0;
-	// Retrieve device key in NVM.
-	for (idx=0 ; idx<SIGFOX_EP_KEY_SIZE_BYTES ; idx++) {
-		nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_KEY + idx), &key_byte);
-		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
-		_AT_reply_add_value(key_byte, STRING_FORMAT_HEXADECIMAL, ((idx == 0) ? 1 : 0));
-	}
-	_AT_reply_send();
-	_AT_print_ok();
-	return;
-errors:
-	_AT_print_error(status);
-	return;
-}
-#endif
-
-#if (defined ATM) && (defined AT_COMMAND_NVM)
-/*******************************************************************/
-static void _AT_set_key_callback(void) {
-	// Local variables.
-	ERROR_code_t status = SUCCESS;
-	PARSER_status_t parser_status = PARSER_ERROR_UNKNOWN_COMMAND;
-	NVM_status_t nvm_status = NVM_SUCCESS;
-	uint8_t sigfox_ep_key[SIGFOX_EP_KEY_SIZE_BYTES];
-	uint8_t extracted_length = 0;
-	uint8_t idx = 0;
-	// Read key parameter.
-	parser_status = PARSER_get_byte_array(&at_ctx.parser, STRING_CHAR_NULL, SIGFOX_EP_KEY_SIZE_BYTES, 1, sigfox_ep_key, &extracted_length);
-	PARSER_stack_exit_error(ERROR_BASE_PARSER + parser_status);
-	// Write device ID in NVM.
-	for (idx=0 ; idx<SIGFOX_EP_KEY_SIZE_BYTES ; idx++) {
-		nvm_status = NVM_write_byte((NVM_ADDRESS_SIGFOX_EP_KEY + idx), sigfox_ep_key[idx]);
-		NVM_stack_exit_error(ERROR_BASE_NVM + nvm_status);
-	}
-	_AT_print_ok();
-	return;
-errors:
 	_AT_print_error(status);
 	return;
 }
@@ -781,7 +789,7 @@ errors:
 }
 #endif
 
-#if (defined ATM) && (defined AT_COMMAND_SIGFOX_ADDON_RFP)
+#if (defined ATM) && (defined AT_COMMAND_SIGFOX_EP_ADDON_RFP)
 /*******************************************************************/
 static void _AT_tm_callback(void) {
 	// Local variables.

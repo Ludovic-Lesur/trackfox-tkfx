@@ -10,13 +10,14 @@
 
 #include "types.h"
 
-/*** Tracker mode ***/
+/*** Board modes ***/
 
-//#define ATM 		// AT command mode.
-#define SSM 		// Start/stop mode.
-//#define PM		// Periodic mode.
+//#define ATM
+#define SSM
+//#define PM
+//#define DEBUG
 
-/*** Tracker configuration ***/
+/*** Board options ***/
 
 /*!******************************************************************
  * \enum TKFX_configuration_t
@@ -29,7 +30,7 @@ typedef struct {
 	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition (set to 0 to disable filter).
 	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
 	uint32_t keep_alive_period_seconds;
-	uint32_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after an inactivity period.
+	uint32_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after the inactivity period.
 	uint32_t inactivity_threshold_seconds;
 #endif
 #ifdef PM
@@ -44,10 +45,6 @@ static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 5, 60, 3600, 0, 8640
 #ifdef PM
 static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 300}; // Bike tracking configuration.
 #endif
-
-/*** Debug mode ***/
-
-//#define DEBUG		// Use programming pins for debug purpose if defined.
 
 /*** Error management ***/
 

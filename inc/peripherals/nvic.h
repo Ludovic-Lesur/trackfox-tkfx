@@ -67,8 +67,7 @@ typedef enum {
 	NVIC_PRIORITY_DMA1_CH_4_7 = 1,
 	// Sigfox.
 	NVIC_PRIORITY_EXTI_4_15 = 0,
-	NVIC_PRIORITY_DMA1_CH_2_3 = 1,
-	NVIC_PRIORITY_TIM2 = 2,
+	NVIC_PRIORITY_TIM2 = 1,
 	// AT interface.
 	NVIC_PRIORITY_USART2 = 1
 } NVIC_priority_list_t;

@@ -36,7 +36,7 @@ The project is organized as follow:
     * `peripherals`: internal MCU **peripherals** drivers.
     * `utils`: **utility** functions.
     * `components`: external **components** drivers.
-    * `sigfox`: **Sigfox EP library** API and low level implementation.
+    * `sigfox`: **Sigfox EP library** low level implementation.
     * `applicative`: high-level **application** layers.
 * `lib`: **Sigfox EP_LIB and ADDON_RFP** submodules.
 * `startup`: MCU **startup** code (from ARM).

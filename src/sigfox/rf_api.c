@@ -56,8 +56,8 @@
 
 #define RF_API_POLAR_DATARATE_MULTIPLIER		8
 
-#define RF_API_FDEV_NEGATIVE					0x7F // fdev * (+1)
-#define RF_API_FDEV_POSITIVE					0x81 // fdev * (-1)
+#define RF_API_FDEV_NEGATIVE					0x7F // FDEV * (+1)
+#define RF_API_FDEV_POSITIVE					0x81 // FDEV * (-1)
 
 #define RF_API_FIFO_BUFFER_FDEV_IDX				(RF_API_SYMBOL_PROFILE_SIZE_BYTES / 2) // Index where deviation is performed to invert phase.
 
@@ -74,8 +74,10 @@
 #define RF_API_DOWNLINK_RSSI_THRESHOLD_DBM		-139
 #endif
 
-static const sfx_u8 RF_API_RAMP_AMPLITUDE_PROFILE[RF_API_SYMBOL_PROFILE_SIZE_BYTES] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5, 7, 10, 14, 19, 25, 31, 39, 60, 220};
-static const sfx_u8 RF_API_BIT0_AMPLITUDE_PROFILE[RF_API_SYMBOL_PROFILE_SIZE_BYTES] = {1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5, 7, 10, 14, 19, 25, 31, 39, 60, 220, 220, 60, 39, 31, 25, 19, 14, 10, 7, 5, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1};
+static const sfx_u8 RF_API_RAMP_AMPLITUDE_PROFILE[RF_API_SYMBOL_PROFILE_SIZE_BYTES] =
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5, 7, 10, 14, 19, 25, 31, 39, 60, 220};
+static const sfx_u8 RF_API_BIT0_AMPLITUDE_PROFILE[RF_API_SYMBOL_PROFILE_SIZE_BYTES] =
+	{1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5, 7, 10, 14, 19, 25, 31, 39, 60, 220, 220, 60, 39, 31, 25, 19, 14, 10, 7, 5, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1};
 #ifdef BIDIRECTIONAL
 static const sfx_u8 RF_API_DL_FT[SIGFOX_DL_FT_SIZE_BYTES] = SIGFOX_DL_FT;
 #endif
@@ -115,8 +117,8 @@ typedef enum {
 /*******************************************************************/
 typedef union {
 	struct {
-		unsigned irq_enable : 1;
-		unsigned irq_process : 1;
+		unsigned gpio_irq_enable : 1;
+		unsigned gpio_irq_flag : 1;
 	} field;
 	sfx_u8 all;
 } RF_API_flags_t;
@@ -126,9 +128,9 @@ typedef struct {
 	// Common.
 	RF_API_state_t state;
 	volatile RF_API_flags_t flags;
+	// TX.
 	sfx_u8 symbol_fifo_buffer[RF_API_SYMBOL_FIFO_BUFFER_SIZE_BYTES];
 	sfx_u8 ramp_fifo_buffer[RF_API_SYMBOL_FIFO_BUFFER_SIZE_BYTES];
-	// TX.
 	sfx_u8 tx_bitstream[SIGFOX_UL_BITSTREAM_SIZE_BYTES];
 	sfx_u8 tx_bitstream_size_bytes;
 	sfx_u8 tx_byte_idx;
@@ -149,13 +151,13 @@ static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
 	(POWER_ON_DELAY_MS_RADIO + S2LP_SHUTDOWN_DELAY_MS + 1), // TX init (power on delay + 1.75ms).
 	0, // Send start (depends on bit rate and will be computed during init function).
 	0, // Send stop (depends on bit rate and will be computed during init function).
-	0, // TX de init (70µs).
+	0, // TX de-init (70µs).
 	0, // Sleep.
 #ifdef BIDIRECTIONAL
 	(POWER_ON_DELAY_MS_RADIO + S2LP_SHUTDOWN_DELAY_MS + 6), // RX init (power on delay + 5.97ms).
 	0, // Receive start (300µs).
 	7, // Receive stop (6.7ms).
-	0, // RX de init (70µs).
+	0, // RX de-init (70µs).
 #endif
 };
 #endif
@@ -166,9 +168,7 @@ static RF_API_context_t rf_api_ctx;
 /*******************************************************************/
 static void _RF_API_s2lp_gpio_irq_callback(void) {
 	// Set flag if IRQ is enabled.
-	if (rf_api_ctx.flags.field.irq_enable != 0) {
-		rf_api_ctx.flags.field.irq_process = 1;
-	}
+	rf_api_ctx.flags.field.gpio_irq_flag = rf_api_ctx.flags.field.gpio_irq_enable;
 }
 
 /*******************************************************************/
@@ -176,17 +176,14 @@ static RF_API_status_t _RF_API_internal_process(void) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
+	sfx_u8 s2lp_irq_flag = 0;
 	sfx_u8 idx = 0;
-	sfx_u8 irq_flag = 0;
 	// Perform state machine.
 	switch (rf_api_ctx.state) {
 	case RF_API_STATE_READY:
 		// Nothing to do.
 		break;
 	case RF_API_STATE_TX_RAMP_UP:
-		// Reset context.
-		rf_api_ctx.tx_bit_idx = 0;
-		rf_api_ctx.tx_byte_idx = 0;
 		// Fill ramp-up.
 		for (idx=0 ; idx<RF_API_SYMBOL_PROFILE_SIZE_BYTES ; idx++) {
 			rf_api_ctx.ramp_fifo_buffer[(2 * idx)] = 0; // Deviation.
@@ -200,7 +197,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		// Enable external GPIO interrupt.
 		s2lp_status = S2LP_clear_all_irq();
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
-		rf_api_ctx.flags.field.irq_enable = 1;
+		rf_api_ctx.flags.field.gpio_irq_enable = 1;
 		// Lock PLL.
 		s2lp_status = S2LP_send_command(S2LP_COMMAND_LOCKTX);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
@@ -216,10 +213,10 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		break;
 	case RF_API_STATE_TX_BITSTREAM:
 		// Read FIFO flag.
-		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &irq_flag);
+		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &s2lp_irq_flag);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 		// Check flag.
-		if (irq_flag != 0) {
+		if (s2lp_irq_flag != 0) {
 			// Check bit.
 			if ((rf_api_ctx.tx_bitstream[rf_api_ctx.tx_byte_idx] & (1 << (7 - rf_api_ctx.tx_bit_idx))) == 0) {
 				// Phase shift and amplitude shaping required.
@@ -239,7 +236,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
 			// Load bit into FIFO.
 			s2lp_status = S2LP_write_fifo((sfx_u8*) rf_api_ctx.symbol_fifo_buffer, RF_API_SYMBOL_FIFO_BUFFER_SIZE_BYTES);
 			S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
-			// Increment bit index..
+			// Increment bit index.
 			rf_api_ctx.tx_bit_idx++;
 			if (rf_api_ctx.tx_bit_idx >= 8) {
 				// Reset bit index.
@@ -248,6 +245,8 @@ static RF_API_status_t _RF_API_internal_process(void) {
 				rf_api_ctx.tx_byte_idx++;
 				// Check end of bitstream.
 				if (rf_api_ctx.tx_byte_idx >= (rf_api_ctx.tx_bitstream_size_bytes)) {
+					rf_api_ctx.tx_byte_idx = 0;
+					// Update state.
 					rf_api_ctx.state = RF_API_STATE_TX_RAMP_DOWN;
 				}
 			}
@@ -258,10 +257,10 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		break;
 	case RF_API_STATE_TX_RAMP_DOWN:
 		// Read FIFO flag.
-		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &irq_flag);
+		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &s2lp_irq_flag);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 		// Check flag.
-		if (irq_flag != 0) {
+		if (s2lp_irq_flag != 0) {
 			// Fill ramp-down.
 			for (idx=0 ; idx<RF_API_SYMBOL_PROFILE_SIZE_BYTES ; idx++) {
 				rf_api_ctx.ramp_fifo_buffer[(2 * idx)] = 0; // FDEV.
@@ -279,10 +278,10 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		break;
 	case RF_API_STATE_TX_PADDING_BIT:
 		// Read FIFO flag.
-		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &irq_flag);
+		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &s2lp_irq_flag);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 		// Check flag.
-		if (irq_flag != 0) {
+		if (s2lp_irq_flag != 0) {
 			// Padding bit to ensure last ramp down is completely transmitted.
 			for (idx=0 ; idx<RF_API_SYMBOL_FIFO_BUFFER_SIZE_BYTES ; idx++) {
 				rf_api_ctx.symbol_fifo_buffer[idx] = 0x00;
@@ -299,15 +298,15 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		break;
 	case RF_API_STATE_TX_END:
 		// Read FIFO flag.
-		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &irq_flag);
+		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_TX_FIFO_ALMOST_EMPTY, &s2lp_irq_flag);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 		// Check flag.
-		if (irq_flag != 0) {
+		if (s2lp_irq_flag != 0) {
 			// Stop radio.
 			s2lp_status = S2LP_send_command(S2LP_COMMAND_SABORT);
 			S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 			// Disable interrupt.
-			rf_api_ctx.flags.field.irq_enable = 0;
+			rf_api_ctx.flags.field.gpio_irq_enable = 0;
 			s2lp_status = S2LP_clear_all_irq();
 			S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 			// Update state.
@@ -322,7 +321,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		// Enable external GPIO interrupt.
 		s2lp_status = S2LP_clear_all_irq();
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
-		rf_api_ctx.flags.field.irq_enable = 1;
+		rf_api_ctx.flags.field.gpio_irq_enable = 1;
 		// Lock PLL.
 		s2lp_status = S2LP_send_command(S2LP_COMMAND_LOCKRX);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
@@ -338,10 +337,10 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		break;
 	case RF_API_STATE_RX:
 		// Read FIFO flag.
-		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_RX_DATA_READY, &irq_flag);
+		s2lp_status = S2LP_get_irq_flag(S2LP_IRQ_INDEX_RX_DATA_READY, &s2lp_irq_flag);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 		// Check flag.
-		if (irq_flag != 0) {
+		if (s2lp_irq_flag != 0) {
 			// Read FIFO and RSSI.
 			s2lp_status = S2LP_read_fifo((sfx_u8*) rf_api_ctx.dl_phy_content, SIGFOX_DL_PHY_CONTENT_SIZE_BYTES);
 			S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
@@ -354,7 +353,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
 			s2lp_status = S2LP_clear_all_irq();
 			S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 			// Disable interrupt.
-			rf_api_ctx.flags.field.irq_enable = 0;
+			rf_api_ctx.flags.field.gpio_irq_enable = 0;
 			// Update state.
 			rf_api_ctx.state = RF_API_STATE_READY;
 		}
@@ -365,8 +364,6 @@ static RF_API_status_t _RF_API_internal_process(void) {
 		break;
 	}
 errors:
-	// Clear flag.
-	rf_api_ctx.flags.field.irq_process = 0;
 	RETURN();
 }
 
@@ -442,7 +439,7 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 	// Frequency.
 	s2lp_status = S2LP_set_rf_frequency(radio_parameters -> frequency_hz);
 	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
-	// Modulation and bit rate.
+	// Modulation parameters.
 	switch (radio_parameters -> modulation) {
 	case RF_API_MODULATION_NONE:
 		modulation = S2LP_MODULATION_NONE;
@@ -450,6 +447,7 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 #ifdef BIDIRECTIONAL
 		deviation_hz = (radio_parameters -> deviation_hz);
 #endif
+		// Set CW output power.
 		s2lp_status = S2LP_set_rf_output_power(radio_parameters -> tx_power_dbm_eirp);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 		break;
@@ -472,10 +470,11 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 	// Set modulation scheme.
 	s2lp_status = S2LP_set_modulation(modulation);
 	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
-	// Set modulation parameters if needed.
-	if ((radio_parameters -> modulation) != RF_API_MODULATION_NONE) {
+	if (datarate_bps != 0) {
 		s2lp_status = S2LP_set_datarate(datarate_bps);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+	}
+	if (deviation_hz != 0) {
 		s2lp_status = S2LP_set_fsk_deviation(deviation_hz);
 		S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 	}
@@ -578,6 +577,8 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t *tx_data) {
 	s2lp_status = S2LP_enable_nirq(S2LP_FIFO_FLAG_DIRECTION_TX, _RF_API_s2lp_gpio_irq_callback);
 	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
 	// Init state.
+	rf_api_ctx.tx_bit_idx = 0;
+	rf_api_ctx.tx_byte_idx = 0;
 	rf_api_ctx.state = RF_API_STATE_TX_RAMP_UP;
 	rf_api_ctx.flags.all = 0;
 	// Trigger TX.
@@ -586,10 +587,12 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t *tx_data) {
 	// Wait for transmission to complete.
 	while (rf_api_ctx.state != RF_API_STATE_READY) {
 		// Wait for GPIO interrupt.
-		while (rf_api_ctx.flags.field.irq_process == 0) {
+		while (rf_api_ctx.flags.field.gpio_irq_flag == 0) {
 			// Enter sleep mode.
 			PWR_enter_sleep_mode();
 		}
+		// Clear flag.
+		rf_api_ctx.flags.field.gpio_irq_flag = 0;
 		// Call process function.
 		status = _RF_API_internal_process();
 		CHECK_STATUS(RF_API_SUCCESS);
@@ -622,7 +625,7 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t *rx_data) {
 	// Wait for reception to complete.
 	while (rf_api_ctx.state != RF_API_STATE_READY) {
 		// Wait for GPIO interrupt.
-		while (rf_api_ctx.flags.field.irq_process == 0) {
+		while (rf_api_ctx.flags.field.gpio_irq_flag == 0) {
 			// Enter sleep mode.
 			PWR_enter_sleep_mode();
 			IWDG_reload();
@@ -638,6 +641,8 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t *rx_data) {
 				goto errors;
 			}
 		}
+		// Clear flag.
+		rf_api_ctx.flags.field.gpio_irq_flag = 0;
 		// Call process function.
 		status = _RF_API_internal_process();
 		CHECK_STATUS(RF_API_SUCCESS);
@@ -677,10 +682,8 @@ errors:
 #if (defined REGULATORY) && (defined SPECTRUM_ACCESS_LBT)
 /*******************************************************************/
 RF_API_status_t RF_API_carrier_sense(RF_API_carrier_sense_parameters_t *carrier_sense_params) {
-	/* To be implemented by the device manufacturer */
-#ifdef ERROR_CODES
+	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
-#endif
 	RETURN();
 }
 #endif
@@ -725,10 +728,8 @@ errors:
 #ifdef VERBOSE
 /*******************************************************************/
 RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) {
-	/* To be implemented by the device manufacturer */
-#ifdef ERROR_CODES
+	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
-#endif
 	RETURN();
 }
 #endif

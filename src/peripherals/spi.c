@@ -27,9 +27,8 @@ void SPI1_init(void) {
 	// Baud rate = PCLK2/2 = SYSCLK/2 = 8MHz.
 	// 8-bits format (DFF='0').
 	// Enable output (SSOE='1').
-	// Enable TX DMA requests.
 	SPI1 -> CR1 |= (0b1 << 2);
-	SPI1 -> CR2 |= (0b1 << 1) | (0b1 << 2);
+	SPI1 -> CR2 |= (0b1 << 2);
 	// Enable peripheral.
 	SPI1 -> CR1 |= (0b1 << 6); // SPE='1'.
 	// Configure GPIOs.
