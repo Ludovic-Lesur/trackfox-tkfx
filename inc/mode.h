@@ -20,19 +20,20 @@
 /*** Board options ***/
 
 #define TKFX_VCAP_VOLTAGE_DIVIDER_RATIO		1
+#define TKFX_ACTIVE_MODE_VCAP_MIN_MV		1500
 
 /*!******************************************************************
  * \enum TKFX_configuration_t
  * \brief Tracker configuration structure.
  *******************************************************************/
 typedef struct {
-	uint32_t vcap_min_mv;
+	uint32_t active_mode_vcap_min_mv;
 	uint32_t geoloc_timeout_seconds;
 #ifdef SSM
-	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition (set to 0 to disable filter).
+	uint8_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition (set to 0 to disable filter).
 	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
 	uint32_t keep_alive_period_seconds;
-	uint32_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after the inactivity period.
+	uint8_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after the inactivity period.
 	uint32_t inactivity_threshold_seconds;
 #endif
 #ifdef PM
@@ -41,11 +42,11 @@ typedef struct {
 } TKFX_configuration_t;
 
 #ifdef SSM
-//static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
-static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
+//static const TKFX_configuration_t TKFX_CONFIG = {TKFX_ACTIVE_MODE_VCAP_MIN_MV, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
+static const TKFX_configuration_t TKFX_CONFIG = {TKFX_ACTIVE_MODE_VCAP_MIN_MV, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
 #endif
 #ifdef PM
-static const TKFX_configuration_t TKFX_CONFIG = {1500, 180, 300}; // Bike tracking configuration.
+static const TKFX_configuration_t TKFX_CONFIG = {TKFX_ACTIVE_MODE_VCAP_MIN_MV, 180, 300}; // Bike tracking configuration.
 #endif
 
 /*** Error management ***/

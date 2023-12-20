@@ -396,7 +396,7 @@ int main (void) {
 		case TKFX_STATE_MODE_UPDATE:
 #ifdef SSM
 			// Check supercap voltage.
-			tkfx_ctx.mode = (tkfx_ctx.vcap_mv < ((tkfx_ctx.config) -> vcap_min_mv)) ? TKFX_MODE_LOW_POWER : TKFX_MODE_ACTIVE;
+			tkfx_ctx.mode = (tkfx_ctx.vcap_mv < ((tkfx_ctx.config) -> active_mode_vcap_min_mv)) ? TKFX_MODE_LOW_POWER : TKFX_MODE_ACTIVE;
 #endif
 #ifdef PM
 			// Force mode to low power to disable accelerometer.
@@ -485,7 +485,7 @@ int main (void) {
 			// Get position from GPS.
 			power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_STOP);
 			POWER_stack_error();
-			neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, ((tkfx_ctx.config) -> geoloc_timeout_seconds), ((tkfx_ctx.config) -> vcap_min_mv), &tkfx_ctx.geoloc_fix_duration_seconds);
+			neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, ((tkfx_ctx.config) -> geoloc_timeout_seconds), ((tkfx_ctx.config) -> active_mode_vcap_min_mv), &tkfx_ctx.geoloc_fix_duration_seconds);
 			// Note: error is never stacked since it is indicated by the dedicated timeout frame.
 			power_status = POWER_disable(POWER_DOMAIN_GPS);
 			POWER_stack_error();
