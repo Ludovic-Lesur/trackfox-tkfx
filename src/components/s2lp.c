@@ -52,6 +52,9 @@
 // Frequency deviation range.
 #define S2LP_DEVIATION_HZ_MIN					150
 #define S2LP_DEVIATION_HZ_MAX					500000
+#define S2LP_DEVIATION_MANTISSA_MAX				255
+#define S2LP_DEVIATION_MANTISSA_OFFSET			256
+#define S2LP_DEVIATION_EXPONENT_MAX				15
 // RX bandwidth range.
 #define S2LP_RX_BANDWIDTH_HZ_MIN				1100
 #define S2LP_RX_BANDWIDTH_HZ_MAX				800100
@@ -61,6 +64,9 @@
 // Datarate range.
 #define S2LP_DATARATE_BPS_MIN					100
 #define S2LP_DATARATE_BPS_MAX					125000
+#define S2LP_DATARATE_MANTISSA_MAX				65535
+#define S2LP_DATARATE_MANTISSA_OFFSET			65536
+#define S2LP_DATARATE_EXPONENT_MAX				14
 // RF output power range.
 #define S2LP_RF_OUTPUT_POWER_MIN				-49
 #define S2LP_RF_OUTPUT_POWER_MAX				14
@@ -100,9 +106,6 @@ static uint8_t s2lp_tx_data[S2LP_FIFO_SIZE_BYTES];
 static uint8_t s2lp_rx_data[S2LP_FIFO_SIZE_BYTES];
 
 /*** S2LP local functions ***/
-
-/*******************************************************************/
-#define _S2LP_abs(a) ((a) > 0 ? (a) : -(a))
 
 /*******************************************************************/
 static S2LP_status_t _S2LP_write_register(uint8_t addr, uint8_t value) {
@@ -145,16 +148,16 @@ errors:
 /*******************************************************************/
 static uint32_t _S2LP_compute_datarate(S2LP_mantissa_exponent_t* datarate_setting) {
 	// Local variables.
-	uint64_t dr = 0;
+	uint64_t tmp_u64 = 0;
 	uint32_t datarate_bps = 0;
 	// Compute formula.
 	if ((datarate_setting -> exponent) == 0) {
-		dr = (uint64_t) S2LP_FDIG_HZ * (uint64_t) (datarate_setting -> mantissa);
-		datarate_bps = (uint32_t) (dr >> 32);
+		tmp_u64 = (uint64_t) S2LP_FDIG_HZ * (uint64_t) (datarate_setting -> mantissa);
+		datarate_bps = (uint32_t) (tmp_u64 >> 32);
 	}
 	else {
-		dr = ((uint64_t) S2LP_FDIG_HZ) * (((uint64_t) (datarate_setting -> mantissa)) + 65536);
-		datarate_bps = (uint32_t) (dr >> (33 - (datarate_setting -> exponent)));
+		tmp_u64 = ((uint64_t) S2LP_FDIG_HZ) * (((uint64_t) (datarate_setting -> mantissa)) + S2LP_DATARATE_MANTISSA_OFFSET);
+		datarate_bps = (uint32_t) (tmp_u64 >> (33 - (datarate_setting -> exponent)));
 	}
 	return datarate_bps;
 }
@@ -164,12 +167,9 @@ static S2LP_status_t _S2LP_compute_mantissa_exponent_datarate(uint32_t datarate_
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	S2LP_mantissa_exponent_t tmp_setting;
-	uint16_t mantissa = 0;
-	uint8_t exponent = 0;
-	uint32_t datarate = 0;
-	uint64_t tgt1 = 0;
-	uint64_t tgt2 = 0;
-	uint64_t tgt = 0;
+	uint32_t datarate_max = 0;
+	uint8_t e = 0;
+	uint64_t tmp_u64 = 0;
 	// Check range.
 	if (datarate_bps < S2LP_DATARATE_BPS_MIN) {
 		status = S2LP_ERROR_DATARATE_UNDERFLOW;
@@ -179,28 +179,25 @@ static S2LP_status_t _S2LP_compute_mantissa_exponent_datarate(uint32_t datarate_
 		status = S2LP_ERROR_DATARATE_OVERFLOW;
 		goto errors;
 	}
-	// Compute exponent.
-	for (exponent=0 ; exponent!=12 ; exponent++) {
-		tmp_setting.mantissa = 0xFFFF;
-		tmp_setting.exponent = exponent;
-		datarate = _S2LP_compute_datarate(&tmp_setting);
-		if (datarate_bps <= datarate) break;
+	// Select exponent.
+	for (e=0 ; e<S2LP_DATARATE_EXPONENT_MAX ; e++) {
+		// Compute maximum value.
+		tmp_setting.mantissa = S2LP_DATARATE_MANTISSA_MAX;
+		tmp_setting.exponent = e;
+		datarate_max = _S2LP_compute_datarate(&tmp_setting);
+		// Check range.
+		if (datarate_bps <= datarate_max) break;
 	}
+	(datarate_setting -> exponent) = e;
 	// Compute mantissa.
-	if (exponent == 0) {
-		tgt = ((uint64_t) datarate_bps) << 32;
-		mantissa = (uint16_t) (tgt / S2LP_FDIG_HZ);
-		tgt1 = (uint64_t) S2LP_FDIG_HZ * (uint64_t) mantissa;
-		tgt2 = (uint64_t) S2LP_FDIG_HZ * (uint64_t) (mantissa + 1);
+	if (e == 0) {
+		tmp_u64 = ((uint64_t) datarate_bps << 32);
+		(datarate_setting -> mantissa) = ((tmp_u64) / ((uint64_t) S2LP_FDIG_HZ));
 	}
 	else {
-		tgt = ((uint64_t) datarate_bps) << (33 - exponent);
-		mantissa = (uint16_t) ((tgt / S2LP_FDIG_HZ) - 65536);
-		tgt1 = (uint64_t) S2LP_FDIG_HZ * (uint64_t) (mantissa + 65536);
-		tgt2 = (uint64_t) S2LP_FDIG_HZ * (uint64_t) (mantissa + 65536 + 1);
+		tmp_u64 = ((uint64_t) datarate_bps << (33 - e));
+		(datarate_setting -> mantissa) = ((tmp_u64) / ((uint64_t) S2LP_FDIG_HZ)) - S2LP_DATARATE_MANTISSA_OFFSET;
 	}
-	(*datarate_setting).mantissa = ((tgt2 - tgt) < (tgt - tgt1)) ? (mantissa + 1) : (mantissa);
-	(*datarate_setting).exponent = exponent;
 errors:
 	return status;
 }
@@ -209,12 +206,15 @@ errors:
 static uint32_t _S2LP_compute_deviation(S2LP_mantissa_exponent_t* deviation_setting) {
 	// Local variables.
 	uint32_t deviation_hz = 0;
+	uint64_t tmp_u64 = 0;
 	// Check exponent.
-	if ((deviation_setting -> exponent) ==0) {
-		deviation_hz = (uint32_t) (((uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) (deviation_setting -> mantissa)) >> 22);
+	if ((deviation_setting -> exponent) == 0) {
+		tmp_u64 = (uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) (deviation_setting -> mantissa);
+		deviation_hz = (uint32_t) (tmp_u64 >> 22);
 	}
 	else {
-		deviation_hz = (uint32_t) (((uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) (256 + (deviation_setting -> mantissa))) >> (23 - (deviation_setting -> exponent)));
+		tmp_u64 = (uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) ((deviation_setting -> mantissa) + S2LP_DEVIATION_MANTISSA_OFFSET);
+		deviation_hz = (uint32_t) (tmp_u64 >> (23 - (deviation_setting -> exponent)));
 	}
 	return deviation_hz;
 }
@@ -224,12 +224,9 @@ static S2LP_status_t _S2LP_compute_mantissa_exponent_deviation(uint32_t deviatio
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
 	S2LP_mantissa_exponent_t tmp_setting;
-	uint16_t mantissa = 0;
-	uint8_t exponent = 0;
-	uint32_t deviation = 0;
-	uint64_t tgt1 = 0;
-	uint64_t tgt2 = 0;
-	uint64_t tgt = 0;
+	uint32_t deviation_max = 0;
+	uint8_t e = 0;
+	uint64_t tmp_u64 = 0;
 	// Check range.
 	if (deviation_hz < S2LP_DEVIATION_HZ_MIN) {
 		status = S2LP_ERROR_DEVIATION_UNDERFLOW;
@@ -239,41 +236,48 @@ static S2LP_status_t _S2LP_compute_mantissa_exponent_deviation(uint32_t deviatio
 		status = S2LP_ERROR_DEVIATION_OVERFLOW;
 		goto errors;
 	}
-	// Compute exponent.
-	for (exponent=0 ; exponent!=12 ; exponent++) {
-		tmp_setting.mantissa = 0xFF;
-		tmp_setting.exponent = exponent;
-		deviation = _S2LP_compute_deviation(&tmp_setting);
-		if (deviation_hz < deviation) break;
+	// Select exponent.
+	for (e=0 ; e<S2LP_DEVIATION_EXPONENT_MAX ; e++) {
+		// Compute maximum value.
+		tmp_setting.mantissa = S2LP_DEVIATION_MANTISSA_MAX;
+		tmp_setting.exponent = e;
+		deviation_max = _S2LP_compute_deviation(&tmp_setting);
+		// Check range.
+		if (deviation_hz <= deviation_max) break;
 	}
+	(deviation_setting -> exponent) = e;
 	// Compute mantissa.
-	if (exponent == 0) {
-		tgt = ((uint64_t) deviation_hz) << 22;
-		mantissa = (uint32_t) (tgt / S2LP_XO_FREQUENCY_HZ);
-		tgt1 = (uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) mantissa;
-		tgt2 = (uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) (mantissa + 1);
+	if (e == 0) {
+		tmp_u64 = ((uint64_t) deviation_hz << 22);
+		(deviation_setting -> mantissa) = ((tmp_u64) / ((uint64_t) S2LP_XO_FREQUENCY_HZ));
 	}
 	else {
-		tgt = ((uint64_t) deviation_hz) << (23 - exponent);
-		mantissa = (uint32_t) (tgt / S2LP_XO_FREQUENCY_HZ) - 256;
-		tgt1 = (uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) (mantissa + 256);
-		tgt2 = (uint64_t) S2LP_XO_FREQUENCY_HZ * (uint64_t) (mantissa + 256 + 1);
+		tmp_u64 = ((uint64_t) deviation_hz << (23 - e));
+		(deviation_setting -> mantissa) = ((tmp_u64) / ((uint64_t) S2LP_XO_FREQUENCY_HZ)) - S2LP_DEVIATION_MANTISSA_OFFSET;
 	}
-	(*deviation_setting).mantissa = ((tgt2 - tgt) < (tgt - tgt1)) ? (mantissa + 1) : (mantissa);
-	(*deviation_setting).exponent = exponent;
 errors:
 	return status;
+}
+
+/*******************************************************************/
+static uint32_t _S2LP_compute_rx_bandwidth(uint8_t rx_bandwidth_table_index) {
+	// Local variables.
+	uint32_t rx_bandwidth_hz = 0;
+	uint64_t tmp_u64 = 0;
+	// Check index.
+	if (rx_bandwidth_table_index < S2LP_RX_BANDWIDTH_TABLE_SIZE) {
+		tmp_u64 = ((uint64_t) S2LP_RX_BANDWIDTH_26M[rx_bandwidth_table_index]) * ((uint64_t) S2LP_FDIG_HZ);
+		rx_bandwidth_hz = (uint32_t) ((tmp_u64) / ((uint64_t) S2LP_RX_BANDWIDTH_TABLE_FREQUENCY_KHZ));
+	}
+	return rx_bandwidth_hz;
 }
 
 /*******************************************************************/
 static S2LP_status_t _S2LP_compute_mantissa_exponent_rx_bandwidth(uint32_t rx_bandwidth_hz, S2LP_mantissa_exponent_t* rx_bandwidth_setting) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	uint8_t idx = 0;
-	uint8_t idx_tmp = 0;
-	uint8_t j = 0;
-	int32_t channel_filter[S2LP_CHANNEL_FILTER_TABLE_SIZE];
-	uint32_t channel_filter_delta = 0xFFFFFFFF;
+	uint8_t table_index = 0;
+	uint32_t rx_bandwidth = 0;
 	// Check range.
 	if (rx_bandwidth_hz < S2LP_RX_BANDWIDTH_HZ_MIN) {
 		status = S2LP_ERROR_RX_BANDWIDTH_UNDERFLOW;
@@ -283,33 +287,15 @@ static S2LP_status_t _S2LP_compute_mantissa_exponent_rx_bandwidth(uint32_t rx_ba
 		status = S2LP_ERROR_RX_BANDWIDTH_OVERFLOW;
 		goto errors;
 	}
-	// Search channel filter bandwidth table index.
-	for (idx=0 ; idx<S2LP_RX_BANDWIDTH_TABLE_SIZE ; idx++) {
-		if (rx_bandwidth_hz >= (uint32_t) (((uint64_t) S2LP_RX_BANDWIDTH_26M[idx] * (uint64_t) S2LP_FDIG_HZ) / ((uint64_t) S2LP_RX_BANDWIDTH_TABLE_FREQUENCY_KHZ))) break;
+	// Index loop.
+	for (table_index=0 ; table_index<S2LP_RX_BANDWIDTH_TABLE_SIZE ; table_index++) {
+		// Compute RX bandwidth.
+		rx_bandwidth = _S2LP_compute_rx_bandwidth(table_index);
+		// Check result.
+		if (rx_bandwidth <= rx_bandwidth_hz) break;
 	}
-	if (idx != 0) {
-		// Finds the index value with best approximation in adjacent elements.
-		idx_tmp = idx;
-		for(j=0 ; j<S2LP_CHANNEL_FILTER_TABLE_SIZE ; j++) {
-			// Compute channel filter.
-			if (((idx_tmp + j - 1) >= 0) && ((idx_tmp + j - 1) < S2LP_RX_BANDWIDTH_TABLE_SIZE)) {
-				channel_filter[j] = (int32_t) rx_bandwidth_hz - (int32_t) (((uint64_t) S2LP_RX_BANDWIDTH_26M[idx_tmp + j - 1] * (uint64_t) S2LP_FDIG_HZ) / ((uint64_t) S2LP_RX_BANDWIDTH_TABLE_FREQUENCY_KHZ));
-			}
-			else {
-				channel_filter[j] = 0x7FFFFFFF;
-			}
-		}
-		channel_filter_delta = 0xFFFFFFFF;
-		// Check delta.
-		for (j=0 ; j<S2LP_CHANNEL_FILTER_TABLE_SIZE ; j++) {
-			if (_S2LP_abs(channel_filter[j]) < channel_filter_delta) {
-				channel_filter_delta = _S2LP_abs(channel_filter[j]);
-				idx = (idx_tmp + j - 1);
-			}
-		}
-	}
-	(*rx_bandwidth_setting).mantissa = (idx % 9);
-	(*rx_bandwidth_setting).exponent = (idx / 9);
+	(*rx_bandwidth_setting).mantissa = (table_index % 9);
+	(*rx_bandwidth_setting).exponent = (table_index / 9);
 errors:
 	return status;
 }
@@ -574,7 +560,7 @@ errors:
 S2LP_status_t S2LP_set_fsk_deviation(uint32_t deviation_hz) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	S2LP_mantissa_exponent_t deviation_setting;
+	S2LP_mantissa_exponent_t deviation_setting = {0, 0};
 	uint8_t mod1_reg_value = 0;
 	// Compute registers.
 	status = _S2LP_compute_mantissa_exponent_deviation(deviation_hz, &deviation_setting);
@@ -596,7 +582,7 @@ errors:
 S2LP_status_t S2LP_set_datarate(uint32_t datarate_bps) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	S2LP_mantissa_exponent_t datarate_setting;
+	S2LP_mantissa_exponent_t datarate_setting = {0, 0};
 	uint8_t mod2_reg_value = 0;
 	// Compute registers.
 	status = _S2LP_compute_mantissa_exponent_datarate(datarate_bps, &datarate_setting);
@@ -718,7 +704,7 @@ errors:
 S2LP_status_t S2LP_set_rx_bandwidth(uint32_t rx_bandwidth_hz) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	S2LP_mantissa_exponent_t rx_bandwidth_setting;
+	S2LP_mantissa_exponent_t rx_bandwidth_setting = {0, 0};
 	uint8_t chflt_reg_value = 0;
 	// Compute registers.
 	status = _S2LP_compute_mantissa_exponent_rx_bandwidth(rx_bandwidth_hz, &rx_bandwidth_setting);
