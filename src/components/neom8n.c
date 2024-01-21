@@ -17,6 +17,7 @@
 #include "nvic.h"
 #include "power.h"
 #include "pwr.h"
+#include "rtc.h"
 #include "string.h"
 #include "types.h"
 
@@ -264,7 +265,7 @@ errors:
 }
 
 /*******************************************************************/
-static NEOM8N_status_t _NEOM8N_time_is_valid(NEOM8N_time_t* gps_time) {
+static NEOM8N_status_t _NEOM8N_time_is_valid(RTC_time_t* gps_time) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	// Check parameters.
@@ -287,7 +288,7 @@ errors:
 }
 
 /*******************************************************************/
-static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, NEOM8N_time_t* gps_time) {
+static NEOM8N_status_t _NEOM8N_parse_nmea_zda(char_t* nmea_rx_buf, RTC_time_t* gps_time) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	STRING_status_t string_status = STRING_SUCCESS;
@@ -691,7 +692,7 @@ uint8_t NEOM8N_get_backup(void) {
 }
 
 /*******************************************************************/
-NEOM8N_status_t NEOM8N_get_time(NEOM8N_time_t* gps_time, uint32_t timeout_seconds, uint32_t* fix_duration_seconds) {
+NEOM8N_status_t NEOM8N_get_time(RTC_time_t* gps_time, uint32_t timeout_seconds, uint32_t* fix_duration_seconds) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	uint8_t valid_data_flag = 0;

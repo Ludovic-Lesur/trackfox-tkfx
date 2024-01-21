@@ -29,15 +29,8 @@
 /*** LPTIM local structures ***/
 
 /*******************************************************************/
-typedef enum {
-	LPTIM_CLOCK_SOURCE_LSE = 0,
-	LPTIM_CLOCK_SOURCE_LSI,
-	LPTIM_CLOCK_SOURCE_LAST
-} LPTIM_clock_source_t;
-
-/*******************************************************************/
 typedef struct {
-	LPTIM_clock_source_t clock_source;
+	RCC_clock_t clock_source;
 	uint32_t clock_frequency_hz;
 	volatile uint8_t wake_up;
 } LPTIM_context_t;
@@ -65,26 +58,25 @@ void __attribute__((optimize("-O0"))) LPTIM1_IRQHandler(void) {
 /*** LPTIM functions ***/
 
 /*******************************************************************/
-void __attribute__((optimize("-O0"))) LPTIM1_init(void) {
+LPTIM_status_t __attribute__((optimize("-O0"))) LPTIM1_init(void) {
 	// Local variables.
+	LPTIM_status_t status = LPTIM_SUCCESS;
 	RCC_status_t rcc_status = RCC_SUCCESS;
-	uint32_t lsi_frequency_hz = 0;
-	// Check LSE status.
-	if (RCC_get_lse_status() != 0) {
-		// Use LSE.
-		lptim_ctx.clock_source = LPTIM_CLOCK_SOURCE_LSE;
-		lptim_ctx.clock_frequency_hz = (RCC_LSE_FREQUENCY_HZ >> 3);
-	}
-	else {
-		// Get effective LSI frequency.
-		rcc_status = RCC_measure_lsi_frequency(&lsi_frequency_hz);
-		RCC_stack_error();
-		// Use LSI.
-		lptim_ctx.clock_source = LPTIM_CLOCK_SOURCE_LSI;
-		lptim_ctx.clock_frequency_hz = (lsi_frequency_hz >> 3);
-	}
+	uint8_t lse_status = 0;
+	uint32_t lptim_clock_hz = 0;
+	// Get LSE status.
+	rcc_status = RCC_get_status(RCC_CLOCK_LSE, &lse_status);
+	RCC_exit_error(LPTIM_ERROR_BASE_RCC);
+	// Update clock source.
+	lptim_ctx.clock_source = (lse_status != 0) ? RCC_CLOCK_LSE : RCC_CLOCK_LSI;
+	// Get clock source frequency.
+	rcc_status = RCC_get_frequency_hz(lptim_ctx.clock_source, &lptim_clock_hz);
+	RCC_exit_error(LPTIM_ERROR_BASE_RCC);
+	lptim_ctx.clock_frequency_hz = (lptim_clock_hz >> 3);
 	// Enable LPTIM EXTI line.
 	EXTI_configure_line(EXTI_LINE_LPTIM1, EXTI_TRIGGER_RISING_EDGE);
+errors:
+	return status;
 }
 
 /*******************************************************************/
@@ -129,10 +121,10 @@ LPTIM_status_t __attribute__((optimize("-O0"))) LPTIM1_delay_milliseconds(uint32
 	}
 	// Select clock source.
 	switch (lptim_ctx.clock_source) {
-	case LPTIM_CLOCK_SOURCE_LSE:
+	case RCC_CLOCK_LSE:
 		RCC -> CCIPR |= (0b11 << 18);
 		break;
-	case LPTIM_CLOCK_SOURCE_LSI:
+	case RCC_CLOCK_LSI:
 		RCC -> CCIPR |= (0b01 << 18);
 		break;
 	default:

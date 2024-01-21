@@ -13,6 +13,7 @@
 #include "lpuart.h"
 #include "math.h"
 #include "power.h"
+#include "rtc.h"
 #include "string.h"
 #include "types.h"
 
@@ -51,21 +52,6 @@ typedef enum {
 	// Last base value.
 	NEOM8N_ERROR_BASE_LAST = (NEOM8N_ERROR_BASE_POWER + POWER_ERROR_BASE_LAST)
 } NEOM8N_status_t;
-
-/*!******************************************************************
- * \enum NEOM8N_time_t
- * \brief GPS time data.
- *******************************************************************/
-typedef struct {
-	// Date.
-	uint16_t year;
-	uint8_t month;
-	uint8_t date;
-	// Time.
-	uint8_t hours;
-	uint8_t minutes;
-	uint8_t seconds;
-} NEOM8N_time_t;
 
 /*!******************************************************************
  * \enum NEOM8N_position_t
@@ -142,7 +128,7 @@ uint8_t NEOM8N_get_backup(void);
  * \param[out]	fix_duration_seconds: Pointer to integer that will contain GPS fix duration in seconds.
  * \retval		Function execution status.
  *******************************************************************/
-NEOM8N_status_t NEOM8N_get_time(NEOM8N_time_t* gps_time, uint32_t timeout_seconds, uint32_t* fix_duration_seconds);
+NEOM8N_status_t NEOM8N_get_time(RTC_time_t* gps_time, uint32_t timeout_seconds, uint32_t* fix_duration_seconds);
 
 /*!******************************************************************
  * \fn NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t* fix_duration_seconds)

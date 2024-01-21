@@ -73,21 +73,29 @@ RTC_status_t RTC_init(void) {
 	// Local variables.
 	RTC_status_t status = RTC_SUCCESS;
 	RCC_status_t rcc_status = RCC_SUCCESS;
-	uint8_t rtc_on_lse = 0;
-	uint32_t lsi_frequency_hz = 0;
+	RCC_clock_t rtc_clock = RCC_CLOCK_LSE;
+	uint32_t rtc_clock_hz = 0;
+	uint8_t lse_status = 0;
 	uint32_t loop_count = 0;
 	// Select peripheral clock.
 	RCC -> CSR &= ~(0b11 << 16); // Reset bits 16-17.
+	// Get LSE status.
+	rcc_status = RCC_get_status(RCC_CLOCK_LSE, &lse_status);
+	RCC_exit_error(LPTIM_ERROR_BASE_RCC);
 	// Check LSE status.
-	if (RCC_get_lse_status() != 0) {
+	if (lse_status != 0) {
 		// Use LSE.
 		RCC -> CSR |= (0b01 << 16); // RTCSEL='01'.
-		rtc_on_lse = 1;
+		rtc_clock = RCC_CLOCK_LSE;
 	}
 	else {
 		// Use LSI.
 		RCC -> CSR |= (0b10 << 16); // RTCSEL='10'.
+		rtc_clock = RCC_CLOCK_LSI;
 	}
+	// Get clock source frequency.
+	rcc_status = RCC_get_frequency_hz(rtc_clock, &rtc_clock_hz);
+	RCC_exit_error(LPTIM_ERROR_BASE_RCC);
 	// Enable RTC and register access.
 	RCC -> CSR |= (0b1 << 18); // RTCEN='1'.
 	// Enter initialization mode.
@@ -102,18 +110,8 @@ RTC_status_t RTC_init(void) {
 			goto errors;
 		}
 	}
-	// Compute prescaler according to input clock.
-	if (rtc_on_lse != 0) {
-		// LSE frequency is 32.768kHz typical.
-		RTC -> PRER = (127 << 16) | (255 << 0);
-	}
-	else {
-		// Get effective LSI frequency.
-		rcc_status = RCC_measure_lsi_frequency(&lsi_frequency_hz);
-		RCC_stack_error();
-		// Compute prescaler according to measured LSI frequency.
-		RTC -> PRER = (127 << 16) | (((lsi_frequency_hz >> 7) - 1) << 0);
-	}
+	// Compute prescaler.
+	RTC -> PRER = (127 << 16) | (((rtc_clock_hz >> 7) - 1) << 0);
 	// Configure wake-up timer.
 	RTC -> WUTR = (RTC_WAKEUP_PERIOD_SECONDS - 1);
 	// Clear flags.

@@ -8,6 +8,7 @@
 #ifndef __RTC_H__
 #define __RTC_H__
 
+#include "rcc.h"
 #include "types.h"
 
 /*** RTC macros ***/
@@ -27,9 +28,26 @@ typedef enum {
 	RTC_ERROR_NULL_PARAMETER,
 	RTC_ERROR_INITIALIZATION_MODE,
 	RTC_ERROR_WAKEUP_TIMER_REGISTER_ACCESS,
+	// Low level drivers errors.
+	RTC_ERROR_BASE_RCC = 0x0100,
 	// Last base value.
-	RTC_ERROR_BASE_LAST = 0x0100
+	RTC_ERROR_BASE_LAST = (RTC_ERROR_BASE_RCC + RCC_ERROR_BASE_LAST)
 } RTC_status_t;
+
+/*!******************************************************************
+ * \enum RTC_time_t
+ * \brief RTC time structure.
+ *******************************************************************/
+typedef struct {
+	// Date.
+	uint16_t year;
+	uint8_t month;
+	uint8_t date;
+	// Time.
+	uint8_t hours;
+	uint8_t minutes;
+	uint8_t seconds;
+} RTC_time_t;
 
 /*** RTC functions ***/
 

@@ -18,17 +18,17 @@
 
 /*** TIM local macros ***/
 
-#define TIM_TIMEOUT_COUNT				1000000
+#define TIM_TIMEOUT_COUNT				10000000
 
 #define TIM2_CNT_VALUE_MAX				0xFFFF
 
 #define TIM2_TARGET_TRIGGER_CLOCK_HZ	2048
 
 #define TIM2_PRESCALER_ETRF_LSE			1
-#define TIM2_PRESCALER_PSC_LSE			((RCC_LSE_FREQUENCY_HZ) / (TIM2_TARGET_TRIGGER_CLOCK_HZ * TIM2_PRESCALER_ETRF_LSE))
+#define TIM2_PRESCALER_PSC_LSE			((trigger_clock_hz) / (TIM2_TARGET_TRIGGER_CLOCK_HZ * TIM2_PRESCALER_ETRF_LSE))
 
 #define TIM2_PRESCALER_ETRF_HSI			8
-#define TIM2_PRESCAKER_PSC_HSI			((RCC_HSI_FREQUENCY_KHZ * 1000) / (TIM2_TARGET_TRIGGER_CLOCK_HZ * TIM2_PRESCALER_ETRF_HSI))
+#define TIM2_PRESCAKER_PSC_HSI			((trigger_clock_hz) / (TIM2_TARGET_TRIGGER_CLOCK_HZ * TIM2_PRESCALER_ETRF_HSI))
 
 #define TIM2_CLOCK_SWITCH_LATENCY_MS	2
 
@@ -37,26 +37,29 @@
 
 #define TIM2_WATCHDOG_PERIOD_SECONDS	((TIM2_TIMER_DURATION_MS_MAX / 1000) + 5)
 
+#define TIM21_INPUT_CAPTURE_PRESCALER	8
+
 /*** TIM local structures ***/
 
 /*******************************************************************/
-typedef enum {
-	TIM2_TRIGGER_SOURCE_LSE = 0,
-	TIM2_TRIGGER_SOURCE_HSI,
-	TIM2_TRIGGER_SOURCE_LAST
-} TIM2_trigger_source_t;
-
-/*******************************************************************/
 typedef struct {
-	TIM2_trigger_source_t trigger_source;
+	RCC_clock_t trigger_source;
 	uint32_t etrf_clock_hz;
 	volatile uint8_t channel_running[TIM2_CHANNEL_LAST];
 } TIM2_context_t;
 
+/*******************************************************************/
+typedef struct {
+	volatile uint16_t ccr1_start;
+	volatile uint16_t ccr1_end;
+	volatile uint16_t capture_count;
+	volatile uint8_t capture_done;
+} TIM21_context_t;
+
 /*** TIM local global variables ***/
 
 static TIM2_context_t tim2_ctx;
-static volatile uint8_t tim21_flag = 0;
+static TIM21_context_t tim21_ctx;
 
 /*** TIM local functions ***/
 
@@ -82,7 +85,24 @@ void __attribute__((optimize("-O0"))) TIM21_IRQHandler(void) {
 	if (((TIM21 -> SR) & (0b1 << 1)) != 0) {
 		// Update flags.
 		if (((TIM21 -> DIER) & (0b1 << 1)) != 0) {
-			tim21_flag = 1;
+			// Check count.
+			if (tim21_ctx.capture_count == 0) {
+				// Store start value.
+				tim21_ctx.ccr1_start = (TIM21 -> CCR1);
+				tim21_ctx.capture_count++;
+			}
+			else {
+				// Check rollover.
+				if ((TIM21 -> CCR1) > tim21_ctx.ccr1_end) {
+					// Store new value.
+					tim21_ctx.ccr1_end = (TIM21 -> CCR1);
+					tim21_ctx.capture_count++;
+				}
+				else {
+					// Capture complete.
+					tim21_ctx.capture_done = 1;
+				}
+			}
 		}
 		TIM21 -> SR &= ~(0b1 << 1);
 	}
@@ -110,8 +130,12 @@ TIM_status_t _TIM2_internal_watchdog(uint32_t time_start, uint32_t* time_referen
 /*** TIM functions ***/
 
 /*******************************************************************/
-void TIM2_init(void) {
+TIM_status_t TIM2_init(void) {
 	// Local variables.
+	TIM_status_t status = TIM_SUCCESS;
+	RCC_status_t rcc_status = RCC_SUCCESS;
+	uint8_t lse_status = 0;
+	uint32_t trigger_clock_hz = 0;
 	uint8_t channel_idx = 0;
 	// Init context.
 	for (channel_idx=0 ; channel_idx<TIM2_CHANNEL_LAST ; channel_idx++) {
@@ -120,16 +144,24 @@ void TIM2_init(void) {
 	// Enable peripheral clock.
 	RCC -> APB1ENR |= (0b1 << 0); // TIM2EN='1'.
 	RCC -> APB1SMENR |= (0b1 << 0); // TIM2SMEN='1'.
+	// Get LSE status.
+	rcc_status = RCC_get_status(RCC_CLOCK_LSE, &lse_status);
+	RCC_exit_error(TIM_ERROR_BASE_RCC);
 	// Select trigger.
-	if (RCC_get_lse_status() != 0) {
+	tim2_ctx.trigger_source = (lse_status != 0) ? RCC_CLOCK_LSE : RCC_CLOCK_HSI;
+	// Get trigger source frequency.
+	rcc_status = RCC_get_frequency_hz(tim2_ctx.trigger_source, &trigger_clock_hz);
+	RCC_exit_error(TIM_ERROR_BASE_RCC);
+	// Select trigger.
+	if (lse_status != 0) {
 		// Use LSE as trigger.
 		RCC -> CR &= ~(0b1 << 5); // HSI16OUTEN='0'.
 		TIM2 -> SMCR &= ~(0b11 << 12); // No prescaler on ETRF.
 		TIM2 -> PSC = (TIM2_PRESCALER_PSC_LSE - 1);
 		TIM2 -> OR |= (0b101 << 0);
 		// Update context.
-		tim2_ctx.trigger_source = TIM2_TRIGGER_SOURCE_LSE;
-		tim2_ctx.etrf_clock_hz = ((RCC_LSE_FREQUENCY_HZ) / (TIM2_PRESCALER_ETRF_LSE * TIM2_PRESCALER_PSC_LSE));
+		tim2_ctx.trigger_source = RCC_CLOCK_LSE;
+		tim2_ctx.etrf_clock_hz = ((trigger_clock_hz) / (TIM2_PRESCALER_ETRF_LSE * TIM2_PRESCALER_PSC_LSE));
 	}
 	else {
 		// Use HSI as trigger.
@@ -138,8 +170,8 @@ void TIM2_init(void) {
 		TIM2 -> PSC = (TIM2_PRESCAKER_PSC_HSI - 1);
 		TIM2 -> OR |= (0b011 << 0);
 		// Update context.
-		tim2_ctx.trigger_source = TIM2_TRIGGER_SOURCE_HSI;
-		tim2_ctx.etrf_clock_hz = ((RCC_HSI_FREQUENCY_KHZ * 1000) / (TIM2_PRESCALER_ETRF_HSI * TIM2_PRESCAKER_PSC_HSI));
+		tim2_ctx.trigger_source = RCC_CLOCK_HSI;
+		tim2_ctx.etrf_clock_hz = ((trigger_clock_hz) / (TIM2_PRESCALER_ETRF_HSI * TIM2_PRESCAKER_PSC_HSI));
 	}
 	// Use external clock mode 2.
 	TIM2 -> SMCR |= (0b1 << 14) | (0b111 << 4);
@@ -151,6 +183,8 @@ void TIM2_init(void) {
 	TIM2 -> EGR |= (0b1 << 0); // UG='1'.
 	// Enable interrupt.
 	NVIC_enable_interrupt(NVIC_INTERRUPT_TIM2, NVIC_PRIORITY_TIM2);
+errors:
+	return status;
 }
 
 /*******************************************************************/
@@ -291,7 +325,7 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 		break;
 	case TIM_WAITING_MODE_LOW_POWER_SLEEP:
 		// Check trigger source.
-		if (tim2_ctx.trigger_source == TIM2_TRIGGER_SOURCE_LSE) {
+		if (tim2_ctx.trigger_source == RCC_CLOCK_LSE) {
 			// Switch to MSI.
 			rcc_status = RCC_switch_to_msi(RCC_MSI_RANGE_1_131KHZ);
 			RCC_exit_error(TIM_ERROR_BASE_RCC);
@@ -331,9 +365,9 @@ void TIM21_init(void) {
 	// Configure timer.
 	// Channel input on TI1.
 	// Capture done every 8 edges.
-	// CH1 mapped on LSI.
+	// CH1 mapped on MCO.
 	TIM21 -> CCMR1 |= (0b01 << 0) | (0b11 << 2);
-	TIM21 -> OR |= (0b101 << 2);
+	TIM21 -> OR |= (0b111 << 2);
 	// Enable interrupt.
 	TIM21 -> DIER |= (0b1 << 1); // CC1IE='1'.
 	// Generate event to update registers.
@@ -349,18 +383,20 @@ void TIM21_de_init(void) {
 }
 
 /*******************************************************************/
-TIM_status_t TIM21_measure_lsi_frequency(uint32_t* lsi_frequency_hz) {
+TIM_status_t TIM21_mco_capture(uint16_t* ref_clock_pulse_count, uint16_t* mco_pulse_count) {
 	// Local variables.
 	TIM_status_t status = TIM_SUCCESS;
-	uint8_t tim21_interrupt_count = 0;
-	uint32_t tim21_ccr1_edge1 = 0;
-	uint32_t tim21_ccr1_edge8 = 0;
 	uint32_t loop_count = 0;
 	// Check parameters.
-	if (lsi_frequency_hz == NULL) {
+	if ((ref_clock_pulse_count == NULL) || (mco_pulse_count == NULL)) {
 		status = TIM_ERROR_NULL_PARAMETER;
 		goto errors;
 	}
+	// Reset timer context.
+	tim21_ctx.ccr1_start = 0;
+	tim21_ctx.ccr1_end = 0;
+	tim21_ctx.capture_count = 0;
+	tim21_ctx.capture_done = 0;
 	// Reset counter.
 	TIM21 -> CNT = 0;
 	TIM21 -> CCR1 = 0;
@@ -370,28 +406,18 @@ TIM_status_t TIM21_measure_lsi_frequency(uint32_t* lsi_frequency_hz) {
 	// Enable TIM21 peripheral.
 	TIM21 -> CR1 |= (0b1 << 0); // CEN='1'.
 	TIM21 -> CCER |= (0b1 << 0); // CC1E='1'.
-	// Wait for 2 captures.
-	while (tim21_interrupt_count < 2) {
-		// Wait for interrupt.
-		tim21_flag = 0;
-		loop_count = 0;
-		while (tim21_flag == 0) {
-			loop_count++;
-			if (loop_count > TIM_TIMEOUT_COUNT) {
-				status = TIM_ERROR_INTERRUPT_TIMEOUT;
-				goto errors;
-			}
-		}
-		tim21_interrupt_count++;
-		if (tim21_interrupt_count == 1) {
-			tim21_ccr1_edge1 = (TIM21 -> CCR1);
-		}
-		else {
-			tim21_ccr1_edge8 = (TIM21 -> CCR1);
+	// Wait for capture to complete.
+	while (tim21_ctx.capture_done == 0) {
+		// Manage timeout.
+		loop_count++;
+		if (loop_count > TIM_TIMEOUT_COUNT) {
+			status = TIM_ERROR_CAPTURE_TIMEOUT;
+			goto errors;
 		}
 	}
-	// Compute LSI frequency.
-	(*lsi_frequency_hz) = (8 * RCC_HSI_FREQUENCY_KHZ * 1000) / (tim21_ccr1_edge8 - tim21_ccr1_edge1);
+	// Update results.
+	(*ref_clock_pulse_count) = (tim21_ctx.ccr1_end - tim21_ctx.ccr1_start);
+	(*mco_pulse_count) = (TIM21_INPUT_CAPTURE_PRESCALER * (tim21_ctx.capture_count - 1));
 errors:
 	// Disable interrupt.
 	NVIC_disable_interrupt(NVIC_INTERRUPT_TIM21);

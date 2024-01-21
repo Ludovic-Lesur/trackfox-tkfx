@@ -13,6 +13,7 @@
 #include "nvic.h"
 #include "nvm.h"
 #include "pwr.h"
+#include "rcc.h"
 #include "usart.h"
 // Utils.
 #include "math.h"
@@ -67,6 +68,7 @@ static void _AT_print_ok(void);
 static void _AT_print_command_list(void);
 static void _AT_print_sw_version(void);
 static void _AT_print_error_stack(void);
+static void _AT_rcc_callback(void);
 /*******************************************************************/
 #ifdef AT_COMMAND_NVM
 static void _AT_nvm_callback(void);
@@ -98,7 +100,7 @@ static void _AT_tm_callback(void);
 #ifdef AT_COMMAND_CW
 static void _AT_cw_callback(void);
 #endif
-#ifdef AT_COMMAND_RSSI
+#if (defined AT_COMMAND_RSSI) && (defined BIDIRECTIONAL)
 static void _AT_rssi_callback(void);
 #endif
 #endif
@@ -139,6 +141,7 @@ static const AT_command_t AT_COMMAND_LIST[] = {
 	{PARSER_MODE_COMMAND, "AT$V?", STRING_NULL, "Get SW version", _AT_print_sw_version},
 	{PARSER_MODE_COMMAND, "AT$ERROR?", STRING_NULL, "Read error stack", _AT_print_error_stack},
 	{PARSER_MODE_COMMAND, "AT$RST", STRING_NULL, "Reset MCU", PWR_software_reset},
+	{PARSER_MODE_COMMAND, "AT$RCC?", STRING_NULL, "Get clocks frequency", _AT_rcc_callback},
 #ifdef AT_COMMAND_NVM
 	{PARSER_MODE_HEADER,  "AT$NVM=", "address[dec]", "Get NVM data", _AT_nvm_callback},
 	{PARSER_MODE_COMMAND, "AT$ID?", STRING_NULL, "Get Sigfox EP ID", _AT_get_id_callback},
@@ -159,12 +162,12 @@ static const AT_command_t AT_COMMAND_LIST[] = {
 	{PARSER_MODE_HEADER,  "AT$SF=", "data[hex],(bidir_flag[bit])", "Sigfox send frame", _AT_sf_callback},
 #endif
 #ifdef AT_COMMAND_SIGFOX_EP_ADDON_RFP
-	{PARSER_MODE_HEADER,  "AT$TM=", "rc_index[dec],test_mode[dec]", "Sigfox RFP test mode", _AT_tm_callback},
+	{PARSER_MODE_HEADER,  "AT$TM=", "bit_rate_index[dec],test_mode_reference[dec]", "Sigfox RFP test mode", _AT_tm_callback},
 #endif
 #ifdef AT_COMMAND_CW
 	{PARSER_MODE_HEADER,  "AT$CW=", "frequency[hz],enable[bit],(output_power[dbm])", "Continuous wave", _AT_cw_callback},
 #endif
-#ifdef AT_COMMAND_RSSI
+#if (defined AT_COMMAND_RSSI) && (defined BIDIRECTIONAL)
 	{PARSER_MODE_HEADER,  "AT$RSSI=", "frequency[hz],duration[s]", "Continuous RSSI measurement", _AT_rssi_callback},
 #endif
 };
@@ -342,6 +345,42 @@ static void _AT_print_error_stack(void) {
 }
 #endif
 
+#ifdef ATM
+/*******************************************************************/
+static void _AT_rcc_callback(void) {
+	// Local variables.
+	ERROR_code_t status = SUCCESS;
+	RCC_status_t rcc_status = RCC_SUCCESS;
+	char_t* rcc_clock_name[RCC_CLOCK_LAST] =  {"LSI", "LSE", "MSI", "HSI", "SYS"};
+	uint8_t clock_status = 0;
+	uint32_t clock_frequency = 0;
+	uint8_t idx = 0;
+	// Calibrate clocks.
+	rcc_status = RCC_calibrate();
+	RCC_stack_exit_error(ERROR_BASE_RCC + rcc_status);
+	// Clocks loop.
+	for (idx=0 ; idx<RCC_CLOCK_LAST ; idx++) {
+		// Read status.
+		rcc_status = RCC_get_status(idx, &clock_status);
+		RCC_stack_exit_error(ERROR_BASE_RCC + rcc_status);
+		// Read frequency.
+		rcc_status = RCC_get_frequency_hz(idx, &clock_frequency);
+		RCC_stack_exit_error(ERROR_BASE_RCC + rcc_status);
+		// Print data.
+		_AT_reply_add_string(rcc_clock_name[idx]);
+		_AT_reply_add_string((clock_status == 0) ? ": OFF " : ": ON  ");
+		_AT_reply_add_value((int32_t) clock_frequency, STRING_FORMAT_DECIMAL, 0);
+		_AT_reply_add_string("Hz");
+		_AT_reply_send();
+	}
+	_AT_print_ok();
+	return;
+errors:
+	_AT_print_error(status);
+	return;
+}
+#endif
+
 #if (defined ATM) && (defined AT_COMMAND_NVM)
 /*******************************************************************/
 static void _AT_nvm_callback(void) {
@@ -361,6 +400,7 @@ static void _AT_nvm_callback(void) {
 	_AT_reply_add_value(nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
 	_AT_reply_send();
 	_AT_print_ok();
+	return;
 errors:
 	_AT_print_error(status);
 	return;
@@ -470,8 +510,8 @@ errors:
 static void _AT_adc_callback(void) {
 	// Local variables.
 	ERROR_code_t status = SUCCESS;
-	ADC_status_t adc1_status = ADC_SUCCESS;
 	POWER_status_t power_status = POWER_SUCCESS;
+	ADC_status_t adc1_status = ADC_SUCCESS;
 	uint32_t voltage_mv = 0;
 	int8_t tmcu_degrees = 0;
 	// Turn analog front-end on.
@@ -527,24 +567,27 @@ static void _AT_ths_callback(void) {
 	SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
 	int8_t tamb_degrees = 0;
 	uint8_t hamb_percent = 0;
-	// Turn sensors on.
-	power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
+	// Turn digital sensors on.
+	power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
 	POWER_stack_exit_error(ERROR_BASE_POWER + power_status);
 	// Perform measurements.
 	sht3x_status = SHT3X_perform_measurements(SHT3X_I2C_ADDRESS);
 	SHT3X_stack_exit_error(ERROR_BASE_SHT3X + sht3x_status);
-	// Turn sensors off.
+	// Turn digital sensors off.
 	power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-	POWER_stack_error();
-	// Read data.
+	POWER_stack_exit_error(ERROR_BASE_POWER + power_status);
+	// Read and print data.
+	// Temperature.
+	_AT_reply_add_string("Tamb=");
 	sht3x_status = SHT3X_get_temperature(&tamb_degrees);
 	SHT3X_stack_exit_error(ERROR_BASE_SHT3X + sht3x_status);
+	_AT_reply_add_value((int32_t) tamb_degrees, STRING_FORMAT_DECIMAL, 0);
+	_AT_reply_add_string("dC");
+	_AT_reply_send();
+	// Humidity.
+	_AT_reply_add_string("Hamb=");
 	sht3x_status = SHT3X_get_humidity(&hamb_percent);
 	SHT3X_stack_exit_error(ERROR_BASE_SHT3X + sht3x_status);
-	// Print results.
-	_AT_reply_add_string("T=");
-	_AT_reply_add_value((int32_t) tamb_degrees, STRING_FORMAT_DECIMAL, 0);
-	_AT_reply_add_string("dC H=");
 	_AT_reply_add_value((int32_t) hamb_percent, STRING_FORMAT_DECIMAL, 0);
 	_AT_reply_add_string("%");
 	_AT_reply_send();

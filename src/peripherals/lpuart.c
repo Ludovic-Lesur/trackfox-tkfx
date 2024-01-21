@@ -70,23 +70,33 @@ errors:
 /*** LPUART functions ***/
 
 /*******************************************************************/
-void LPUART1_init(LPUART_character_match_irq_cb_t irq_callback) {
+LPUART_status_t LPUART1_init(LPUART_character_match_irq_cb_t irq_callback) {
 	// Local variables.
+	LPUART_status_t status = LPUART_SUCCESS;
+	RCC_status_t rcc_status = RCC_SUCCESS;
+	RCC_clock_t lpuart_clock = RCC_CLOCK_LSE;
+	uint8_t lse_status = 0;
 	uint32_t lpuart_clock_hz = 0;
 	uint32_t brr = 0;
 	// Select peripheral clock.
 	RCC -> CCIPR &= ~(0b11 << 10); // Reset bits 10-11.
+	// Get LSE status.
+	rcc_status = RCC_get_status(RCC_CLOCK_LSE, &lse_status);
+	RCC_exit_error(LPUART_ERROR_BASE_RCC);
 	// Check LSE status.
-	if (RCC_get_lse_status() != 0) {
+	if (lse_status != 0) {
 		// Use LSE.
 		RCC -> CCIPR |= (0b11 << 10); // LPUART1SEL='11'.
-		lpuart_clock_hz = RCC_LSE_FREQUENCY_HZ;
+		lpuart_clock = RCC_CLOCK_LSE;
 	}
 	else {
 		// Use HSI.
 		RCC -> CCIPR |= (0b10 << 10); // LPUART1SEL='10'.
-		lpuart_clock_hz = (RCC_HSI_FREQUENCY_KHZ * 1000);
+		lpuart_clock = RCC_CLOCK_HSI;
 	}
+	// Get clock source frequency.
+	rcc_status = RCC_get_frequency_hz(lpuart_clock, &lpuart_clock_hz);
+	RCC_exit_error(LPUART_ERROR_BASE_RCC);
 	// Enable peripheral clock.
 	RCC -> APB1ENR |= (0b1 << 18); // LPUARTEN='1'.
 	// Configure peripheral.
@@ -107,6 +117,8 @@ void LPUART1_init(LPUART_character_match_irq_cb_t irq_callback) {
 	GPIO_configure(&GPIO_LPUART1_RX, GPIO_MODE_ALTERNATE_FUNCTION, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	// Register callback.
 	lpuart1_cm_irq_callback = irq_callback;
+errors:
+	return status;
 }
 
 /*******************************************************************/

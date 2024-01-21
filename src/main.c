@@ -239,6 +239,9 @@ static void _TKFX_init_hw(void) {
 	// High speed oscillator.
 	rcc_status = RCC_switch_to_hsi();
 	RCC_stack_error();
+	// Calibrate clocks.
+	rcc_status = RCC_calibrate();
+	RCC_stack_error();
 	// Init RTC.
 	rtc_status = RTC_init();
 	RTC_stack_error();
@@ -284,6 +287,7 @@ int main (void) {
 	_TKFX_init_context();
 	_TKFX_init_hw();
 	// Local variables.
+	RCC_status_t rcc_status = RCC_SUCCESS;
 	POWER_status_t power_status = POWER_SUCCESS;
 	ADC_status_t adc1_status = ADC_SUCCESS;
 	MATH_status_t math_status = MATH_SUCCESS;
@@ -331,6 +335,9 @@ int main (void) {
 			MMA8653FC_clear_motion_interrupt_flag();
 			MMA8653_disable_motion_interrupt();
 #endif
+			// Calibrate clocks.
+			rcc_status = RCC_calibrate();
+			RCC_stack_error();
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_MEASURE;
 			break;
@@ -375,7 +382,7 @@ int main (void) {
 			tkfx_ctx.vsrc_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
 			tkfx_ctx.vcap_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
 			if (adc1_status == ADC_SUCCESS) {
-				// Read Vsrc.
+				// Read VSRC.
 				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &generic_data_u32);
 				ADC1_stack_error();
 				if (adc1_status == ADC_SUCCESS) {
@@ -436,8 +443,12 @@ int main (void) {
 		case TKFX_STATE_MONITORING:
 			IWDG_reload();
 			// Get clocks status.
-			tkfx_ctx.status.lsi_status = RCC_get_lsi_status();
-			tkfx_ctx.status.lse_status = RCC_get_lse_status();
+			rcc_status = RCC_get_status(RCC_CLOCK_LSI, &generic_data_u8);
+			RCC_stack_error();
+			tkfx_ctx.status.lsi_status = (generic_data_u8 == 0) ? 0b0 : 0b1;
+			rcc_status = RCC_get_status(RCC_CLOCK_LSE, &generic_data_u8);
+			RCC_stack_error();
+			tkfx_ctx.status.lse_status = (generic_data_u8 == 0) ? 0b0 : 0b1;
 			// Build Sigfox frame.
 			tkfx_ctx.sigfox_monitoring_data.tamb_degrees = tkfx_ctx.tamb_degrees;
 			tkfx_ctx.sigfox_monitoring_data.hamb_degrees = tkfx_ctx.hamb_percent;

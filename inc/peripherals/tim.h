@@ -21,7 +21,7 @@ typedef enum {
 	// Driver errors.
 	TIM_SUCCESS = 0,
 	TIM_ERROR_NULL_PARAMETER,
-	TIM_ERROR_INTERRUPT_TIMEOUT,
+	TIM_ERROR_CAPTURE_TIMEOUT,
 	TIM_ERROR_CHANNEL,
 	TIM_ERROR_DURATION_UNDERFLOW,
 	TIM_ERROR_DURATION_OVERFLOW,
@@ -63,9 +63,9 @@ typedef enum {
  * \brief Init TIM2 peripheral for general purpose timer operation.
  * \param[in]  	none
  * \param[out] 	none
- * \retval		none
+ * \retval		Function execution status.
  *******************************************************************/
-void TIM2_init(void);
+TIM_status_t TIM2_init(void);
 
 /*!******************************************************************
  * \fn void TIM2_de_init(void)
@@ -117,7 +117,7 @@ TIM_status_t TIM2_wait_completion(TIM2_channel_t channel, TIM_waiting_mode_t wai
 
 /*!******************************************************************
  * \fn void TIM21_init(void)
- * \brief Init TIM21 peripheral for LSI frequency measurement.
+ * \brief Init TIM21 peripheral for internal oscillators frequency measurement.
  * \param[in]  	none
  * \param[out] 	none
  * \retval		none
@@ -134,13 +134,14 @@ void TIM21_init(void);
 void TIM21_de_init(void);
 
 /*!******************************************************************
- * \fn TIM_status_t TIM21_measure_lsi_frequency(uint32_t* lsi_frequency_hz)
- * \brief Compute effective LSI clock frequency with HSI accuracy.
+ * \fn TIM_status_t TIM21_mco_capture(uint16_t* ref_clock_pulse_count, uint16_t* mco_pulse_count)
+ * \brief Perform MCO clock capture.
  * \param[in]  	none
- * \param[out] 	lsi_frequency_hz: Effective LSI clock frequency in Hz.
+ * \param[out] 	ref_clock_pulse_count: Pointer to the number of pulses of the timer reference clock during the capture.
+ * \param[out]	mco_pulse_count: Pointer to the number of pulses of the MCO clock during the capture.
  * \retval		Function execution status.
  *******************************************************************/
-TIM_status_t TIM21_measure_lsi_frequency(uint32_t* lsi_frequency_hz);
+TIM_status_t TIM21_mco_capture(uint16_t* ref_clock_pulse_count, uint16_t* mco_pulse_count);
 
 /*******************************************************************/
 #define TIM2_exit_error(error_base) { if (tim2_status != TIM_SUCCESS) { status = (error_base + tim2_status); goto errors; } }
