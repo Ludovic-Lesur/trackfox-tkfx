@@ -9,6 +9,7 @@
 
 #include "adc.h"
 #include "dma.h"
+#include "error.h"
 #include "gpio.h"
 #include "iwdg.h"
 #include "lptim.h"
@@ -646,16 +647,20 @@ static void _NEOM8N_stop(void) {
 /*** NEOM8N functions ***/
 
 /*******************************************************************/
-void NEOM8N_init(void) {
+NEOM8N_status_t NEOM8N_init(void) {
 	// Local variables.
+	NEOM8N_status_t status = NEOM8N_SUCCESS;
+	LPUART_status_t lpuart1_status = LPUART_SUCCESS;
 	uint32_t idx = 0;
 #ifdef HW1_1
 	// Init backup pin.
 	GPIO_configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
 	// Init LPUART and DMA.
-	LPUART1_init(&_NEOM8N_usart_cm_irq_callback);
+	lpuart1_status = LPUART1_init(&_NEOM8N_usart_cm_irq_callback);
+	LPUART1_exit_error(NEOM8N_ERROR_BASE_LPUART);
 	DMA1_CH6_init(&_NEOM8N_dma_tc_irq_callback);
+errors:
 	// Init context.
 	for (idx=0 ; idx<NMEA_RX_BUFFER_SIZE ; idx++) neom8n_ctx.rx_buffer0[idx] = 0;
 	for (idx=0 ; idx<NMEA_RX_BUFFER_SIZE ; idx++) neom8n_ctx.rx_buffer1[idx] = 0;
@@ -663,6 +668,7 @@ void NEOM8N_init(void) {
 	neom8n_ctx.gga_same_altitude_count = 0;
 	neom8n_ctx.gga_previous_altitude = 0;
 #endif
+	return status;
 }
 
 /*******************************************************************/
@@ -791,7 +797,7 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 	if (status != NEOM8N_SUCCESS) goto errors;
 	// Turn analog front-end on for supercap voltage measurements.
 	power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-	POWER_exit_error(NEOM8N_ERROR_BASE_POWER);
+	POWER_stack_error();
 	// Start NMEA reception.
 	_NEOM8N_start(timeout_seconds);
 	// Loop until data is retrieved or timeout expired.

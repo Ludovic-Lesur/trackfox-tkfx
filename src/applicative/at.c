@@ -1063,10 +1063,13 @@ errors:
 #ifdef ATM
 /*******************************************************************/
 void AT_init(void) {
+	// Local variables.
+	USART_status_t usart2_status = USART_SUCCESS;
 	// Init context.
 	_AT_reset_parser();
 	// Init USART.
-	USART2_init(&_AT_fill_rx_buffer);
+	usart2_status = USART2_init(&_AT_fill_rx_buffer);
+	USART2_stack_error();
 	USART2_enable_rx();
 }
 #endif

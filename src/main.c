@@ -216,6 +216,7 @@ static void _TKFX_init_hw(void) {
 	// Local variables.
 	RCC_status_t rcc_status = RCC_SUCCESS;
 	RTC_status_t rtc_status = RTC_SUCCESS;
+	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
 #ifndef DEBUG
 	IWDG_status_t iwdg_status = IWDG_SUCCESS;
 #endif
@@ -246,7 +247,8 @@ static void _TKFX_init_hw(void) {
 	rtc_status = RTC_init();
 	RTC_stack_error();
 	// Init delay timer.
-	LPTIM1_init();
+	lptim1_status = LPTIM1_init();
+	LPTIM1_stack_error();
 	// Init components.
 	POWER_init();
 #ifdef SSM
