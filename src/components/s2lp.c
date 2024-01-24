@@ -119,7 +119,7 @@ static S2LP_status_t _S2LP_write_register(uint8_t addr, uint8_t value) {
 	s2lp_tx_data[1] = addr;
 	s2lp_tx_data[2] = value;
 	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_REGISTER_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
@@ -137,7 +137,7 @@ static S2LP_status_t _S2LP_read_register(uint8_t addr, uint8_t* value) {
 	s2lp_tx_data[1] = addr;
 	s2lp_tx_data[2] = 0xFF;
 	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_REGISTER_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 	// Read value.
 	(*value) = s2lp_rx_data[2];
 errors:
@@ -340,7 +340,7 @@ S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable) {
 		GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 		// Wait for reset time.
 		lptim1_status = LPTIM1_delay_milliseconds(S2LP_SHUTDOWN_DELAY_MS, LPTIM_DELAY_MODE_SLEEP);
-		LPTIM1_exit_error(S2LP_ERROR_BASE_LPTIM);
+		LPTIM1_exit_error(S2LP_ERROR_BASE_LPTIM1);
 	}
 	else {
 		// Put SDN in high impedance (pull-up resistor used).
@@ -367,7 +367,7 @@ S2LP_status_t S2LP_send_command(S2LP_command_t command) {
 	s2lp_tx_data[0] = S2LP_HEADER_BYTE_COMMAND;
 	s2lp_tx_data[1] = command;
 	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_COMMAND_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
@@ -1105,10 +1105,10 @@ S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes) {
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
 	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_FIFO_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 	// Transfer buffer.
 	spi1_status = SPI1_write_read(tx_data, s2lp_rx_data, tx_data_length_bytes);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
@@ -1135,10 +1135,10 @@ S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes) {
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Read sequence.
 	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_FIFO_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 	// Read FIFO.
 	spi1_status = SPI1_write_read(s2lp_tx_data, rx_data, rx_data_length_bytes);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI);
+	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
