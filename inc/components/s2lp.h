@@ -351,7 +351,7 @@ S2LP_status_t S2LP_send_command(S2LP_command_t command);
 S2LP_status_t S2LP_wait_for_state(S2LP_state_t new_state);
 
 /*!******************************************************************
- * \fn S2LP_status_t S2LP_set_oscillator(S2LP_oscillator_t s2lp_oscillator)
+ * \fn S2LP_status_t S2LP_set_oscillator(S2LP_oscillator_t oscillator)
  * \brief Set S2LP oscillator type.
  * \param[in]  	oscillator: Oscillator type.
  * \param[out] 	none
@@ -414,7 +414,7 @@ S2LP_status_t S2LP_set_rf_frequency(uint32_t frequency_hz);
 S2LP_status_t S2LP_set_fsk_deviation(uint32_t deviation_hz);
 
 /*!******************************************************************
- * \fn S2LP_status_t S2LP_set_datarate(uint32_t datarate_bps
+ * \fn S2LP_status_t S2LP_set_datarate(uint32_t datarate_bps)
  * \brief Set S2LP data rate.
  * \param[in]  	datarate_bps: Datarate in bps.
  * \param[out] 	none
@@ -590,7 +590,7 @@ S2LP_status_t S2LP_clear_all_irq(void);
 S2LP_status_t S2LP_set_packet_length(uint8_t packet_length_bytes);
 
 /*!******************************************************************
- * \fn S2LP_status_t S2LP_set_preamble_detector(uint8_t length_2bits, S2LP_preamble_pattern_t pattern)
+ * \fn S2LP_status_t S2LP_set_preamble_detector(uint8_t preamble_length_2bits, S2LP_preamble_pattern_t preamble_pattern)
  * \brief Configure S2LP preamble detector.
  * \param[in]  	preamble_length_2bits: Number of bits pair of the preamble.
  * \param[in]	preamble_pattern: Preamble pattern to search for.

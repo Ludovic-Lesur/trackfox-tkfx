@@ -222,7 +222,7 @@ static NEOM8N_status_t _NEOM8N_get_nmea_checksum(char_t* nmea_rx_buf, uint8_t* c
 		status = NEOM8N_ERROR_CHECKSUM_INDEX;
 		goto errors;
 	}
-	// Convert hexa to value.
+	// Convert hexadecimal to value.
 	string_status = STRING_string_to_value(&(nmea_rx_buf[checksum_start_char_idx + 1]), STRING_FORMAT_HEXADECIMAL, 2, &ck_value);
 	STRING_exit_error(NEOM8N_ERROR_BASE_STRING);
 	// Cast to byte.
