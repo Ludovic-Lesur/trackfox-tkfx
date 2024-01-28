@@ -11,7 +11,7 @@
 #include "types.h"
 #include "sigfox_types.h"
 
-/*** NVM macros ***/
+/*** NVM structures ***/
 
 /*!******************************************************************
  * \enum NVM_status_t

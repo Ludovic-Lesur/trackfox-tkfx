@@ -147,7 +147,7 @@ typedef struct {
 
 #if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION)
 static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
-	0, // Wake-up.
+	POWER_ON_DELAY_MS_TCXO, // Wake-up.
 	(POWER_ON_DELAY_MS_RADIO + S2LP_SHUTDOWN_DELAY_MS + 1), // TX init (power on delay + 1.75ms).
 	0, // Send start (depends on bit rate and will be computed during init function).
 	0, // Send stop (depends on bit rate and will be computed during init function).
@@ -400,6 +400,11 @@ RF_API_status_t RF_API_process(void) {
 RF_API_status_t RF_API_wake_up(void) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
+	POWER_status_t power_status = POWER_SUCCESS;
+	// Turn radio TCXO on.
+	power_status = POWER_enable(POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_STOP);
+	POWER_stack_exit_error(RF_API_ERROR_DRIVER_POWER);
+errors:
 	RETURN();
 }
 
@@ -407,6 +412,11 @@ RF_API_status_t RF_API_wake_up(void) {
 RF_API_status_t RF_API_sleep(void) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
+	POWER_status_t power_status = POWER_SUCCESS;
+	// Turn radio TCXO off.
+	power_status = POWER_disable(POWER_DOMAIN_TCXO);
+	POWER_stack_exit_error(RF_API_ERROR_DRIVER_POWER);
+errors:
 	RETURN();
 }
 
