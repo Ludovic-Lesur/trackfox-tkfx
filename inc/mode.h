@@ -13,48 +13,28 @@
 /*** Board modes ***/
 
 //#define ATM
-#define SSM
-//#define PM
 //#define DEBUG
 
 /*** Board options ***/
 
-#define TKFX_VCAP_VOLTAGE_DIVIDER_RATIO		1
-#define TKFX_ACTIVE_MODE_VCAP_MIN_MV		1500
+#define TKFX_VSTR_VOLTAGE_DIVIDER_RATIO		1
+#define TKFX_ACTIVE_MODE_VSTR_MIN_MV		1500
+#define TKFX_GEOLOC_TIMEOUT_SECONDS			180
 
 /*!******************************************************************
- * \enum TKFX_configuration_t
+ * \struct TKFX_configuration_t
  * \brief Tracker configuration structure.
  *******************************************************************/
 typedef struct {
-	uint32_t active_mode_vcap_min_mv;
-	uint32_t geoloc_timeout_seconds;
-#ifdef SSM
-	uint8_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition (set to 0 to disable filter).
+	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition.
 	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
-	uint32_t keep_alive_period_seconds;
-	uint8_t inactivity_geoloc_enabled; // If non zero, force a GPS fix after the inactivity period.
-	uint32_t inactivity_threshold_seconds;
-#endif
-#ifdef PM
-	uint32_t geoloc_period_seconds;
-#endif
+	uint32_t moving_geoloc_period_seconds;
+	uint32_t stopped_geoloc_period_seconds;
+	uint32_t monitoring_period_seconds;
 } TKFX_configuration_t;
 
-#ifdef SSM
-//static const TKFX_configuration_t TKFX_CONFIG = {TKFX_ACTIVE_MODE_VCAP_MIN_MV, 180, 0, 300, 3600, 1, 86400}; // Car tracking configuration.
-static const TKFX_configuration_t TKFX_CONFIG = {TKFX_ACTIVE_MODE_VCAP_MIN_MV, 180, 5, 60, 3600, 0, 86400}; // Hiking configuration.
-#endif
-#ifdef PM
-static const TKFX_configuration_t TKFX_CONFIG = {TKFX_ACTIVE_MODE_VCAP_MIN_MV, 180, 300}; // Bike tracking configuration.
-#endif
-
-/*** Error management ***/
-
-#if ((defined ATM && defined SSM) || \
-	 (defined ATM && defined PM) || \
-	 (defined SSM && defined PM))
-#error "Only 1 tracker mode must be selected."
-#endif
+static const TKFX_configuration_t TKFX_CONFIG = {0, 300, 600, 86400, 3600}; // Car.
+//static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 1200, 86400, 3600}; // Hiking.
+//static const TKFX_configuration_t TKFX_CONFIG = {5, 300, 600, 86400, 3600}; // Bike.
 
 #endif /* __MODE_H__ */

@@ -39,7 +39,7 @@ typedef enum {
 	NEOM8N_ERROR_TIME_TIMEOUT,
 	NEOM8N_ERROR_POSITION_INVALID,
 	NEOM8N_ERROR_POSITION_TIMEOUT,
-	NEOM8N_ERROR_VCAP_THRESHOLD,
+	NEOM8N_ERROR_VSTR_THRESHOLD,
 	NEOM8N_ERROR_TIMEPULSE_FREQUENCY,
 	NEOM8N_ERROR_TIMEPULSE_DUTY_CYCLE,
 	// Low level drivers errors.
@@ -132,12 +132,12 @@ NEOM8N_status_t NEOM8N_get_time(RTC_time_t* gps_time, uint32_t timeout_seconds, 
  * \fn NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t* fix_duration_seconds)
  * \brief Perform GPS position acquisition.
  * \param[in]  	timeout_seconds: GPS acquisition timeout in seconds.
- * \param[in]	vcap_min_mv: Minimum supercap voltage for GPS fix.
+ * \param[in]	vstr_min_mv: Minimum storage voltage for GPS fix.
  * \param[out] 	gps_position: Pointer to the GPS position data.
  * \param[out]	fix_duration_seconds: Pointer to integer that will contain GPS fix duration in seconds.
  * \retval		Function execution status.
  *******************************************************************/
-NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vcap_min_mv, uint32_t* fix_duration_seconds);
+NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vstr_min_mv, uint32_t* fix_duration_seconds);
 
 /*!******************************************************************
  * \fn NEOM8N_status_t NEOM8N_configure_timepulse(NEOM8N_timepulse_config_t* timepulse_config)

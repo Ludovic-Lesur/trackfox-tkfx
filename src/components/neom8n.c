@@ -765,14 +765,14 @@ errors:
 }
 
 /*******************************************************************/
-NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vcap_min_mv, uint32_t* fix_duration_seconds) {
+NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vstr_min_mv, uint32_t* fix_duration_seconds) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	ADC_status_t adc1_status = ADC_SUCCESS;
 	POWER_status_t power_status = POWER_SUCCESS;
 	uint8_t valid_data_flag = 0;
 	uint8_t external_wakeup_count = 0;
-	uint32_t vcap_mv = 0;
+	uint32_t vstr_mv = 0;
 #ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 	NEOM8N_position_t local_position;
 #endif
@@ -880,11 +880,11 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 			adc1_status = ADC1_perform_measurements();
 			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC1);
 			// Read data.
-			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &vcap_mv);
+			adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSTR_MV, &vstr_mv);
 			ADC1_exit_error(NEOM8N_ERROR_BASE_ADC1);
 			// Exit if supercap voltage falls below the given threshold.
-			if (vcap_mv < vcap_min_mv) {
-				status = NEOM8N_ERROR_VCAP_THRESHOLD;
+			if (vstr_mv < vstr_min_mv) {
+				status = NEOM8N_ERROR_VSTR_THRESHOLD;
 				goto errors;
 			}
 		}

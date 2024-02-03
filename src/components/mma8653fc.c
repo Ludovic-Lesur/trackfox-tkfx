@@ -15,24 +15,13 @@
 #include "nvic.h"
 #include "types.h"
 
-/*** MMA8653FC local global variables ***/
-
-volatile uint8_t mma8653fc_motion_interrupt_flag = 0;
-
-/*******************************************************************/
-static void _MMA8653FC_set_motion_interrupt_flag(void) {
-	mma8653fc_motion_interrupt_flag = 1;
-}
-
 /*** MMA8653FC functions ***/
 
 /*******************************************************************/
-void MMA8653FC_init(void) {
-	// Init flag.
-	mma8653fc_motion_interrupt_flag = 0;
+void MMA8653FC_init(EXTI_gpio_irq_cb_t motion_irq_callback) {
 	// Configure interrupt pin.
 	GPIO_configure(&GPIO_ACCELERO_IRQ, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-	EXTI_configure_gpio(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_RISING_EDGE, &_MMA8653FC_set_motion_interrupt_flag);
+	EXTI_configure_gpio(&GPIO_ACCELERO_IRQ, EXTI_TRIGGER_RISING_EDGE, motion_irq_callback);
 }
 
 /*******************************************************************/
@@ -163,14 +152,4 @@ void MMA8653_enable_motion_interrupt(void) {
 void MMA8653_disable_motion_interrupt(void) {
 	// Enable interrupt.
 	NVIC_disable_interrupt(NVIC_INTERRUPT_EXTI_0_1);
-}
-
-/*******************************************************************/
-volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void) {
-	return mma8653fc_motion_interrupt_flag;
-}
-
-/*******************************************************************/
-void MMA8653FC_clear_motion_interrupt_flag(void) {
-	mma8653fc_motion_interrupt_flag = 0;
 }

@@ -8,6 +8,7 @@
 #ifndef __MMA8653FC_H__
 #define __MMA8653FC_H__
 
+#include "exti.h"
 #include "i2c.h"
 #include "math.h"
 #include "mma8653fc_reg.h"
@@ -70,13 +71,13 @@ static const MMA8653FC_register_setting_t mma8653_sleep_config[MMA8653FC_SLEEP_C
 /*** MMA8653FC functions ***/
 
 /*!******************************************************************
- * \fn void MMA8653FC_init(void)
+ * \fn void MMA8653FC_init(EXTI_gpio_irq_cb_t motion_irq_callbac)
  * \brief Init MMA8653FC interface.
- * \param[in]  	none
+ * \param[in]  	motion_irq_callback: Motion interrupt callback.
  * \param[out] 	none
  * \retval		none
  *******************************************************************/
-void MMA8653FC_init(void);
+void MMA8653FC_init(EXTI_gpio_irq_cb_t motion_irq_callback);
 
 /*!******************************************************************
  * \fn void MMA8653FC_de_init(void)
@@ -134,24 +135,6 @@ void MMA8653_enable_motion_interrupt(void);
  * \retval		none
  *******************************************************************/
 void MMA8653_disable_motion_interrupt(void);
-
-/*!******************************************************************
- * \fn volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void)
- * \brief Read MMA8653FC motion interrupt flag.
- * \param[in]  	none
- * \param[out] 	none
- * \retval		Motion interrupt flag.
- *******************************************************************/
-volatile uint8_t MMA8653FC_get_motion_interrupt_flag(void);
-
-/*!******************************************************************
- * \fn void MMA8653FC_clear_motion_interrupt_flag(void)
- * \brief Clear MMA8653FC motion interrupt flag.
- * \param[in]  	none
- * \param[out] 	none
- * \retval		none
- *******************************************************************/
-void MMA8653FC_clear_motion_interrupt_flag(void);
 
 /*******************************************************************/
 #define MMA8653FC_exit_error(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = (error_base + mma8653fc_status); goto errors; } }

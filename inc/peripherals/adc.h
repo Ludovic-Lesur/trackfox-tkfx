@@ -50,7 +50,7 @@ typedef enum {
 typedef enum {
 	ADC_DATA_INDEX_VMCU_MV = 0,
 	ADC_DATA_INDEX_VSRC_MV,
-	ADC_DATA_INDEX_VCAP_MV,
+	ADC_DATA_INDEX_VSTR_MV,
 	ADC_DATA_INDEX_LAST
 } ADC_data_index_t;
 

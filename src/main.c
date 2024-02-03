@@ -53,11 +53,9 @@
 typedef enum {
 	TKFX_STATE_STARTUP,
 	TKFX_STATE_WAKEUP,
-	TKFX_STATE_MODE_UPDATE,
-	TKFX_STATE_ACCELERO,
 	TKFX_STATE_MEASURE,
+	TKFX_STATE_MODE_UPDATE,
 	TKFX_STATE_MONITORING,
-	TKFX_STATE_GEOLOC_CHECK,
 	TKFX_STATE_GEOLOC,
 	TKFX_STATE_ERROR_STACK,
 	TKFX_STATE_OFF,
@@ -90,6 +88,8 @@ typedef union {
 typedef union {
 	struct {
 		unsigned por : 1;
+		unsigned monitoring_request : 1;
+		unsigned geoloc_request : 1;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 	uint8_t all;
 } TKFX_flags_t;
@@ -114,7 +114,7 @@ typedef union {
 		unsigned tamb_degrees : 8;
 		unsigned hamb_degrees : 8;
 		unsigned vsrc_mv : 16;
-		unsigned vcap_mv : 16;
+		unsigned vstr_mv : 16;
 		unsigned status : 8;
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_sigfox_monitoring_data_t;
@@ -145,21 +145,18 @@ typedef union {
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_sigfox_geoloc_timeout_data_t;
 
-#if (defined SSM) || (defined PM)
+#ifndef ATM
 /*******************************************************************/
 typedef struct {
 	// Global.
 	TKFX_state_t state;
 	TKFX_mode_t mode;
 	TKFX_flags_t flags;
-	const TKFX_configuration_t* config;
-	// Wake-up management.
-#ifdef SSM
-	uint32_t start_detection_irq_count;
-	uint32_t stop_detection_timer_seconds;
-	uint32_t keep_alive_timer_seconds;
-#endif
-	uint32_t geoloc_timer_seconds;
+	// Tracker algorithm.
+	volatile uint32_t start_detection_irq_count;
+	volatile uint32_t last_motion_irq_time_seconds;
+	uint32_t monitoring_next_time_seconds;
+	uint32_t geoloc_next_time_seconds;
 	// SW version.
 	TKFX_sigfox_startup_data_t sigfox_startup_data;
 	// Monitoring.
@@ -167,7 +164,7 @@ typedef struct {
 	uint8_t tamb_degrees;
 	uint8_t hamb_percent;
 	uint32_t vsrc_mv;
-	uint32_t vcap_mv;
+	uint32_t vstr_mv;
 	TKFX_sigfox_monitoring_data_t sigfox_monitoring_data;
 	// Geoloc.
 	NEOM8N_position_t geoloc_position;
@@ -181,13 +178,22 @@ typedef struct {
 
 /*** MAIN global variables ***/
 
-#if (defined SSM) || (defined PM)
+#ifndef ATM
 static TKFX_context_t tkfx_ctx;
 #endif
 
 /*** MAIN functions ***/
 
-#if (defined SSM) || (defined PM)
+/*******************************************************************/
+static void _TKFX_motion_irq_callback(void) {
+#ifndef ATM
+	// Update variables.
+	tkfx_ctx.start_detection_irq_count++;
+	tkfx_ctx.last_motion_irq_time_seconds = RTC_get_time_seconds();
+#endif
+}
+
+#ifndef ATM
 /*******************************************************************/
 static void _TKFX_init_context(void) {
 	// Init context.
@@ -195,18 +201,12 @@ static void _TKFX_init_context(void) {
 	tkfx_ctx.mode = TKFX_MODE_ACTIVE;
 	tkfx_ctx.flags.all = 0;
 	tkfx_ctx.flags.por = 1;
-	tkfx_ctx.config = &TKFX_CONFIG;
 	tkfx_ctx.status.all = 0;
-#ifdef SSM
 	tkfx_ctx.status.tracker_mode = 0b00;
 	tkfx_ctx.start_detection_irq_count = 0;
-	tkfx_ctx.stop_detection_timer_seconds = 0;
-	tkfx_ctx.keep_alive_timer_seconds = 0;
-#endif
-	tkfx_ctx.geoloc_timer_seconds = 0;
-#ifdef PM
-	tkfx_ctx.status.tracker_mode = 0b01;
-#endif
+	tkfx_ctx.last_motion_irq_time_seconds = 0;
+	tkfx_ctx.monitoring_next_time_seconds = (TKFX_CONFIG.monitoring_period_seconds);
+	tkfx_ctx.geoloc_next_time_seconds = (TKFX_CONFIG.stopped_geoloc_period_seconds);
 	tkfx_ctx.geoloc_fix_duration_seconds = 0;
 }
 #endif
@@ -251,21 +251,21 @@ static void _TKFX_init_hw(void) {
 	LPTIM1_stack_error();
 	// Init components.
 	POWER_init();
-#ifdef SSM
-	MMA8653FC_init();
-#endif
+	MMA8653FC_init(&_TKFX_motion_irq_callback);
 #ifdef ATM
 	// Applicative layers.
 	AT_init();
 #endif
 }
 
-#if (defined SSM) || (defined PM)
+#ifndef ATM
 /*******************************************************************/
 static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* application_message) {
 	// Local variables.
 	SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
 	SIGFOX_EP_API_config_t lib_config;
+	// Disable motion interrupts.
+	MMA8653_disable_motion_interrupt();
 	// Library configuration.
 	lib_config.rc = &SIGFOX_RC1;
 	// Open library.
@@ -279,10 +279,15 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 	// Close library.
 	sigfox_ep_api_status = SIGFOX_EP_API_close();
 	SIGFOX_EP_API_stack_error();
+	// Re-enable motion interrupts if enabled.
+	if (tkfx_ctx.status.accelerometer_status != 0) {
+		// Enable interrupt.
+		MMA8653_enable_motion_interrupt();
+	}
 }
 #endif
 
-#if (defined SSM) || (defined PM)
+#ifndef ATM
 /*******************************************************************/
 int main (void) {
 	// Init board.
@@ -332,16 +337,21 @@ int main (void) {
 			break;
 		case TKFX_STATE_WAKEUP:
 			IWDG_reload();
-#ifdef SSM
-			// Disable accelerometer interrupt.
-			MMA8653FC_clear_motion_interrupt_flag();
-			MMA8653_disable_motion_interrupt();
-#endif
 			// Calibrate clocks.
 			rcc_status = RCC_calibrate();
 			RCC_stack_error();
 			// Compute next state.
-			tkfx_ctx.state = TKFX_STATE_MEASURE;
+			if (tkfx_ctx.flags.monitoring_request != 0) {
+				tkfx_ctx.state = TKFX_STATE_MEASURE;
+			}
+			else {
+				if (tkfx_ctx.flags.geoloc_request != 0) {
+					tkfx_ctx.state = TKFX_STATE_GEOLOC;
+				}
+				else {
+					tkfx_ctx.state = TKFX_STATE_OFF;
+				}
+			}
 			break;
 		case TKFX_STATE_MEASURE:
 			IWDG_reload();
@@ -382,7 +392,7 @@ int main (void) {
 			POWER_stack_error();
 			// Reset data.
 			tkfx_ctx.vsrc_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
-			tkfx_ctx.vcap_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
+			tkfx_ctx.vstr_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
 			if (adc1_status == ADC_SUCCESS) {
 				// Read VSRC.
 				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSRC_MV, &generic_data_u32);
@@ -390,32 +400,20 @@ int main (void) {
 				if (adc1_status == ADC_SUCCESS) {
 					tkfx_ctx.vsrc_mv = generic_data_u32;
 				}
-				// Read VCAP.
-				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VCAP_MV, &generic_data_u32);
+				// Read VSTR.
+				adc1_status = ADC1_get_data(ADC_DATA_INDEX_VSTR_MV, &generic_data_u32);
 				ADC1_stack_error();
 				if (adc1_status == ADC_SUCCESS) {
-					tkfx_ctx.vcap_mv = generic_data_u32;
+					tkfx_ctx.vstr_mv = generic_data_u32;
 				}
 			}
-			// Get GPS backup status.
-			tkfx_ctx.status.gps_backup_status = NEOM8N_get_backup();
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_MODE_UPDATE;
 			break;
 		case TKFX_STATE_MODE_UPDATE:
-#ifdef SSM
-			// Check supercap voltage.
-			tkfx_ctx.mode = (tkfx_ctx.vcap_mv < ((tkfx_ctx.config) -> active_mode_vcap_min_mv)) ? TKFX_MODE_LOW_POWER : TKFX_MODE_ACTIVE;
-#endif
-#ifdef PM
-			// Force mode to low power to disable accelerometer.
-			tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
-#endif
-			// Compute next state.
-			tkfx_ctx.state = TKFX_STATE_ACCELERO;
-			break;
-		case TKFX_STATE_ACCELERO:
 			IWDG_reload();
+			// Check storage voltage.
+			tkfx_ctx.mode = (tkfx_ctx.vstr_mv < TKFX_ACTIVE_MODE_VSTR_MIN_MV) ? TKFX_MODE_LOW_POWER : TKFX_MODE_ACTIVE;
 			// Configure accelerometer according to mode.
 			if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_status == 0) || (tkfx_ctx.flags.por != 0))) {
 				// Active mode.
@@ -439,11 +437,17 @@ int main (void) {
 				// Update status.
 				tkfx_ctx.status.accelerometer_status = 0;
 			}
+			// Disable GPS backup in low power mode.
+			if (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) {
+				NEOM8N_set_backup(0);
+			}
 			// Compute next state.
 			tkfx_ctx.state = (tkfx_ctx.flags.por != 0) ? TKFX_STATE_ERROR_STACK : TKFX_STATE_MONITORING;
 			break;
 		case TKFX_STATE_MONITORING:
 			IWDG_reload();
+			// Update GPS backup  status.
+			tkfx_ctx.status.gps_backup_status = NEOM8N_get_backup();
 			// Get clocks status.
 			rcc_status = RCC_get_status(RCC_CLOCK_LSI, &generic_data_u8);
 			RCC_stack_error();
@@ -455,50 +459,28 @@ int main (void) {
 			tkfx_ctx.sigfox_monitoring_data.tamb_degrees = tkfx_ctx.tamb_degrees;
 			tkfx_ctx.sigfox_monitoring_data.hamb_degrees = tkfx_ctx.hamb_percent;
 			tkfx_ctx.sigfox_monitoring_data.vsrc_mv = tkfx_ctx.vsrc_mv;
-			tkfx_ctx.sigfox_monitoring_data.vcap_mv = tkfx_ctx.vcap_mv;
+			tkfx_ctx.sigfox_monitoring_data.vstr_mv = tkfx_ctx.vstr_mv;
 			tkfx_ctx.sigfox_monitoring_data.status = tkfx_ctx.status.all;
 			// Send uplink monitoring frame.
 			application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_600BPS;
 			application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_monitoring_data.frame);
 			application_message.ul_payload_size_bytes = TKFX_SIGFOX_MONITORING_DATA_SIZE;
 			_TKFX_send_sigfox_message(&application_message);
+			// Reset flag and timer.
+			tkfx_ctx.flags.monitoring_request = 0;
 			// Compute next state.
-			tkfx_ctx.state = TKFX_STATE_GEOLOC_CHECK;
-			break;
-		case TKFX_STATE_GEOLOC_CHECK:
-#ifdef SSM
-			// Go to off state by default.
-			tkfx_ctx.state = TKFX_STATE_OFF;
-			// Check mode.
-			if (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) {
-				NEOM8N_set_backup(0);
-			}
-			else {
-				// Check stop detection.
-				if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.status.alarm_flag != 0)) {
-					tkfx_ctx.state = TKFX_STATE_GEOLOC;
-				}
-				else {
-					// Check inactivity period.
-					if ((((tkfx_ctx.config) -> inactivity_geoloc_enabled) != 0) && (tkfx_ctx.geoloc_timer_seconds >= ((tkfx_ctx.config) -> inactivity_threshold_seconds))) {
-						tkfx_ctx.state = TKFX_STATE_GEOLOC;
-					}
-				}
-			}
-#endif
-#ifdef PM
-			// Check geoloc period.
-			tkfx_ctx.state = (tkfx_ctx.geoloc_timer_seconds >= ((tkfx_ctx.config) -> geoloc_period_seconds)) ? TKFX_STATE_GEOLOC : TKFX_STATE_OFF;
-#endif
+			tkfx_ctx.state = (tkfx_ctx.flags.geoloc_request != 0) ? TKFX_STATE_GEOLOC : TKFX_STATE_OFF;
 			break;
 		case TKFX_STATE_GEOLOC:
 			IWDG_reload();
-			// Enable backup.
-			NEOM8N_set_backup(1);
+			// Enable backup if possible.
+			if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
+				NEOM8N_set_backup(1);
+			}
 			// Get position from GPS.
 			power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_STOP);
 			POWER_stack_error();
-			neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, ((tkfx_ctx.config) -> geoloc_timeout_seconds), ((tkfx_ctx.config) -> active_mode_vcap_min_mv), &tkfx_ctx.geoloc_fix_duration_seconds);
+			neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_ACTIVE_MODE_VSTR_MIN_MV, &tkfx_ctx.geoloc_fix_duration_seconds);
 			// Note: error is never stacked since it is indicated by the dedicated timeout frame.
 			power_status = POWER_disable(POWER_DOMAIN_GPS);
 			POWER_stack_error();
@@ -529,9 +511,8 @@ int main (void) {
 			}
 			// Send uplink geolocation frame.
 			_TKFX_send_sigfox_message(&application_message);
-			// Reset geoloc variables.
-			tkfx_ctx.geoloc_fix_duration_seconds = 0;
-			tkfx_ctx.geoloc_timer_seconds = 0,
+			// Reset flag and timer.
+			tkfx_ctx.flags.geoloc_request = 0;
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
 			break;
@@ -541,10 +522,10 @@ int main (void) {
 			// Check stack.
 			if (ERROR_stack_is_empty() == 0) {
 				// Read error stack.
-				for (idx=0 ; idx<(TKFX_SIGFOX_ERROR_STACK_DATA_SIZE / 2) ; idx++) {
+				for (idx=0 ; idx<(TKFX_SIGFOX_ERROR_STACK_DATA_SIZE >> 1) ; idx++) {
 					error_code = ERROR_stack_read();
-					tkfx_ctx.sigfox_error_stack_data[(2 * idx) + 0] = (uint8_t) ((error_code >> 8) & 0x00FF);
-					tkfx_ctx.sigfox_error_stack_data[(2 * idx) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
+					tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 0] = (uint8_t) ((error_code >> 8) & 0x00FF);
+					tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
 				}
 				// Send error stack frame.
 				application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_600BPS;
@@ -559,22 +540,6 @@ int main (void) {
 			IWDG_reload();
 			// Clear POR flag.
 			tkfx_ctx.flags.por = 0;
-#ifdef SSM
-			// Reset algorithm variables.
-			tkfx_ctx.start_detection_irq_count = 0;
-			tkfx_ctx.stop_detection_timer_seconds = 0;
-			tkfx_ctx.keep_alive_timer_seconds = 0;
-#endif
-			// Clear RTC flag.
-			RTC_clear_wakeup_timer_flag();
-#ifdef SSM
-			// Enable accelerometer interrupt if required.
-			if (tkfx_ctx.status.accelerometer_status != 0) {
-				// Enable interrupt.
-				MMA8653FC_clear_motion_interrupt_flag();
-				MMA8653_enable_motion_interrupt();
-			}
-#endif
 			// Enter sleep mode.
 			tkfx_ctx.state = TKFX_STATE_SLEEP;
 			break;
@@ -583,64 +548,67 @@ int main (void) {
 			IWDG_reload();
 			PWR_enter_stop_mode();
 			IWDG_reload();
-			// Check wake-up source.
+			// Periodic monitoring.
+			if (RTC_get_time_seconds() >= tkfx_ctx.monitoring_next_time_seconds) {
+				// Compute next time.
+				tkfx_ctx.monitoring_next_time_seconds += TKFX_CONFIG.monitoring_period_seconds;
+				// Update requests.
+				tkfx_ctx.flags.monitoring_request = 1;
+				// Update status.
+				tkfx_ctx.status.alarm_flag = 0;
+				// Turn tracker on to send monitoring message.
+				tkfx_ctx.state = TKFX_STATE_WAKEUP;
+			}
+			// Periodic geolocation.
+			if (RTC_get_time_seconds() >= tkfx_ctx.geoloc_next_time_seconds) {
+				// Compute next time.
+				generic_data_u32 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_CONFIG.stopped_geoloc_period_seconds : TKFX_CONFIG.moving_geoloc_period_seconds;
+				tkfx_ctx.geoloc_next_time_seconds += generic_data_u32;
+				// Check mode.
+				if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
+					// Update requests.
+					tkfx_ctx.flags.geoloc_request = 1;
+					// Update flags.
+					tkfx_ctx.status.alarm_flag = 0;
+					// Turn tracker on to perform periodic geolocation.
+					tkfx_ctx.state = TKFX_STATE_WAKEUP;
+				}
+			}
+			// Start detection.
+			if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.start_detection_irq_count > TKFX_CONFIG.start_detection_threshold_irq) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+				// Update requests.
+				tkfx_ctx.flags.monitoring_request = 1;
+				// Update status.
+				tkfx_ctx.status.moving_flag = 1;
+				tkfx_ctx.status.alarm_flag = 1;
+				// Always reset timers on event.
+				tkfx_ctx.monitoring_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.monitoring_period_seconds;
+				tkfx_ctx.geoloc_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.moving_geoloc_period_seconds;
+				// Turn tracker on to send start alarm.
+				tkfx_ctx.state = TKFX_STATE_WAKEUP;
+			}
+			// Stop detection.
+			if ((tkfx_ctx.status.moving_flag != 0) && (RTC_get_time_seconds() >= (tkfx_ctx.last_motion_irq_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+				// Update requests.
+				tkfx_ctx.flags.monitoring_request = 1;
+				tkfx_ctx.flags.geoloc_request = 1;
+				// Update status.
+				tkfx_ctx.status.moving_flag = 0;
+				tkfx_ctx.status.alarm_flag = 1;
+				// Always reset timers on event.
+				tkfx_ctx.monitoring_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.monitoring_period_seconds;
+				tkfx_ctx.geoloc_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.stopped_geoloc_period_seconds;
+				// Turn tracker on to send stop alarm.
+				tkfx_ctx.state = TKFX_STATE_WAKEUP;
+			}
+			// Periodic motion IRQ count decrementing.
 			if (RTC_get_wakeup_timer_flag() != 0) {
-				// Increment timers.
-				tkfx_ctx.geoloc_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
-#ifdef SSM
 				// Decrement IRQ count.
 				if (tkfx_ctx.start_detection_irq_count > 0) {
 					tkfx_ctx.start_detection_irq_count--;
 				}
-				// Increment timers.
-				tkfx_ctx.keep_alive_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
-				tkfx_ctx.stop_detection_timer_seconds += RTC_WAKEUP_PERIOD_SECONDS;
-				// Check keep-alive period.
-				if (tkfx_ctx.keep_alive_timer_seconds >= ((tkfx_ctx.config) -> keep_alive_period_seconds)) {
-					// Reset alarm flag.
-					tkfx_ctx.status.alarm_flag = 0;
-					// Turn tracker on to send keep-alive.
-					tkfx_ctx.state = TKFX_STATE_WAKEUP;
-				}
-#endif
-#ifdef PM
-				// Check geoloc period.
-				if (tkfx_ctx.geoloc_timer_seconds >= ((tkfx_ctx.config) -> geoloc_period_seconds)) {
-					// Reset alarm flag.
-					tkfx_ctx.status.alarm_flag = 0;
-					// Turn tracker on to send keep-alive.
-					tkfx_ctx.state = TKFX_STATE_WAKEUP;
-				}
-#endif
-				// Clear RTC flags.
 				RTC_clear_wakeup_timer_flag();
 			}
-#ifdef SSM
-			if (MMA8653FC_get_motion_interrupt_flag() != 0) {
-				// Increment IRQ count and reset stop timer.
-				tkfx_ctx.start_detection_irq_count++;
-				tkfx_ctx.stop_detection_timer_seconds = 0;
-				// Wake-up from accelerometer interrupt.
-				if ((tkfx_ctx.status.moving_flag == 0) && ((tkfx_ctx.start_detection_irq_count) > ((tkfx_ctx.config) -> start_detection_threshold_irq))) {
-					// Start condition detected.
-					tkfx_ctx.status.moving_flag = 1;
-					tkfx_ctx.status.alarm_flag = 1;
-					// Turn tracker on to send start alarm.
-					tkfx_ctx.state = TKFX_STATE_WAKEUP;
-				}
-				MMA8653FC_clear_motion_interrupt_flag();
-			}
-			else {
-				// No movement detected.
-				if ((tkfx_ctx.stop_detection_timer_seconds >= ((tkfx_ctx.config) -> stop_detection_threshold_seconds)) && (tkfx_ctx.status.moving_flag != 0)) {
-					// Stop condition detected.
-					tkfx_ctx.status.moving_flag = 0;
-					tkfx_ctx.status.alarm_flag = 1;
-					// Turn tracker on to send stop alarm.
-					tkfx_ctx.state = TKFX_STATE_WAKEUP;
-				}
-			}
-#endif
 			break;
 		default:
 			// Unknown state.
