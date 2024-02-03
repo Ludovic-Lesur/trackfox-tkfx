@@ -21,20 +21,33 @@
 #define TKFX_ACTIVE_MODE_VSTR_MIN_MV		1500
 #define TKFX_GEOLOC_TIMEOUT_SECONDS			180
 
+#define TKFX_MODE_CAR
+//#define TKFX_MODE_BIKE
+//#define TKFX_MODE_HIKING
+
 /*!******************************************************************
  * \struct TKFX_configuration_t
  * \brief Tracker configuration structure.
  *******************************************************************/
 typedef struct {
-	uint32_t start_detection_threshold_irq; // Number of accelerometer interrupts required to trigger start condition.
-	uint32_t stop_detection_threshold_seconds; // Delay required to trigger stop condition.
+	uint32_t start_detection_threshold_irq;
+	uint32_t stop_detection_threshold_seconds;
 	uint32_t moving_geoloc_period_seconds;
 	uint32_t stopped_geoloc_period_seconds;
 	uint32_t monitoring_period_seconds;
 } TKFX_configuration_t;
 
-static const TKFX_configuration_t TKFX_CONFIG = {0, 300, 600, 86400, 3600}; // Car.
-//static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 1200, 86400, 3600}; // Hiking.
-//static const TKFX_configuration_t TKFX_CONFIG = {5, 300, 600, 86400, 3600}; // Bike.
+#ifdef TKFX_MODE_CAR
+#define TKFX_MODE	0b00
+static const TKFX_configuration_t TKFX_CONFIG = {0, 300, 600, 86400, 3600};
+#endif
+#ifdef TKFX_MODE_BIKE
+#define TKFX_MODE	0b01
+static const TKFX_configuration_t TKFX_CONFIG = {5, 300, 600, 86400, 3600};
+#endif
+#ifdef TKFX_MODE_HIKING
+#define TKFX_MODE	0b10
+static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 1200, 86400, 3600};
+#endif
 
 #endif /* __MODE_H__ */

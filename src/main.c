@@ -202,7 +202,7 @@ static void _TKFX_init_context(void) {
 	tkfx_ctx.flags.all = 0;
 	tkfx_ctx.flags.por = 1;
 	tkfx_ctx.status.all = 0;
-	tkfx_ctx.status.tracker_mode = 0b00;
+	tkfx_ctx.status.tracker_mode = TKFX_MODE;
 	tkfx_ctx.start_detection_irq_count = 0;
 	tkfx_ctx.last_motion_irq_time_seconds = 0;
 	tkfx_ctx.monitoring_next_time_seconds = (TKFX_CONFIG.monitoring_period_seconds);
