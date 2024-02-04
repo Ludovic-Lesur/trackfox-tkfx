@@ -344,17 +344,7 @@ int main (void) {
 			// Reset GPS status for mode update.
 			neom8n_status = NEOM8N_SUCCESS;
 			// Compute next state.
-			if (tkfx_ctx.flags.monitoring_request != 0) {
-				tkfx_ctx.state = TKFX_STATE_MEASURE;
-			}
-			else {
-				if (tkfx_ctx.flags.geoloc_request != 0) {
-					tkfx_ctx.state = TKFX_STATE_GEOLOC;
-				}
-				else {
-					tkfx_ctx.state = TKFX_STATE_MODE_UPDATE;
-				}
-			}
+			tkfx_ctx.state = ((tkfx_ctx.flags.monitoring_request != 0) || (tkfx_ctx.flags.geoloc_request != 0)) ? TKFX_STATE_MEASURE : TKFX_STATE_MODE_UPDATE;
 			break;
 		case TKFX_STATE_MEASURE:
 			IWDG_reload();
@@ -411,7 +401,17 @@ int main (void) {
 				}
 			}
 			// Compute next state.
-			tkfx_ctx.state = TKFX_STATE_MONITORING;
+			if (tkfx_ctx.flags.monitoring_request != 0) {
+				tkfx_ctx.state = TKFX_STATE_MONITORING;
+			}
+			else {
+				if (tkfx_ctx.flags.geoloc_request != 0) {
+					tkfx_ctx.state = TKFX_STATE_GEOLOC;
+				}
+				else {
+					tkfx_ctx.state = TKFX_STATE_MODE_UPDATE;
+				}
+			}
 			break;
 		case TKFX_STATE_MONITORING:
 			IWDG_reload();
@@ -457,6 +457,10 @@ int main (void) {
 				application_message.ul_payload_size_bytes = TKFX_SIGFOX_ERROR_STACK_DATA_SIZE;
 				_TKFX_send_sigfox_message(&application_message);
 			}
+			// Change error value for VSTR threshold check.
+			if (tkfx_ctx.vstr_mv == TKFX_ERROR_VALUE_ANALOG_16BITS) {
+				tkfx_ctx.vstr_mv = 0;
+			}
 			// Compute next state.
 			tkfx_ctx.state = (tkfx_ctx.flags.geoloc_request != 0) ? TKFX_STATE_GEOLOC : TKFX_STATE_MODE_UPDATE;
 			break;
@@ -466,13 +470,21 @@ int main (void) {
 			if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
 				NEOM8N_set_backup(1);
 			}
-			// Get position from GPS.
-			power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_STOP);
-			POWER_stack_error();
-			neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_ACTIVE_MODE_VSTR_MIN_MV, &tkfx_ctx.geoloc_fix_duration_seconds);
-			// Note: error is never stacked since it is indicated by the dedicated timeout frame.
-			power_status = POWER_disable(POWER_DOMAIN_GPS);
-			POWER_stack_error();
+			// Reset fix duration.
+			tkfx_ctx.geoloc_fix_duration_seconds = 0;
+			// Pre-check storage voltage.
+			if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_VSTR_MIN_MV) {
+				// Get position from GPS.
+				power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_STOP);
+				POWER_stack_error();
+				neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_ACTIVE_MODE_VSTR_MIN_MV, &tkfx_ctx.geoloc_fix_duration_seconds);
+				// Note: error is never stacked since it is indicated by the dedicated timeout frame.
+				power_status = POWER_disable(POWER_DOMAIN_GPS);
+				POWER_stack_error();
+			}
+			else {
+				neom8n_status = NEOM8N_ERROR_VSTR_THRESHOLD;
+			}
 			// Build Sigfox frame.
 			if (neom8n_status == NEOM8N_SUCCESS) {
 				tkfx_ctx.sigfox_geoloc_data.latitude_degrees = tkfx_ctx.geoloc_position.lat_degrees;
