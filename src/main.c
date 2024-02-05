@@ -570,6 +570,8 @@ int main (void) {
 			IWDG_reload();
 			// Clear POR flag.
 			tkfx_ctx.flags.por = 0;
+			// Reset IRQ count.
+			tkfx_ctx.start_detection_irq_count = 0;
 			// Enter sleep mode.
 			tkfx_ctx.state = TKFX_STATE_SLEEP;
 			break;
@@ -617,19 +619,21 @@ int main (void) {
 				// Turn tracker on to send start alarm.
 				tkfx_ctx.state = TKFX_STATE_WAKEUP;
 			}
-			// Stop detection.
-			if ((tkfx_ctx.status.moving_flag != 0) && (RTC_get_time_seconds() >= (tkfx_ctx.last_motion_irq_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
-				// Update requests.
-				tkfx_ctx.flags.monitoring_request = 1;
-				tkfx_ctx.flags.geoloc_request = 1;
-				// Update status.
-				tkfx_ctx.status.moving_flag = 0;
-				tkfx_ctx.status.alarm_flag = 1;
-				// Always reset timers on event.
-				tkfx_ctx.monitoring_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.monitoring_period_seconds;
-				tkfx_ctx.geoloc_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.stopped_geoloc_period_seconds;
-				// Turn tracker on to send stop alarm.
-				tkfx_ctx.state = TKFX_STATE_WAKEUP;
+			else {
+				// Stop detection.
+				if ((tkfx_ctx.status.moving_flag != 0) && (RTC_get_time_seconds() >= (tkfx_ctx.last_motion_irq_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+					// Update requests.
+					tkfx_ctx.flags.monitoring_request = 1;
+					tkfx_ctx.flags.geoloc_request = 1;
+					// Update status.
+					tkfx_ctx.status.moving_flag = 0;
+					tkfx_ctx.status.alarm_flag = 1;
+					// Always reset timers on event.
+					tkfx_ctx.monitoring_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.monitoring_period_seconds;
+					tkfx_ctx.geoloc_next_time_seconds = RTC_get_time_seconds() + TKFX_CONFIG.stopped_geoloc_period_seconds;
+					// Turn tracker on to send stop alarm.
+					tkfx_ctx.state = TKFX_STATE_WAKEUP;
+				}
 			}
 			// Periodic motion IRQ count decrementing.
 			if (RTC_get_wakeup_timer_flag() != 0) {
