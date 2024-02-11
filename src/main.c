@@ -485,7 +485,11 @@ int main (void) {
 				neom8n_status = NEOM8N_ERROR_VSTR_THRESHOLD;
 			}
 			// Compute bit rate according to tracker motion state.
+#ifdef TKFX_MODE_HIKING
+			application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
+#else
 			application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.moving_flag == 0) ? SIGFOX_UL_BIT_RATE_100BPS : SIGFOX_UL_BIT_RATE_600BPS;
+#endif
 			// Build Sigfox frame.
 			if (neom8n_status == NEOM8N_SUCCESS) {
 				tkfx_ctx.sigfox_geoloc_data.latitude_degrees = tkfx_ctx.geoloc_position.lat_degrees;
