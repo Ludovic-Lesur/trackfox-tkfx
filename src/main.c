@@ -329,7 +329,7 @@ int main (void) {
 			tkfx_ctx.sigfox_startup_data.commit_id = GIT_COMMIT_ID;
 			tkfx_ctx.sigfox_startup_data.dirty_flag = GIT_DIRTY_FLAG;
 			// Send SW version frame.
-			application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_600BPS;
+			application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
 			application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_startup_data.frame);
 			application_message.ul_payload_size_bytes = TKFX_SIGFOX_STARTUP_DATA_SIZE;
 			_TKFX_send_sigfox_message(&application_message);
@@ -431,7 +431,7 @@ int main (void) {
 			tkfx_ctx.sigfox_monitoring_data.vstr_mv = tkfx_ctx.vstr_mv;
 			tkfx_ctx.sigfox_monitoring_data.status = tkfx_ctx.status.all;
 			// Send uplink monitoring frame.
-			application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_600BPS;
+			application_message.common_parameters.ul_bit_rate = ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && (tkfx_ctx.status.moving_flag == 0)) ? SIGFOX_UL_BIT_RATE_100BPS : SIGFOX_UL_BIT_RATE_600BPS;
 			application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_monitoring_data.frame);
 			application_message.ul_payload_size_bytes = TKFX_SIGFOX_MONITORING_DATA_SIZE;
 			_TKFX_send_sigfox_message(&application_message);
@@ -452,7 +452,6 @@ int main (void) {
 					tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
 				}
 				// Send error stack frame.
-				application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_600BPS;
 				application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_error_stack_data);
 				application_message.ul_payload_size_bytes = TKFX_SIGFOX_ERROR_STACK_DATA_SIZE;
 				_TKFX_send_sigfox_message(&application_message);
@@ -485,6 +484,8 @@ int main (void) {
 			else {
 				neom8n_status = NEOM8N_ERROR_VSTR_THRESHOLD;
 			}
+			// Compute bit rate according to tracker motion state.
+			application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.moving_flag == 0) ? SIGFOX_UL_BIT_RATE_100BPS : SIGFOX_UL_BIT_RATE_600BPS;
 			// Build Sigfox frame.
 			if (neom8n_status == NEOM8N_SUCCESS) {
 				tkfx_ctx.sigfox_geoloc_data.latitude_degrees = tkfx_ctx.geoloc_position.lat_degrees;
@@ -498,7 +499,6 @@ int main (void) {
 				tkfx_ctx.sigfox_geoloc_data.altitude_meters = tkfx_ctx.geoloc_position.altitude;
 				tkfx_ctx.sigfox_geoloc_data.gps_fix_duration_seconds = tkfx_ctx.geoloc_fix_duration_seconds;
 				// Update message parameters.
-				application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
 				application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_geoloc_data.frame);
 				application_message.ul_payload_size_bytes = TKFX_SIGFOX_GEOLOC_DATA_SIZE;
 			}
@@ -506,7 +506,6 @@ int main (void) {
 				tkfx_ctx.sigfox_geoloc_timeout_data.error_code = (ERROR_BASE_NEOM8N + neom8n_status);
 				tkfx_ctx.sigfox_geoloc_timeout_data.fix_duration_seconds = tkfx_ctx.geoloc_fix_duration_seconds;
 				// Update message parameters.
-				application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
 				application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_geoloc_timeout_data.frame);
 				application_message.ul_payload_size_bytes = TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_SIZE;
 			}

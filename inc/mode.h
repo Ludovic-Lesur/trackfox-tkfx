@@ -39,15 +39,15 @@ typedef struct {
 
 #ifdef TKFX_MODE_CAR
 #define TKFX_MODE	0b00
-static const TKFX_configuration_t TKFX_CONFIG = {0, 300, 600, 86400, 3600};
+static const TKFX_configuration_t TKFX_CONFIG = {0, 150, 300, 86400, 3600};
 #endif
 #ifdef TKFX_MODE_BIKE
 #define TKFX_MODE	0b01
-static const TKFX_configuration_t TKFX_CONFIG = {5, 300, 600, 86400, 3600};
+static const TKFX_configuration_t TKFX_CONFIG = {5, 150, 300, 86400, 3600};
 #endif
 #ifdef TKFX_MODE_HIKING
 #define TKFX_MODE	0b10
-static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 1200, 86400, 3600};
+static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 600, 86400, 3600};
 #endif
 
 #endif /* __MODE_H__ */
