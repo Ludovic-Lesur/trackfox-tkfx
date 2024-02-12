@@ -46,6 +46,8 @@
 #define TKFX_ERROR_VALUE_ANALOG_16BITS			0xFFFF
 #define TKFX_ERROR_VALUE_TEMPERATURE			0x7F
 #define TKFX_ERROR_VALUE_HUMIDITY				0xFF
+// Error stack message period.
+#define TKFX_ERROR_STACK_PERIOD_SECONDS			86400
 
 /*** MAIN structures ***/
 
@@ -158,6 +160,7 @@ typedef struct {
 	volatile uint32_t last_motion_irq_time_seconds;
 	uint32_t monitoring_next_time_seconds;
 	uint32_t geoloc_next_time_seconds;
+	uint32_t error_stack_next_time_seconds;
 	// SW version.
 	TKFX_sigfox_startup_data_t sigfox_startup_data;
 	// Monitoring.
@@ -208,6 +211,7 @@ static void _TKFX_init_context(void) {
 	tkfx_ctx.last_motion_irq_time_seconds = 0;
 	tkfx_ctx.monitoring_next_time_seconds = TKFX_CONFIG.monitoring_period_seconds;
 	tkfx_ctx.geoloc_next_time_seconds = TKFX_CONFIG.stopped_geoloc_period_seconds;
+	tkfx_ctx.error_stack_next_time_seconds = 0;
 	tkfx_ctx.geoloc_fix_duration_seconds = 0;
 }
 #endif
@@ -431,34 +435,40 @@ int main (void) {
 			tkfx_ctx.sigfox_monitoring_data.vstr_mv = tkfx_ctx.vstr_mv;
 			tkfx_ctx.sigfox_monitoring_data.status = tkfx_ctx.status.all;
 			// Send uplink monitoring frame.
-			application_message.common_parameters.ul_bit_rate = ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && (tkfx_ctx.status.moving_flag == 0)) ? SIGFOX_UL_BIT_RATE_100BPS : SIGFOX_UL_BIT_RATE_600BPS;
+			application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.alarm_flag == 0) ? SIGFOX_UL_BIT_RATE_600BPS : SIGFOX_UL_BIT_RATE_100BPS;
 			application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_monitoring_data.frame);
 			application_message.ul_payload_size_bytes = TKFX_SIGFOX_MONITORING_DATA_SIZE;
 			_TKFX_send_sigfox_message(&application_message);
 			// Reset flag and timer.
 			tkfx_ctx.flags.monitoring_request = 0;
+			// Change error value for mode update.
+			if (tkfx_ctx.vstr_mv == TKFX_ERROR_VALUE_ANALOG_16BITS) {
+				tkfx_ctx.vstr_mv = 0;
+			}
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
 			break;
 		case TKFX_STATE_ERROR_STACK:
-			// Import Sigfox library error stack.
-			ERROR_import_sigfox_stack();
-			// Check stack.
-			if (ERROR_stack_is_empty() == 0) {
-				// Read error stack.
-				for (idx=0 ; idx<(TKFX_SIGFOX_ERROR_STACK_DATA_SIZE >> 1) ; idx++) {
-					error_code = ERROR_stack_read();
-					tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 0] = (uint8_t) ((error_code >> 8) & 0x00FF);
-					tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
+			// Check period.
+			if (RTC_get_time_seconds() >= tkfx_ctx.error_stack_next_time_seconds) {
+				// Import Sigfox library error stack.
+				ERROR_import_sigfox_stack();
+				// Check stack.
+				if (ERROR_stack_is_empty() == 0) {
+					// Read error stack.
+					for (idx=0 ; idx<(TKFX_SIGFOX_ERROR_STACK_DATA_SIZE >> 1) ; idx++) {
+						error_code = ERROR_stack_read();
+						tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 0] = (uint8_t) ((error_code >> 8) & 0x00FF);
+						tkfx_ctx.sigfox_error_stack_data[(idx << 1) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
+					}
+					// Update next time.
+					tkfx_ctx.error_stack_next_time_seconds = RTC_get_time_seconds() + TKFX_ERROR_STACK_PERIOD_SECONDS;
+					// Send error stack frame.
+					application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
+					application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_error_stack_data);
+					application_message.ul_payload_size_bytes = TKFX_SIGFOX_ERROR_STACK_DATA_SIZE;
+					_TKFX_send_sigfox_message(&application_message);
 				}
-				// Send error stack frame.
-				application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_error_stack_data);
-				application_message.ul_payload_size_bytes = TKFX_SIGFOX_ERROR_STACK_DATA_SIZE;
-				_TKFX_send_sigfox_message(&application_message);
-			}
-			// Change error value for VSTR threshold check.
-			if (tkfx_ctx.vstr_mv == TKFX_ERROR_VALUE_ANALOG_16BITS) {
-				tkfx_ctx.vstr_mv = 0;
 			}
 			// Compute next state.
 			tkfx_ctx.state = (tkfx_ctx.flags.geoloc_request != 0) ? TKFX_STATE_GEOLOC : TKFX_STATE_MODE_UPDATE;
