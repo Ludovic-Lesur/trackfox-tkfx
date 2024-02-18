@@ -48,6 +48,9 @@
 #define TKFX_ERROR_VALUE_HUMIDITY				0xFF
 // Error stack message period.
 #define TKFX_ERROR_STACK_PERIOD_SECONDS			86400
+// Altitude stability filter.
+#define TKFX_ALTITUDE_STABILITY_FILTER_MOVING	2
+#define TKFX_ALTITUDE_STABILITY_FILTER_STOPPED	5
 
 /*** MAIN structures ***/
 
@@ -479,6 +482,8 @@ int main (void) {
 			if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
 				NEOM8N_set_backup(1);
 			}
+			// Configure altitude stability filter.
+			generic_data_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_ALTITUDE_STABILITY_FILTER_MOVING;
 			// Reset fix duration.
 			tkfx_ctx.geoloc_fix_duration_seconds = 0;
 			// Pre-check storage voltage.
@@ -486,7 +491,7 @@ int main (void) {
 				// Get position from GPS.
 				power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_STOP);
 				POWER_stack_error();
-				neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_ACTIVE_MODE_VSTR_MIN_MV, &tkfx_ctx.geoloc_fix_duration_seconds);
+				neom8n_status = NEOM8N_get_position(&tkfx_ctx.geoloc_position, TKFX_GEOLOC_TIMEOUT_SECONDS, TKFX_ACTIVE_MODE_VSTR_MIN_MV, generic_data_u8, &tkfx_ctx.geoloc_fix_duration_seconds);
 				// Note: error is never stacked since it is indicated by the dedicated timeout frame.
 				power_status = POWER_disable(POWER_DOMAIN_GPS);
 				POWER_stack_error();

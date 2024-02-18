@@ -47,8 +47,6 @@
 #define NMEA_GGA_EAST						'E'
 #define NMEA_GGA_WEST						'W'
 #define NMEA_GGA_METERS						'M'
-#define NMEA_GGA_ALTITUDE_STABILITY_FILTER	// Enable altitude stability filter if defined.
-#define NMEA_GGA_ALTITUDE_STABILITY_COUNT	3
 
 #define NEOM8N_TIMEPULSE_FREQUENCY_MAX_HZ	10000000
 
@@ -127,14 +125,12 @@ typedef union {
 /*******************************************************************/
 typedef struct {
 	// Buffers.
-	char_t rx_buffer0[NMEA_RX_BUFFER_SIZE]; // NMEA input messages buffer 1.
-	char_t rx_buffer1[NMEA_RX_BUFFER_SIZE]; // NMEA input messages buffer 2.
+	char_t rx_buffer0[NMEA_RX_BUFFER_SIZE];
+	char_t rx_buffer1[NMEA_RX_BUFFER_SIZE];
 	volatile NEOM8N_flags_t flags;
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
-	// GGA quality filter.
-	uint8_t gga_same_altitude_count; // Number of consecutive same altitudes.
+	// Altitude stability filter.
+	uint8_t gga_same_altitude_count;
 	uint32_t gga_previous_altitude;
-#endif
 } NEOM8N_context_t;
 
 /*** NEOM8N local global variables ***/
@@ -664,10 +660,8 @@ errors:
 	// Init context.
 	for (idx=0 ; idx<NMEA_RX_BUFFER_SIZE ; idx++) neom8n_ctx.rx_buffer0[idx] = 0;
 	for (idx=0 ; idx<NMEA_RX_BUFFER_SIZE ; idx++) neom8n_ctx.rx_buffer1[idx] = 0;
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 	neom8n_ctx.gga_same_altitude_count = 0;
 	neom8n_ctx.gga_previous_altitude = 0;
-#endif
 	return status;
 }
 
@@ -765,7 +759,7 @@ errors:
 }
 
 /*******************************************************************/
-NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vstr_min_mv, uint32_t* fix_duration_seconds) {
+NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vstr_min_mv, uint8_t altitude_stability_filter_count, uint32_t* fix_duration_seconds) {
 	// Local variables.
 	NEOM8N_status_t status = NEOM8N_SUCCESS;
 	ADC_status_t adc1_status = ADC_SUCCESS;
@@ -773,9 +767,7 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 	uint8_t valid_data_flag = 0;
 	uint8_t external_wakeup_count = 0;
 	uint32_t vstr_mv = 0;
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 	NEOM8N_position_t local_position;
-#endif
 	// Check parameters.
 	if ((gps_position == NULL) || (fix_duration_seconds == NULL)) {
 		status = NEOM8N_ERROR_NULL_PARAMETER;
@@ -785,11 +777,9 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 		status = NEOM8N_ERROR_TIMEOUT;
 		goto errors;
 	}
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
-	// Reset filter.
+	// Reset altitude filter.
 	neom8n_ctx.gga_same_altitude_count = 0;
 	neom8n_ctx.gga_previous_altitude = 0;
-#endif
 	// Reset fix duration.
 	(*fix_duration_seconds) = 0;
 	// Select GGA message to get complete position.
@@ -825,22 +815,13 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 			// Decode incoming NMEA message.
 			if (neom8n_ctx.flags.fill_buffer0 != 0) {
 				// Buffer 1 is currently filled by DMA, buffer 2 is available for parsing.
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 				status = _NEOM8N_parse_nmea_gga(neom8n_ctx.rx_buffer1, &local_position);
-#else
-				status = _NEOM8N_parse_nmea_gga(neom8n_ctx.rx_buffer1, gps_position);
-#endif
 			}
 			else {
 				// Buffer 2 is currently filled by DMA, buffer 1 is available for parsing.
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 				status = _NEOM8N_parse_nmea_gga(neom8n_ctx.rx_buffer0, &local_position);
-#else
-				status = _NEOM8N_parse_nmea_gga(neom8n_ctx.rx_buffer0, gps_position);
-#endif
 			}
 			// Check decoding result.
-#ifdef NMEA_GGA_ALTITUDE_STABILITY_FILTER
 			if (status == NEOM8N_SUCCESS) {
 				// Store valid data.
 				(gps_position -> lat_degrees) = local_position.lat_degrees;
@@ -854,10 +835,12 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 				(gps_position -> altitude) = local_position.altitude;
 				// Update flag.
 				valid_data_flag = 1;
+				// Directly exit if the filter is disabled.
+				if (altitude_stability_filter_count < 2) break;
 				// Manage altitude stability count.
 				if ((gps_position -> altitude) == neom8n_ctx.gga_previous_altitude) {
 					neom8n_ctx.gga_same_altitude_count++;
-					if (neom8n_ctx.gga_same_altitude_count > NMEA_GGA_ALTITUDE_STABILITY_COUNT) break;
+					if (neom8n_ctx.gga_same_altitude_count >= (altitude_stability_filter_count - 1)) break;
 				}
 				else {
 					neom8n_ctx.gga_same_altitude_count = 0;
@@ -868,12 +851,6 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 			else {
 				neom8n_ctx.gga_same_altitude_count = 0;
 			}
-#else
-			if (status == NEOM8N_SUCCESS) {
-				valid_data_flag = 1;
-				break;
-			}
-#endif
 			// Wait for next message.
 			neom8n_ctx.flags.line_end = 0;
 			// Check supercap voltage.
