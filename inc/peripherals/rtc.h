@@ -67,7 +67,7 @@ RTC_status_t RTC_init(void);
  * \param[out] 	none
  * \retval		RTC wakeup timer flag.
  *******************************************************************/
-volatile uint8_t RTC_get_wakeup_timer_flag(void);
+uint8_t RTC_get_wakeup_timer_flag(void);
 
 /*!******************************************************************
  * \fn void RTC_clear_wakeup_timer_flag(void)

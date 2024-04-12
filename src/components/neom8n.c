@@ -125,8 +125,8 @@ typedef union {
 /*******************************************************************/
 typedef struct {
 	// Buffers.
-	char_t rx_buffer0[NMEA_RX_BUFFER_SIZE];
-	char_t rx_buffer1[NMEA_RX_BUFFER_SIZE];
+	volatile char_t rx_buffer0[NMEA_RX_BUFFER_SIZE];
+	volatile char_t rx_buffer1[NMEA_RX_BUFFER_SIZE];
 	volatile NEOM8N_flags_t flags;
 	// Altitude stability filter.
 	uint8_t gga_same_altitude_count;
@@ -187,13 +187,13 @@ static NEOM8N_status_t _NEOM8N_compute_ubx_checksum(uint8_t* neom8n_command, uin
 		goto errors;
 	}
 	// See algorithm on p.136 of NEO-M8 programming manual.
-	for (checksum_idx=NEOM8N_CHECKSUM_OFFSET ; checksum_idx<(NEOM8N_CHECKSUM_OFFSET+NEOM8N_CHECKSUM_OVERHEAD_SIZE+payload_length) ; checksum_idx++) {
+	for (checksum_idx=NEOM8N_CHECKSUM_OFFSET ; checksum_idx<((uint32_t) (NEOM8N_CHECKSUM_OFFSET + NEOM8N_CHECKSUM_OVERHEAD_SIZE + payload_length)) ; checksum_idx++) {
 		ck_a = ck_a + neom8n_command[checksum_idx];
 		ck_b = ck_b + ck_a;
 	}
 	// Fill two last bytes of the NEOM8N message with CK_A and CK_B.
-	neom8n_command[checksum_idx] = ck_a;
-	neom8n_command[checksum_idx+1] = ck_b;
+	neom8n_command[checksum_idx + 0] = ck_a;
+	neom8n_command[checksum_idx + 1] = ck_b;
 errors:
 	return status;
 }
@@ -621,7 +621,7 @@ errors:
 }
 
 /*******************************************************************/
-static void _NEOM8N_start(uint32_t timeout_seconds) {
+static void _NEOM8N_start(void) {
 	// Start DMA.
 	DMA1_CH6_stop();
 	neom8n_ctx.flags.all = 0;
@@ -672,13 +672,14 @@ void NEOM8N_de_init(void) {
 	LPUART1_de_init();
 }
 
+#ifdef HW1_1
 /*******************************************************************/
 void NEOM8N_set_backup(uint8_t state) {
-#ifdef HW1_1
+
 	// Set backup pin.
 	GPIO_write(&GPIO_GPS_VBCKP, state);
-#endif
 }
+#endif
 
 /*******************************************************************/
 uint8_t NEOM8N_get_backup(void) {
@@ -712,7 +713,7 @@ NEOM8N_status_t NEOM8N_get_time(RTC_time_t* gps_time, uint32_t timeout_seconds, 
 	status = _NEOM8N_select_nmea_messages(NMEA_ZDA_MASK);
 	if (status != NEOM8N_SUCCESS) goto errors;
 	// Start NMEA reception.
-	_NEOM8N_start(timeout_seconds);
+	_NEOM8N_start();
 	// Loop until data is retrieved or timeout expired.
 	while ((*fix_duration_seconds) < timeout_seconds) {
 		// Wait for NMEA frame.
@@ -737,10 +738,10 @@ NEOM8N_status_t NEOM8N_get_time(RTC_time_t* gps_time, uint32_t timeout_seconds, 
 		if (neom8n_ctx.flags.line_end != 0) {
 			// Decode incoming NMEA message.
 			if (neom8n_ctx.flags.fill_buffer0 != 0) {
-				status = _NEOM8N_parse_nmea_zda(neom8n_ctx.rx_buffer1, gps_time); // Buffer 1 is currently filled by DMA, buffer 2 is available for parsing.
+				status = _NEOM8N_parse_nmea_zda((char_t*) neom8n_ctx.rx_buffer1, gps_time); // Buffer 1 is currently filled by DMA, buffer 2 is available for parsing.
 			}
 			else {
-				status = _NEOM8N_parse_nmea_zda(neom8n_ctx.rx_buffer0, gps_time); // Buffer 2 is currently filled by DMA, buffer 1 is available for parsing.
+				status = _NEOM8N_parse_nmea_zda((char_t*) neom8n_ctx.rx_buffer0, gps_time); // Buffer 2 is currently filled by DMA, buffer 1 is available for parsing.
 			}
 			// Wait for next message.
 			neom8n_ctx.flags.line_end = 0;
@@ -789,7 +790,7 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 	power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
 	POWER_stack_error();
 	// Start NMEA reception.
-	_NEOM8N_start(timeout_seconds);
+	_NEOM8N_start();
 	// Loop until data is retrieved or timeout expired.
 	while ((*fix_duration_seconds) < timeout_seconds) {
 		// Wait for NMEA frame.
@@ -815,11 +816,11 @@ NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t ti
 			// Decode incoming NMEA message.
 			if (neom8n_ctx.flags.fill_buffer0 != 0) {
 				// Buffer 1 is currently filled by DMA, buffer 2 is available for parsing.
-				status = _NEOM8N_parse_nmea_gga(neom8n_ctx.rx_buffer1, &local_position);
+				status = _NEOM8N_parse_nmea_gga((char_t*) neom8n_ctx.rx_buffer1, &local_position);
 			}
 			else {
 				// Buffer 2 is currently filled by DMA, buffer 1 is available for parsing.
-				status = _NEOM8N_parse_nmea_gga(neom8n_ctx.rx_buffer0, &local_position);
+				status = _NEOM8N_parse_nmea_gga((char_t*) neom8n_ctx.rx_buffer0, &local_position);
 			}
 			// Check decoding result.
 			if (status == NEOM8N_SUCCESS) {

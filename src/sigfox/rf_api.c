@@ -432,9 +432,11 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 	// Turn radio on.
 	power_status = POWER_enable(POWER_DOMAIN_RADIO, LPTIM_DELAY_MODE_SLEEP);
 	POWER_stack_exit_error(RF_API_ERROR_DRIVER_POWER);
+#ifdef HW1_1
 	// Exit shutdown.
 	s2lp_status = S2LP_shutdown(0);
 	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+#endif
 	// Reset chip state machine.
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_SRES);
 	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
@@ -560,10 +562,14 @@ RF_API_status_t RF_API_de_init(void) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
 	POWER_status_t power_status = POWER_SUCCESS;
+#ifdef HW1_1
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
-	// Turn transceiver and TCXO off.
+#endif
+	// Turn transceiver off.
+#ifdef HW1_1
 	s2lp_status = S2LP_shutdown(1);
 	S2LP_stack_exit_error(RF_API_ERROR_DRIVER_S2LP);
+#endif
 	// Turn radio off.
 	power_status = POWER_disable(POWER_DOMAIN_RADIO);
 	POWER_stack_exit_error(RF_API_ERROR_DRIVER_POWER);
@@ -747,7 +753,9 @@ RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) 
 /*******************************************************************/
 void RF_API_error(void) {
 	// Force all front-end off.
+#ifdef HW1_1
 	S2LP_shutdown(1);
+#endif
 	POWER_disable(POWER_DOMAIN_RADIO);
 }
 #endif

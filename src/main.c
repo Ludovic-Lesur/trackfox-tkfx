@@ -36,6 +36,15 @@
 
 /*** MAIN macros ***/
 
+#ifdef TKFX_MODE_CAR
+#define TKFX_MODE								0b00
+#endif
+#ifdef TKFX_MODE_BIKE
+#define TKFX_MODE								0b01
+#endif
+#ifdef TKFX_MODE_HIKING
+#define TKFX_MODE								0b10
+#endif
 // Sigfox payload lengths.
 #define TKFX_SIGFOX_STARTUP_DATA_SIZE			8
 #define TKFX_SIGFOX_GEOLOC_DATA_SIZE			11
@@ -151,6 +160,18 @@ typedef union {
 	} __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_sigfox_geoloc_timeout_data_t;
 
+/*!******************************************************************
+ * \struct TKFX_configuration_t
+ * \brief Tracker configuration structure.
+ *******************************************************************/
+typedef struct {
+	uint32_t start_detection_threshold_irq;
+	uint32_t stop_detection_threshold_seconds;
+	uint32_t moving_geoloc_period_seconds;
+	uint32_t stopped_geoloc_period_seconds;
+	uint32_t monitoring_period_seconds;
+} TKFX_configuration_t;
+
 #ifndef ATM
 /*******************************************************************/
 typedef struct {
@@ -187,6 +208,15 @@ typedef struct {
 
 #ifndef ATM
 static TKFX_context_t tkfx_ctx;
+#ifdef TKFX_MODE_CAR
+static const TKFX_configuration_t TKFX_CONFIG = {0, 150, 300, 86400, 3600};
+#endif
+#ifdef TKFX_MODE_BIKE
+static const TKFX_configuration_t TKFX_CONFIG = {5, 150, 300, 86400, 3600};
+#endif
+#ifdef TKFX_MODE_HIKING
+static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 600, 86400, 3600};
+#endif
 #endif
 
 /*** MAIN functions ***/
@@ -478,10 +508,12 @@ int main (void) {
 			break;
 		case TKFX_STATE_GEOLOC:
 			IWDG_reload();
+#ifdef HW1_1
 			// Enable backup if possible.
 			if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
 				NEOM8N_set_backup(1);
 			}
+#endif
 			// Configure altitude stability filter.
 			generic_data_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_ALTITUDE_STABILITY_FILTER_MOVING;
 			// Reset fix duration.
@@ -555,7 +587,7 @@ int main (void) {
 				// Active mode.
 				power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
 				POWER_stack_error();
-				mma8653fc_status = MMA8653FC_write_config(&(mma8653_active_config[0]), MMA8653FC_ACTIVE_CONFIG_LENGTH);
+				mma8653fc_status = MMA8653FC_write_config(&(MMA8653FC_ACTIVE_CONFIG[0]), MMA8653FC_ACTIVE_CONFIG_LENGTH);
 				MMA8653FC_stack_error();
 				power_status = POWER_disable(POWER_DOMAIN_SENSORS);
 				POWER_stack_error();
@@ -568,7 +600,7 @@ int main (void) {
 				// Sleep mode.
 				power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
 				POWER_stack_error();
-				mma8653fc_status = MMA8653FC_write_config(&(mma8653_sleep_config[0]), MMA8653FC_SLEEP_CONFIG_LENGTH);
+				mma8653fc_status = MMA8653FC_write_config(&(MMA8653FC_SLEEP_CONFIG[0]), MMA8653FC_SLEEP_CONFIG_LENGTH);
 				MMA8653FC_stack_error();
 				power_status = POWER_disable(POWER_DOMAIN_SENSORS);
 				POWER_stack_error();
@@ -577,10 +609,12 @@ int main (void) {
 				// Update status.
 				tkfx_ctx.status.accelerometer_status = 0;
 			}
+#ifdef HW1_1
 			// Disable GPS backup in low power mode.
 			if (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) {
 				NEOM8N_set_backup(0);
 			}
+#endif
 			// Compute next state.
 			tkfx_ctx.state = TKFX_STATE_OFF;
 			break;
@@ -683,7 +717,7 @@ int main (void) {
 	// Configure accelerometer.
 	power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
 	POWER_stack_error();
-	mma8653fc_status = MMA8653FC_write_config(&(mma8653_active_config[0]), MMA8653FC_ACTIVE_CONFIG_LENGTH);
+	mma8653fc_status = MMA8653FC_write_config(&(MMA8653FC_ACTIVE_CONFIG[0]), MMA8653FC_ACTIVE_CONFIG_LENGTH);
 	MMA8653FC_stack_error();
 	power_status = POWER_disable(POWER_DOMAIN_SENSORS);
 	POWER_stack_error();

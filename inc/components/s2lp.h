@@ -323,6 +323,7 @@ void S2LP_init(void);
  *******************************************************************/
 void S2LP_de_init(void);
 
+#ifdef HW1_1
 /*!******************************************************************
  * \fn S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable)
  * \brief Control S2LP shutdown pin.
@@ -331,6 +332,7 @@ void S2LP_de_init(void);
  * \retval		Function execution status.
  *******************************************************************/
 S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable);
+#endif
 
 /*!******************************************************************
  * \fn S2LP_status_t S2LP_send_command(S2LP_command_t command)

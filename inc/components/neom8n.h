@@ -100,6 +100,7 @@ NEOM8N_status_t NEOM8N_init(void);
  *******************************************************************/
 void NEOM8N_de_init(void);
 
+#ifdef HW1_1
 /*!******************************************************************
  * \fn void NEOM8N_set_backup(uint8_t state)
  * \brief Set NEOM8N backup voltage state.
@@ -108,6 +109,7 @@ void NEOM8N_de_init(void);
  * \retval		none
  *******************************************************************/
 void NEOM8N_set_backup(uint8_t state);
+#endif
 
 /*!******************************************************************
  * \fn void uint8_t NEOM8N_get_backup(void)

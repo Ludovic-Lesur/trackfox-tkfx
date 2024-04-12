@@ -8,6 +8,7 @@
 #ifndef __NVM_H__
 #define __NVM_H__
 
+#include "flash_reg.h"
 #include "types.h"
 #include "sigfox_types.h"
 
@@ -38,7 +39,7 @@ typedef enum {
 	NVM_ADDRESS_SIGFOX_EP_ID = 0,
 	NVM_ADDRESS_SIGFOX_EP_KEY = (NVM_ADDRESS_SIGFOX_EP_ID + SIGFOX_EP_ID_SIZE_BYTES),
 	NVM_ADDRESS_SIGFOX_EP_LIB_DATA = (NVM_ADDRESS_SIGFOX_EP_KEY + SIGFOX_EP_KEY_SIZE_BYTES),
-	NVM_ADDRESS_LAST = (NVM_ADDRESS_SIGFOX_EP_LIB_DATA + SIGFOX_NVM_DATA_SIZE_BYTES)
+	NVM_ADDRESS_LAST = (EEPROM_SIZE_BYTES - 1)
 } NVM_address_t;
 
 /*** NVM functions ***/

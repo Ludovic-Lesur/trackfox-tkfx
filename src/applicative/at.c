@@ -54,7 +54,7 @@
 // Enabled commands.
 #define AT_COMMAND_NVM
 #define AT_COMMAND_SENSORS
-#define AT_COMMAND_GPS
+//#define AT_COMMAND_GPS
 #define AT_COMMAND_SIGFOX_EP_LIB
 #define AT_COMMAND_SIGFOX_EP_ADDON_RFP
 #define AT_COMMAND_CW
@@ -983,7 +983,7 @@ static void _AT_rssi_callback(void) {
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_RX);
 	S2LP_stack_exit_error(ERROR_BASE_S2LP + s2lp_status);
 	// Measurement loop.
-	while (report_loop < ((duration_seconds * 1000) / AT_RSSI_REPORT_PERIOD_MS)) {
+	while (report_loop < ((uint32_t) ((duration_seconds * 1000) / AT_RSSI_REPORT_PERIOD_MS))) {
 		// Read RSSI.
 		s2lp_status = S2LP_get_rssi(S2LP_RSSI_TYPE_RUN, &rssi_dbm);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP + s2lp_status);

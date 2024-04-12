@@ -15,6 +15,27 @@
 #include "nvic.h"
 #include "types.h"
 
+/*** MMA8653FC local global variables ***/
+
+const MMA8653FC_register_setting_t MMA8653FC_ACTIVE_CONFIG[MMA8653FC_ACTIVE_CONFIG_LENGTH] = {
+	{MMA8653FC_REG_CTRL_REG1, 0x00}, // ACTIVE='0' (standby mode required to program registers).
+	{MMA8653FC_REG_XYZ_DATA_CFG, 0x00}, // Full scale = +/-2g.
+	{MMA8653FC_REG_CTRL_REG2, 0x1B}, // (S)MODS='11' (low power operation) and SLPE='0' (Auto sleep disabled).
+	{MMA8653FC_REG_CTRL_REG3, 0x0A}, // WAKE_FF_MT='1' (motion interrupt wakes the sensor) and IPOL='1' (interrupt pin active high).
+	{MMA8653FC_REG_FF_MT_CFG, 0x78}, // OAE='1' (motion detection). ELE='0' (latch disabled, bit automatically cleared). XEFE=YEFE=ZEFE='1' (any direction enabled).
+	{MMA8653FC_REG_FF_MT_THS, 0x91}, // DBCNTM='1' and threshold value (1.071g).
+	{MMA8653FC_REG_FF_MT_COUNT, 0x00}, // Debouncing counter not used.
+	{MMA8653FC_REG_CTRL_REG5, 0x04}, // INT_CFG_FF_MT='1' (motion interrupt on INT1 pin).
+	{MMA8653FC_REG_CTRL_REG4, 0x04}, // INT_EN_FF_MT='1' (motion interrupt enabled).
+	{MMA8653FC_REG_CTRL_REG1, 0x39} // DR='111' (1Hz) and ACTIVE='1'.
+};
+
+const MMA8653FC_register_setting_t MMA8653FC_SLEEP_CONFIG[MMA8653FC_SLEEP_CONFIG_LENGTH] = {
+	{MMA8653FC_REG_CTRL_REG2, 0x5B}, // RESET='1'.
+	{MMA8653FC_REG_CTRL_REG2, 0x1B}, // RESET='0', (S)MODS='11' (low power operation) and SLPE='0' (auto sleep disabled).
+	{MMA8653FC_REG_CTRL_REG3, 0x02}, // IPOL='1' (interrupt pin active high).
+};
+
 /*** MMA8653FC functions ***/
 
 /*******************************************************************/

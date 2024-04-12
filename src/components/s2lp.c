@@ -328,11 +328,11 @@ void S2LP_de_init(void) {
 	SPI1_de_init();
 }
 
+#ifdef HW1_1
 /*******************************************************************/
 S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-#ifdef HW1_1
 	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
 	// Configure GPIO.
 	if (shutdown_enable == 0) {
@@ -347,9 +347,9 @@ S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable) {
 		GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	}
 errors:
-#endif
 	return status;
 }
+#endif
 
 /*******************************************************************/
 S2LP_status_t S2LP_send_command(S2LP_command_t command) {
