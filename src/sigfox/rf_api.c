@@ -48,6 +48,7 @@
 #include "power.h"
 #include "pwr.h"
 #include "s2lp.h"
+#include "types.h"
 
 /*** RF API local macros ***/
 
@@ -374,6 +375,9 @@ errors:
 RF_API_status_t RF_API_open(RF_API_config_t *rf_api_config) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
+	// Ignore unused parameters.
+	UNUSED(rf_api_config);
+	// Return.
 	RETURN();
 }
 #endif
