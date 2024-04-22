@@ -66,6 +66,7 @@
 									<listOptionValue builtIn="false" value="ERROR_STACK=32"/>
 									<listOptionValue builtIn="false" value="MESSAGE_COUNTER_ROLLOVER=4096"/>
 									<listOptionValue builtIn="false" value="RC1_ZONE"/>
+									<listOptionValue builtIn="false" value="MATH_USE_INTEGER"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.include.paths.1084587258" name="Include paths (-I)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.include.paths" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/inc&quot;"/>
@@ -109,6 +110,7 @@
 									<listOptionValue builtIn="false" value="ERROR_STACK=32"/>
 									<listOptionValue builtIn="false" value="MESSAGE_COUNTER_ROLLOVER=4096"/>
 									<listOptionValue builtIn="false" value="RC1_ZONE"/>
+									<listOptionValue builtIn="false" value="MATH_USE_INTEGER"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.220498548" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input"/>
 							</tool>
@@ -239,6 +241,7 @@
 									<listOptionValue builtIn="false" value="ERROR_STACK=32"/>
 									<listOptionValue builtIn="false" value="MESSAGE_COUNTER_ROLLOVER=4096"/>
 									<listOptionValue builtIn="false" value="RC1_ZONE"/>
+									<listOptionValue builtIn="false" value="MATH_USE_INTEGER"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.include.paths.1470809190" name="Include paths (-I)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.include.paths" useByScannerDiscovery="true" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/inc&quot;"/>
@@ -282,6 +285,7 @@
 									<listOptionValue builtIn="false" value="ERROR_STACK=32"/>
 									<listOptionValue builtIn="false" value="MESSAGE_COUNTER_ROLLOVER=4096"/>
 									<listOptionValue builtIn="false" value="RC1_ZONE"/>
+									<listOptionValue builtIn="false" value="MATH_USE_INTEGER"/>
 								</option>
 								<inputType id="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input.631647546" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.input"/>
 							</tool>

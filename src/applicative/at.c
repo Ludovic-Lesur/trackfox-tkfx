@@ -54,7 +54,7 @@
 // Enabled commands.
 #define AT_COMMAND_NVM
 #define AT_COMMAND_SENSORS
-//#define AT_COMMAND_GPS
+#define AT_COMMAND_GPS
 #define AT_COMMAND_SIGFOX_EP_LIB
 #define AT_COMMAND_SIGFOX_EP_ADDON_RFP
 #define AT_COMMAND_CW
