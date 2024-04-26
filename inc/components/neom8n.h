@@ -131,7 +131,7 @@ uint8_t NEOM8N_get_backup(void);
 NEOM8N_status_t NEOM8N_get_time(RTC_time_t* gps_time, uint32_t timeout_seconds, uint32_t* fix_duration_seconds);
 
 /*!******************************************************************
- * \fn NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t* fix_duration_seconds)
+ * \fn NEOM8N_status_t NEOM8N_get_position(NEOM8N_position_t* gps_position, uint32_t timeout_seconds, uint32_t vstr_min_mv, uint8_t altitude_stability_filter_count, uint32_t* fix_duration_seconds)
  * \brief Perform GPS position acquisition.
  * \param[in]  	timeout_seconds: GPS acquisition timeout in seconds.
  * \param[in]	vstr_min_mv: Minimum storage voltage for GPS fix.

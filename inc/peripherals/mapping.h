@@ -10,6 +10,8 @@
 
 #include "gpio.h"
 
+/*** MAPPING global variables ***/
+
 // Accelerometer.
 #ifdef HW1_0
 extern const GPIO_pin_t GPIO_ACCELERO_IRQ;
