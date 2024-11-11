@@ -21,26 +21,31 @@ The boards were designed on **Circuit Maker V1.3**. Below is the list of hardwar
 
 ## Environment
 
-The embedded software is developed under **Eclipse IDE** version 2023-09 (4.29.0) and **GNU MCU** plugin. The `script` folder contains Eclipse run/debug configuration files and **JLink** scripts to flash the MCU.
+As of version `sw0.0.9` the embedded software is developed under **Eclipse IDE** version 2024-09 (4.33.0) and **GNU MCU** plugin. The `script` folder contains Eclipse run/debug configuration files and **JLink** scripts to flash the MCU.
+
+> [!WARNING]
+> To compile any version under `sw4.0`, the `git_version.sh` script must be patched when `sscanf` function is called: the `SW` prefix must be replaced by `sw` since Git tags have been renamed in this way.
 
 ## Target
 
 The TrackFox boards are based on the **STM32L041K6U6** microcontroller of the STMicroelectronics L0 family. Each hardware revision has a corresponding **build configuration** in the Eclipse project, which sets up the code for the selected board version.
 
-## Structure
-
 The project is organized as follow:
 
-* `inc` and `src`: **source code** split in 6 layers:
-    * `registers`: MCU **registers** adress definition.
-    * `peripherals`: internal MCU **peripherals** drivers.
-    * `utils`: **utility** functions.
-    * `components`: external **components** drivers.
-    * `sigfox`: **Sigfox EP library** low level implementation.
-    * `applicative`: high-level **application** layers.
-* `lib`: **Sigfox EP_LIB and ADDON_RFP** submodules.
-* `startup`: MCU **startup** code (from ARM).
-* `linker`: MCU **linker** script (from ARM).
+* `startup` : MCU **startup** code (from ARM).
+* `linker` : MCU **linker** script (from ARM).
+* `drivers` :
+    * `registers` : MCU **registers** address definition.
+    * `peripherals` : internal MCU **peripherals** drivers.
+    * `components` : external **components** drivers.
+    * `utils` : **utility** functions.
+* `middleware` :
+    * `analog` : High level **analog measurements** driver.
+    * `cli` : **AT commands** implementation.
+    * `gps` : High level **GPS** driver.
+    * `power` : Board **power tree** manager.
+    * `sigfox` : **Sigfox EP_LIB** and **ADDON_RFP** submodules and low level implementation.
+* `application` : Main **application**.
 
 ## Sigfox library
 
