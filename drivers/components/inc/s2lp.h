@@ -651,12 +651,12 @@ S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes);
 S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes);
 
 /*******************************************************************/
-#define S2LP_exit_error(error_base) { if (s2lp_status != S2LP_SUCCESS) { status = (error_base + s2lp_status); goto errors; } }
+#define S2LP_exit_error(base) { ERROR_check_exit(s2lp_status, S2LP_SUCCESS, base) }
 
 /*******************************************************************/
-#define S2LP_stack_error(void) { if (s2lp_status != S2LP_SUCCESS) { ERROR_stack_add(ERROR_BASE_S2LP + s2lp_status); } }
+#define S2LP_stack_error(base) { ERROR_check_stack(s2lp_status, S2LP_SUCCESS, base) }
 
 /*******************************************************************/
-#define S2LP_stack_exit_error(error_code) { if (s2lp_status != S2LP_SUCCESS) { ERROR_stack_add(ERROR_BASE_S2LP + s2lp_status); status = error_code; goto errors; } }
+#define S2LP_stack_exit_error(base, code) { ERROR_check_stack_exit(s2lp_status, S2LP_SUCCESS, base, code) }
 
 #endif /* __S2LP_H__ */

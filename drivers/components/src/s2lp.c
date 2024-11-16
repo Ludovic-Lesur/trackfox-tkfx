@@ -7,11 +7,12 @@
 
 #include "s2lp.h"
 
+#include "error.h"
 #include "exti.h"
 #include "gpio.h"
 #include "lptim.h"
-#include "mapping.h"
-#include "nvic.h"
+#include "gpio_mapping.h"
+#include "nvic_priority.h"
 #include "rtc.h"
 #include "s2lp_reg.h"
 #include "spi.h"
@@ -111,15 +112,15 @@ static uint8_t s2lp_rx_data[S2LP_FIFO_SIZE_BYTES];
 static S2LP_status_t _S2LP_write_register(uint8_t addr, uint8_t value) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	SPI_status_t spi1_status = SPI_SUCCESS;
+	SPI_status_t spi_status = SPI_SUCCESS;
 	// Falling edge on CS pin.
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
 	s2lp_tx_data[0] = S2LP_HEADER_BYTE_WRITE;
 	s2lp_tx_data[1] = addr;
 	s2lp_tx_data[2] = value;
-	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_REGISTER_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, s2lp_tx_data, s2lp_rx_data, S2LP_REGISTER_SPI_TRANSFER_SIZE);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
@@ -129,15 +130,15 @@ errors:
 static S2LP_status_t _S2LP_read_register(uint8_t addr, uint8_t* value) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	SPI_status_t spi1_status = SPI_SUCCESS;
+	SPI_status_t spi_status = SPI_SUCCESS;
 	// Falling edge on CS pin.
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Read sequence.
 	s2lp_tx_data[0] = S2LP_HEADER_BYTE_READ;
 	s2lp_tx_data[1] = addr;
 	s2lp_tx_data[2] = 0xFF;
-	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_REGISTER_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, s2lp_tx_data, s2lp_rx_data, S2LP_REGISTER_SPI_TRANSFER_SIZE);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 	// Read value.
 	(*value) = s2lp_rx_data[2];
 errors:
@@ -304,8 +305,13 @@ errors:
 
 /*******************************************************************/
 void S2LP_init(void) {
+    // Local variables.
+    SPI_configuration_t spi_config;
 	// Init SPI.
-	SPI1_init();
+    spi_config.baud_rate_prescaler = SPI_BAUD_RATE_PRESCALER_2;
+    spi_config.data_format = SPI_DATA_FORMAT_8_BITS;
+    spi_config.clock_polarity = SPI_CLOCK_POLARITY_LOW;
+	SPI_init(SPI_INSTANCE_SPI1, &GPIO_S2LP_SPI, &spi_config);
 	// Configure GPIOs as input
 #ifdef HW1_1
 	GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
@@ -325,7 +331,7 @@ void S2LP_de_init(void) {
 	GPIO_configure(&GPIO_S2LP_GPIO0, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Release SPI.
-	SPI1_de_init();
+	SPI_de_init(SPI_INSTANCE_SPI1, &GPIO_S2LP_SPI);
 }
 
 #ifdef HW1_1
@@ -333,14 +339,14 @@ void S2LP_de_init(void) {
 S2LP_status_t S2LP_shutdown(uint8_t shutdown_enable) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	LPTIM_status_t lptim1_status = LPTIM_SUCCESS;
+	LPTIM_status_t lptim_status = LPTIM_SUCCESS;
 	// Configure GPIO.
 	if (shutdown_enable == 0) {
 		// Put SDN low.
 		GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 		// Wait for reset time.
-		lptim1_status = LPTIM1_delay_milliseconds(S2LP_SHUTDOWN_DELAY_MS, LPTIM_DELAY_MODE_SLEEP);
-		LPTIM1_exit_error(S2LP_ERROR_BASE_LPTIM1);
+		lptim_status = LPTIM_delay_milliseconds(S2LP_SHUTDOWN_DELAY_MS, LPTIM_DELAY_MODE_SLEEP);
+		LPTIM_exit_error(S2LP_ERROR_BASE_LPTIM1);
 	}
 	else {
 		// Put SDN in high impedance (pull-up resistor used).
@@ -355,7 +361,7 @@ errors:
 S2LP_status_t S2LP_send_command(S2LP_command_t command) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	SPI_status_t spi1_status = SPI_SUCCESS;
+	SPI_status_t spi_status = SPI_SUCCESS;
 	// Check command.
 	if (command >= S2LP_COMMAND_LAST) {
 		status = S2LP_ERROR_COMMAND;
@@ -366,8 +372,8 @@ S2LP_status_t S2LP_send_command(S2LP_command_t command) {
 	// Write sequence.
 	s2lp_tx_data[0] = S2LP_HEADER_BYTE_COMMAND;
 	s2lp_tx_data[1] = command;
-	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_COMMAND_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, s2lp_tx_data, s2lp_rx_data, S2LP_COMMAND_SPI_TRANSFER_SIZE);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
@@ -379,14 +385,14 @@ S2LP_status_t S2LP_wait_for_state(S2LP_state_t new_state) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t state = 0;
 	uint8_t reg_value = 0;
-	uint32_t start_time = RTC_get_time_seconds();
+	uint32_t start_time = RTC_get_uptime_seconds();
 	// Poll MC_STATE until state is reached.
 	do {
 		status = _S2LP_read_register(S2LP_REG_MC_STATE0, &reg_value);
 		if (status != S2LP_SUCCESS) goto errors;
 		state = (reg_value >> 1) & 0x7F;
 		// Check timeout.
-		if (RTC_get_time_seconds() > (start_time + S2LP_STATE_TIMEOUT_SECONDS)) {
+		if (RTC_get_uptime_seconds() > (start_time + S2LP_STATE_TIMEOUT_SECONDS)) {
 			status = S2LP_ERROR_STATE_TIMEOUT;
 			goto errors;
 		}
@@ -427,14 +433,14 @@ S2LP_status_t S2LP_wait_for_oscillator(void) {
 	S2LP_status_t status = S2LP_SUCCESS;
 	uint8_t xo_on = 0;
 	uint8_t reg_value = 0;
-	uint32_t start_time = RTC_get_time_seconds();
+	uint32_t start_time = RTC_get_uptime_seconds();
 	// Poll MC_STATE until XO bit is set.
 	do {
 		status = _S2LP_read_register(S2LP_REG_MC_STATE0, &reg_value);
 		if (status != S2LP_SUCCESS) goto errors;
 		xo_on = (reg_value & 0x01);
 		// Check timeout.
-		if (RTC_get_time_seconds() > (start_time + S2LP_OSCILLATOR_TIMEOUT_SECONDS)) {
+		if (RTC_get_uptime_seconds() > (start_time + S2LP_OSCILLATOR_TIMEOUT_SECONDS)) {
 			status = S2LP_ERROR_OSCILLATOR_TIMEOUT;
 			goto errors;
 		}
@@ -863,10 +869,10 @@ S2LP_status_t S2LP_enable_nirq(S2LP_fifo_flag_direction_t fifo_flag_direction, E
 	status = S2LP_configure_gpio(S2LP_GPIO0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_NIRQ, fifo_flag_direction);
 	if (status != S2LP_SUCCESS) goto errors;
 	// Configure interrupt on MCU side.
-	EXTI_configure_gpio(&GPIO_S2LP_GPIO0, EXTI_TRIGGER_FALLING_EDGE, irq_callback);
-	EXTI_clear_flag(GPIO_S2LP_GPIO0.pin);
+	EXTI_configure_gpio(&GPIO_S2LP_GPIO0, GPIO_PULL_NONE, EXTI_TRIGGER_FALLING_EDGE, irq_callback, NVIC_PRIORITY_SIGFOX_RADIO_IRQ_GPIO);
+	EXTI_clear_gpio_flag(&GPIO_S2LP_GPIO0);
 	// Enable interrupt.
-	NVIC_enable_interrupt(NVIC_INTERRUPT_EXTI_4_15, NVIC_PRIORITY_EXTI_4_15);
+	EXTI_enable_gpio_interrupt(&GPIO_S2LP_GPIO0);
 errors:
 	return status;
 }
@@ -874,9 +880,9 @@ errors:
 /*******************************************************************/
 void S2LP_disable_nirq(void) {
 	// Disable interrupt.
-	NVIC_disable_interrupt(NVIC_INTERRUPT_EXTI_4_15);
+    EXTI_disable_gpio_interrupt(&GPIO_S2LP_GPIO0);
 	// Release GPIO.
-	EXTI_release_gpio(&GPIO_S2LP_GPIO0);
+	EXTI_release_gpio(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT);
 }
 
 /*******************************************************************/
@@ -1088,7 +1094,7 @@ errors:
 S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	SPI_status_t spi1_status = SPI_SUCCESS;
+	SPI_status_t spi_status = SPI_SUCCESS;
 	// Check parameters.
 	if (tx_data == NULL) {
 		status = S2LP_ERROR_NULL_PARAMETER;
@@ -1104,11 +1110,11 @@ S2LP_status_t S2LP_write_fifo(uint8_t* tx_data, uint8_t tx_data_length_bytes) {
 	// Falling edge on CS pin.
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Write sequence.
-	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_FIFO_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, s2lp_tx_data, s2lp_rx_data, S2LP_FIFO_SPI_TRANSFER_SIZE);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 	// Transfer buffer.
-	spi1_status = SPI1_write_read(tx_data, s2lp_rx_data, tx_data_length_bytes);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, tx_data, s2lp_rx_data, tx_data_length_bytes);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;
@@ -1118,7 +1124,7 @@ errors:
 S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes) {
 	// Local variables.
 	S2LP_status_t status = S2LP_SUCCESS;
-	SPI_status_t spi1_status = SPI_SUCCESS;
+	SPI_status_t spi_status = SPI_SUCCESS;
 	// Check parameters.
 	if (rx_data == NULL) {
 		status = S2LP_ERROR_NULL_PARAMETER;
@@ -1134,11 +1140,11 @@ S2LP_status_t S2LP_read_fifo(uint8_t* rx_data, uint8_t rx_data_length_bytes) {
 	// Falling edge on CS pin.
 	GPIO_write(&GPIO_S2LP_CS, 0);
 	// Read sequence.
-	spi1_status = SPI1_write_read(s2lp_tx_data, s2lp_rx_data, S2LP_FIFO_SPI_TRANSFER_SIZE);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, s2lp_tx_data, s2lp_rx_data, S2LP_FIFO_SPI_TRANSFER_SIZE);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 	// Read FIFO.
-	spi1_status = SPI1_write_read(s2lp_tx_data, rx_data, rx_data_length_bytes);
-	SPI1_exit_error(S2LP_ERROR_BASE_SPI1);
+	spi_status = SPI_write_read_8(SPI_INSTANCE_SPI1, s2lp_tx_data, rx_data, rx_data_length_bytes);
+	SPI_exit_error(S2LP_ERROR_BASE_SPI1);
 errors:
 	GPIO_write(&GPIO_S2LP_CS, 1); // Set CS pin.
 	return status;

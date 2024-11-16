@@ -22,7 +22,7 @@
 #include "types.h"
 // Components.
 #include "mma8653fc.h"
-#include "neom8n.h"
+#include "neom8x.h"
 #include "power.h"
 #include "s2lp.h"
 #include "sht3x.h"

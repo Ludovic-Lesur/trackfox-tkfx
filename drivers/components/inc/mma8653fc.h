@@ -121,12 +121,12 @@ void MMA8653_enable_motion_interrupt(void);
 void MMA8653_disable_motion_interrupt(void);
 
 /*******************************************************************/
-#define MMA8653FC_exit_error(error_base) { if (mma8653fc_status != MMA8653FC_SUCCESS) { status = (error_base + mma8653fc_status); goto errors; } }
+#define MMA8653FC_exit_error(base) { ERROR_check_exit(mma8653fc_status, MMA8653FC_SUCCESS, base) }
 
 /*******************************************************************/
-#define MMA8653FC_stack_error(void) { if (mma8653fc_status != MMA8653FC_SUCCESS) { ERROR_stack_add(ERROR_BASE_MMA8653FC + mma8653fc_status); } }
+#define MMA8653FC_stack_error(base) { ERROR_check_stack(mma8653fc_status, MMA8653FC_SUCCESS, base) }
 
 /*******************************************************************/
-#define MMA8653FC_stack_exit_error(error_code) { if (mma8653fc_status != MMA8653FC_SUCCESS) { ERROR_stack_add(ERROR_BASE_MMA8653FC + mma8653fc_status); status = error_code; goto errors; } }
+#define MMA8653FC_stack_exit_error(base, code) { ERROR_check_stack_exit(mma8653fc_status, MMA8653FC_SUCCESS, base, code) }
 
 #endif /* __MMA8653FC_H__ */
