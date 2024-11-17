@@ -19,7 +19,9 @@
 #include "rcc.h"
 #include "rtc.h"
 // Components.
-#include "mma8653fc.h"
+#include "mma865xfc.h"
+#include "mma865xfc_configuration.h"
+#include "sensors_hw.h"
 #include "sht3x.h"
 // Utils.
 #include "error.h"
@@ -257,6 +259,8 @@ static void _TKFX_init_context(void) {
 	tkfx_ctx.monitoring_next_time_seconds = TKFX_CONFIG.monitoring_period_seconds;
 	tkfx_ctx.geoloc_next_time_seconds = TKFX_CONFIG.stopped_geoloc_period_seconds;
 	tkfx_ctx.error_stack_next_time_seconds = 0;
+	// Set motion interrupt callback address.
+	SENSORS_HW_set_accelerometer_irq_callback(&_TKFX_motion_irq_callback);
 }
 #endif
 
@@ -268,6 +272,7 @@ static void _TKFX_init_hw(void) {
 #ifndef DEBUG
 	IWDG_status_t iwdg_status = IWDG_SUCCESS;
 #endif
+	MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
 	// Init error stack
 	ERROR_stack_init();
 	// Init memory.
@@ -298,7 +303,8 @@ static void _TKFX_init_hw(void) {
 	LPTIM_init(NVIC_PRIORITY_DELAY);
 	// Init components.
 	POWER_init();
-	MMA8653FC_init(&_TKFX_motion_irq_callback);
+	mma865xfc_status = MMA865XFC_init();
+	MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
 #ifdef ATM
 	// Applicative layers.
 	AT_init();
@@ -312,7 +318,7 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 	SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
 	SIGFOX_EP_API_config_t lib_config;
 	// Disable motion interrupts.
-	MMA8653_disable_motion_interrupt();
+	SENSORS_HW_disable_accelerometer_interrupt();
 	// Library configuration.
 	lib_config.rc = &SIGFOX_RC1;
 	// Open library.
@@ -329,7 +335,7 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 	// Re-enable motion interrupts if enabled.
 	if (tkfx_ctx.status.accelerometer_status != 0) {
 		// Enable interrupt.
-		MMA8653_enable_motion_interrupt();
+	    SENSORS_HW_enable_accelerometer_interrupt();
 	}
 }
 #endif
@@ -346,7 +352,7 @@ int main (void) {
 	ANALOG_status_t analog_status = ANALOG_SUCCESS;
 	MATH_status_t math_status = MATH_SUCCESS;
 	SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
-	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;
+	MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
 	GPS_status_t gps_status = GPS_SUCCESS;
 	GPS_acquisition_status_t gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
 	uint32_t geoloc_fix_duration_seconds = 0;
@@ -581,12 +587,12 @@ int main (void) {
 				// Active mode.
 				power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
 				POWER_stack_error(ERROR_BASE_POWER);
-				mma8653fc_status = MMA8653FC_write_config(&(MMA8653FC_ACTIVE_CONFIG[0]), MMA8653FC_ACTIVE_CONFIG_LENGTH);
-				MMA8653FC_stack_error(ERROR_BASE_MMA8653FC);
+				mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_ACTIVE_CONFIGURATION[0]), MMA865XFC_ACTIVE_CONFIGURATION_SIZE);
+				MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
 				power_status = POWER_disable(POWER_DOMAIN_SENSORS);
 				POWER_stack_error(ERROR_BASE_POWER);
 				// Enable interrupt.
-				MMA8653_enable_motion_interrupt();
+				SENSORS_HW_enable_accelerometer_interrupt();
 				// Update status.
 				tkfx_ctx.status.accelerometer_status = 1;
 			}
@@ -594,12 +600,12 @@ int main (void) {
 				// Sleep mode.
 				power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
 				POWER_stack_error(ERROR_BASE_POWER);
-				mma8653fc_status = MMA8653FC_write_config(&(MMA8653FC_SLEEP_CONFIG[0]), MMA8653FC_SLEEP_CONFIG_LENGTH);
-				MMA8653FC_stack_error(ERROR_BASE_MMA8653FC);
+				mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_SLEEP_CONFIGURATION[0]), MMA865XFC_SLEEP_CONFIGURATION_SIZE);
+				MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
 				power_status = POWER_disable(POWER_DOMAIN_SENSORS);
 				POWER_stack_error(ERROR_BASE_POWER);
 				// Disable interrupt.
-				MMA8653_disable_motion_interrupt();
+				SENSORS_HW_disable_accelerometer_interrupt();
 				// Update status.
 				tkfx_ctx.status.accelerometer_status = 0;
 			}

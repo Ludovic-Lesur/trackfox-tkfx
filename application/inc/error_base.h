@@ -27,7 +27,7 @@
 #include "parser.h"
 #include "string.h"
 // Components.
-#include "mma8653fc.h"
+#include "mma865xfc.h"
 #include "neom8x.h"
 #include "s2lp.h"
 #include "sht3x.h"
@@ -67,7 +67,7 @@ typedef enum {
 	ERROR_BASE_STRING = (ERROR_BASE_PARSER + PARSER_ERROR_BASE_LAST),
 	// Components.
 	ERROR_BASE_MMA8653FC = (ERROR_BASE_STRING + STRING_ERROR_BASE_LAST),
-	ERROR_BASE_NEOM8N = (ERROR_BASE_MMA8653FC + MMA8653FC_ERROR_BASE_LAST),
+	ERROR_BASE_NEOM8N = (ERROR_BASE_MMA8653FC + MMA865XFC_ERROR_BASE_LAST),
 	ERROR_BASE_S2LP = (ERROR_BASE_NEOM8N + NEOM8X_ERROR_BASE_LAST),
 	ERROR_BASE_SHT30 = (ERROR_BASE_S2LP + S2LP_ERROR_BASE_LAST),
 	// Middleware.

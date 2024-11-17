@@ -21,7 +21,7 @@
 #include "string.h"
 #include "types.h"
 // Components.
-#include "mma8653fc.h"
+#include "mma865xfc.h"
 #include "neom8x.h"
 #include "power.h"
 #include "s2lp.h"

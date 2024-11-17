@@ -1,0 +1,23 @@
+/*
+ * mma865xfc_configuration_reg.h
+ *
+ *  Created on: 16 nov. 2020
+ *      Author: Ludo
+ */
+
+#ifndef __MMA865XFC_CONFIGURATION_REG_H__
+#define __MMA865XFC_CONFIGURATION_REG_H__
+
+#include "mma865xfc.h"
+
+/*** MMA865XFC CONFIGURATION  macros ***/
+
+#define MMA865XFC_ACTIVE_CONFIGURATION_SIZE     10
+#define MMA865XFC_SLEEP_CONFIGURATION_SIZE      3
+
+/*** MMA865XFC CONFIGURATION global variables ***/
+
+extern const MMA865XFC_register_setting_t MMA865XFC_ACTIVE_CONFIGURATION[MMA865XFC_ACTIVE_CONFIGURATION_SIZE];
+extern const MMA865XFC_register_setting_t MMA865XFC_SLEEP_CONFIGURATION[MMA865XFC_SLEEP_CONFIGURATION_SIZE];
+
+#endif /* __MMA865XFC_CONFIGURATION_REG_H__ */
