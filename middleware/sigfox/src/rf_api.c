@@ -44,8 +44,12 @@
 
 #include "error.h"
 #include "error_base.h"
+#include "exti.h"
+#include "gpio.h"
+#include "gpio_mapping.h"
 #include "iwdg.h"
 #include "manuf/mcu_api.h"
+#include "nvic_priority.h"
 #include "power.h"
 #include "pwr.h"
 #include "s2lp.h"
@@ -150,13 +154,13 @@ typedef struct {
 #if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION)
 static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
 	POWER_ON_DELAY_MS_TCXO, // Wake-up.
-	(POWER_ON_DELAY_MS_RADIO + S2LP_SHUTDOWN_DELAY_MS + 1), // TX init (power on delay + 1.75ms).
+	(POWER_ON_DELAY_MS_RADIO + S2LP_EXIT_SHUTDOWN_DELAY_MS + 1), // TX init (power on delay + 1.75ms).
 	0, // Send start (depends on bit rate and will be computed during init function).
 	0, // Send stop (depends on bit rate and will be computed during init function).
 	0, // TX de-init (70µs).
 	0, // Sleep.
 #ifdef BIDIRECTIONAL
-	(POWER_ON_DELAY_MS_RADIO + S2LP_SHUTDOWN_DELAY_MS + 6), // RX init (power on delay + 5.97ms).
+	(POWER_ON_DELAY_MS_RADIO + S2LP_EXIT_SHUTDOWN_DELAY_MS + 6), // RX init (power on delay + 5.97ms).
 	0, // Receive start (300µs).
 	7, // Receive stop (6.7ms).
 	0, // RX de-init (70µs).
@@ -171,6 +175,31 @@ static RF_API_context_t rf_api_ctx;
 static void _RF_API_s2lp_gpio_irq_callback(void) {
 	// Set flag if IRQ is enabled.
 	rf_api_ctx.flags.field.gpio_irq_flag = rf_api_ctx.flags.field.gpio_irq_enable;
+}
+
+/*******************************************************************/
+static RF_API_status_t _RF_API_enable_s2lp_nirq(S2LP_fifo_flag_direction_t fifo_flag_direction) {
+    // Local variables.
+    RF_API_status_t status = RF_API_SUCCESS;
+    S2LP_status_t s2lp_status = S2LP_SUCCESS;
+    // Configure interrupt on S2LP side.
+    s2lp_status = S2LP_configure_gpio(S2LP_GPIO0, S2LP_GPIO_MODE_OUT_LOW_POWER, S2LP_GPIO_OUTPUT_FUNCTION_NIRQ, fifo_flag_direction);
+    S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
+    // Configure interrupt on MCU side.
+    EXTI_configure_gpio(&GPIO_S2LP_GPIO0, GPIO_PULL_NONE, EXTI_TRIGGER_FALLING_EDGE, &_RF_API_s2lp_gpio_irq_callback, NVIC_PRIORITY_SIGFOX_RADIO_IRQ_GPIO);
+    EXTI_clear_gpio_flag(&GPIO_S2LP_GPIO0);
+    // Enable interrupt.
+    EXTI_enable_gpio_interrupt(&GPIO_S2LP_GPIO0);
+errors:
+    return status;
+}
+
+/*******************************************************************/
+static void _RF_API_disable_s2lp_nirq(void) {
+    // Disable interrupt.
+    EXTI_disable_gpio_interrupt(&GPIO_S2LP_GPIO0);
+    // Release GPIO.
+    EXTI_release_gpio(&GPIO_S2LP_GPIO0, GPIO_MODE_INPUT);
 }
 
 /*******************************************************************/
@@ -437,11 +466,9 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 	// Turn radio on.
 	power_status = POWER_enable(POWER_DOMAIN_RADIO, LPTIM_DELAY_MODE_SLEEP);
 	POWER_stack_exit_error(ERROR_BASE_POWER, (RF_API_status_t) RF_API_ERROR_DRIVER_POWER);
-#ifdef HW1_1
 	// Exit shutdown.
 	s2lp_status = S2LP_shutdown(0);
 	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-#endif
 	// Reset chip state machine.
 	s2lp_status = S2LP_send_command(S2LP_COMMAND_SRES);
 	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
@@ -451,7 +478,7 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 	s2lp_status = S2LP_wait_for_oscillator();
 	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 	// Charge pump.
-	s2lp_status = S2LP_configure_charge_pump();
+	s2lp_status = S2LP_set_common_configuration();
 	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 	// Frequency.
 	s2lp_status = S2LP_set_rf_frequency(radio_parameters -> frequency_hz);
@@ -508,8 +535,6 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 		s2lp_status = S2LP_set_smps_frequency(RF_API_SMPS_FREQUENCY_HZ_TX);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		// TX parameters.
-		s2lp_status = S2LP_configure_pa();
-		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		s2lp_status = S2LP_set_tx_source(S2LP_TX_SOURCE_FIFO);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		s2lp_status = S2LP_set_fifo_threshold(S2LP_FIFO_THRESHOLD_TX_EMPTY, RF_API_FIFO_TX_ALMOST_EMPTY_THRESHOLD);
@@ -532,25 +557,16 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t *radio_parameters) {
 		// RX parameters.
 		s2lp_status = S2LP_set_rx_source(S2LP_RX_SOURCE_NORMAL);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-		s2lp_status = S2LP_set_rx_bandwidth(RF_API_RX_BANDWIDTH_HZ);
+		s2lp_status = S2LP_set_rx_bandwidth(RF_API_RX_BANDWIDTH_HZ, S2LP_AFC_MODE_DISABLE);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		s2lp_status = S2LP_set_rssi_threshold(RF_API_DOWNLINK_RSSI_THRESHOLD_DBM);
-		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-		s2lp_status = S2LP_configure_clock_recovery();
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		// Downlink packet structure.
 		s2lp_status = S2LP_set_preamble_detector((RF_API_DL_PR_SIZE_BITS / 2), S2LP_PREAMBLE_PATTERN_1010);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		s2lp_status = S2LP_set_sync_word((uint8_t*) RF_API_DL_FT, (SIGFOX_DL_FT_SIZE_BYTES * 8));
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-		s2lp_status = S2LP_set_packet_length(SIGFOX_DL_PHY_CONTENT_SIZE_BYTES);
-		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-		s2lp_status = S2LP_disable_crc();
-		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-		// Disable AFC, equalization, CS blanking and antenna switch.
-		s2lp_status = S2LP_disable_afc();
-		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-		s2lp_status = S2LP_disable_equa_cs_ant_switch();
+		s2lp_status = S2LP_set_packet_format(SIGFOX_DL_PHY_CONTENT_SIZE_BYTES, S2LP_CRC_MODE_DISABLED);
 		S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 		break;
 #endif
@@ -567,14 +583,10 @@ RF_API_status_t RF_API_de_init(void) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
 	POWER_status_t power_status = POWER_SUCCESS;
-#ifdef HW1_1
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
-#endif
 	// Turn transceiver off.
-#ifdef HW1_1
 	s2lp_status = S2LP_shutdown(1);
 	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-#endif
 	// Turn radio off.
 	power_status = POWER_disable(POWER_DOMAIN_RADIO);
 	POWER_stack_exit_error(ERROR_BASE_POWER, (RF_API_status_t) RF_API_ERROR_DRIVER_POWER);
@@ -586,7 +598,6 @@ errors:
 RF_API_status_t RF_API_send(RF_API_tx_data_t *tx_data) {
 	// Local variables.
 	RF_API_status_t status = RF_API_SUCCESS;
-	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	sfx_u8 idx = 0;
 	// Store TX data.
 	rf_api_ctx.tx_bitstream_size_bytes = (tx_data -> bitstream_size_bytes);
@@ -594,8 +605,8 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t *tx_data) {
 		rf_api_ctx.tx_bitstream[idx] = (tx_data -> bitstream)[idx];
 	}
 	// Enable GPIO interrupt.
-	s2lp_status = S2LP_enable_nirq(S2LP_FIFO_FLAG_DIRECTION_TX, _RF_API_s2lp_gpio_irq_callback);
-	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
+	status = _RF_API_enable_s2lp_nirq(S2LP_FIFO_FLAG_DIRECTION_TX);
+	CHECK_STATUS(RF_API_SUCCESS);
 	// Init state.
 	rf_api_ctx.tx_bit_idx = 0;
 	rf_api_ctx.tx_byte_idx = 0;
@@ -619,7 +630,7 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t *tx_data) {
 	}
 errors:
 	// Disable GPIO interrupt.
-	S2LP_disable_nirq();
+    _RF_API_disable_s2lp_nirq();
 	RETURN();
 }
 
@@ -632,8 +643,8 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t *rx_data) {
 	S2LP_status_t s2lp_status = S2LP_SUCCESS;
 	sfx_bool dl_timeout = SFX_FALSE;
 	// Enable GPIO interrupt.
-	s2lp_status = S2LP_enable_nirq(S2LP_FIFO_FLAG_DIRECTION_RX, _RF_API_s2lp_gpio_irq_callback);
-	S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
+	status = _RF_API_enable_s2lp_nirq(S2LP_FIFO_FLAG_DIRECTION_RX);
+	CHECK_STATUS(RF_API_SUCCESS);
 	// Reset flag.
 	(rx_data -> data_received) = SFX_FALSE;
 	// Init state.
@@ -671,7 +682,7 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t *rx_data) {
 	(rx_data -> data_received) = SFX_TRUE;
 errors:
 	// Disable GPIO interrupt.
-	S2LP_disable_nirq();
+    _RF_API_disable_s2lp_nirq();
 	RETURN();
 }
 #endif
@@ -758,9 +769,7 @@ RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) 
 /*******************************************************************/
 void RF_API_error(void) {
 	// Force all front-end off.
-#ifdef HW1_1
 	S2LP_shutdown(1);
-#endif
 	POWER_disable(POWER_DOMAIN_RADIO);
 }
 #endif

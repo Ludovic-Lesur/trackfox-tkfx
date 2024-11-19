@@ -22,3 +22,6 @@
 [submodule "mma865xfc-driver"]
 	path = drivers/components/mma865xfc-driver
 	url = https://github.com/Ludovic-Lesur/mma865xfc-driver.git
+[submodule "s2lp-driver"]
+	path = drivers/components/s2lp-driver
+	url = https://github.com/Ludovic-Lesur/s2lp-driver.git

@@ -109,7 +109,7 @@ NEOM8X_status_t NEOM8X_HW_set_backup_voltage(uint8_t state) {
 
 #ifdef NEOM8X_DRIVER_VBCKP_CONTROL
 /*******************************************************************/
-uint8_t __attribute__((weak)) NEOM8X_HW_get_backup_voltage(void) {
+uint8_t NEOM8X_HW_get_backup_voltage(void) {
     // Read GPIO.
     return GPIO_read(&GPIO_GPS_VBCKP);
 }
