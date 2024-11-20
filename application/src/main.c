@@ -28,6 +28,7 @@
 #include "types.h"
 // Middleware.
 #include "analog.h"
+#include "cli.h"
 #include "gps.h"
 #include "power.h"
 #include "sigfox_ep_api.h"
@@ -63,6 +64,7 @@
 // Error stack message period.
 #define TKFX_ERROR_STACK_PERIOD_SECONDS			86400
 // Altitude stability filter.
+#define TKFX_GEOLOC_TIMEOUT_SECONDS             180
 #define TKFX_ALTITUDE_STABILITY_FILTER_MOVING	2
 #define TKFX_ALTITUDE_STABILITY_FILTER_STOPPED	5
 
@@ -177,7 +179,7 @@ typedef struct {
 	uint32_t monitoring_period_seconds;
 } TKFX_configuration_t;
 
-#ifndef ATM
+#ifndef TKFX_MODE_CLI
 /*******************************************************************/
 typedef struct {
 	// Global.
@@ -210,7 +212,7 @@ typedef struct {
 
 /*** MAIN global variables ***/
 
-#ifndef ATM
+#ifndef TKFX_MODE_CLI
 static TKFX_context_t tkfx_ctx;
 #ifdef TKFX_MODE_CAR
 static const TKFX_configuration_t TKFX_CONFIG = {0, 150, 300, 86400, 3600};
@@ -227,7 +229,7 @@ static const TKFX_configuration_t TKFX_CONFIG = {5, 60, 600, 86400, 3600};
 
 /*******************************************************************/
 static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
-#ifndef ATM
+#ifndef TKFX_MODE_CLI
     // Decrement IRQ count.
     if (tkfx_ctx.start_detection_irq_count > 0) {
         tkfx_ctx.start_detection_irq_count--;
@@ -235,16 +237,16 @@ static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
 #endif
 }
 
+#ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_motion_irq_callback(void) {
-#ifndef ATM
 	// Update variables.
 	tkfx_ctx.start_detection_irq_count++;
 	tkfx_ctx.last_motion_irq_time_seconds = RTC_get_uptime_seconds();
-#endif
 }
+#endif
 
-#ifndef ATM
+#ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_init_context(void) {
 	// Init context.
@@ -269,10 +271,9 @@ static void _TKFX_init_hw(void) {
 	// Local variables.
 	RCC_status_t rcc_status = RCC_SUCCESS;
 	RTC_status_t rtc_status = RTC_SUCCESS;
-#ifndef DEBUG
+#ifndef TKFX_MODE_DEBUG
 	IWDG_status_t iwdg_status = IWDG_SUCCESS;
 #endif
-	MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
 	// Init error stack
 	ERROR_stack_init();
 	// Init memory.
@@ -285,7 +286,7 @@ static void _TKFX_init_hw(void) {
 	GPIO_init();
 	EXTI_init();
 	// Start independent watchdog.
-#ifndef DEBUG
+#ifndef TKFX_MODE_DEBUG
 	iwdg_status = IWDG_init();
 	IWDG_stack_error(ERROR_BASE_IWDG);
 	IWDG_reload();
@@ -303,15 +304,9 @@ static void _TKFX_init_hw(void) {
 	LPTIM_init(NVIC_PRIORITY_DELAY);
 	// Init components.
 	POWER_init();
-	mma865xfc_status = MMA865XFC_init();
-	MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
-#ifdef ATM
-	// Applicative layers.
-	AT_init();
-#endif
 }
 
-#ifndef ATM
+#ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* application_message) {
 	// Local variables.
@@ -340,7 +335,7 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 }
 #endif
 
-#ifndef ATM
+#ifndef TKFX_MODE_CLI
 /*******************************************************************/
 int main (void) {
 	// Init board.
@@ -524,13 +519,18 @@ int main (void) {
 			geoloc_fix_duration_seconds = 0;
 			// Pre-check storage voltage.
 			if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_VSTR_MIN_MV) {
-				// Get position from GPS.
-				power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_STOP);
+			    // Turn analog front-end to monitor storage element voltage.
+                power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
+                POWER_stack_error(ERROR_BASE_POWER);
+                // Get position from GPS.
+				power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
 				POWER_stack_error(ERROR_BASE_POWER);
 				gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &geoloc_fix_duration_seconds, &gps_acquisition_status);
 				GPS_stack_error(ERROR_BASE_GPS);
 				power_status = POWER_disable(POWER_DOMAIN_GPS);
 				POWER_stack_error(ERROR_BASE_POWER);
+				power_status = POWER_disable(POWER_DOMAIN_ANALOG);
+                POWER_stack_error(ERROR_BASE_POWER);
 			}
 			else {
 			    gps_acquisition_status = GPS_ACQUISITION_ERROR_VSTR_THRESHOLD;
@@ -701,29 +701,34 @@ int main (void) {
 }
 #endif
 
-#ifdef ATM
+#ifdef TKFX_MODE_CLI
 /*******************************************************************/
 int main (void) {
-	// Init board.
-	_TKFX_init_hw();
 	// Local variables.
+	CLI_status_t cli_status = CLI_SUCCESS;
 	POWER_status_t power_status = POWER_SUCCESS;
-	MMA8653FC_status_t mma8653fc_status = MMA8653FC_SUCCESS;
+	MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
+    // Init board.
+    _TKFX_init_hw();
 	// Configure accelerometer.
 	power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-	POWER_stack_error();
-	mma8653fc_status = MMA8653FC_write_config(&(MMA8653FC_ACTIVE_CONFIG[0]), MMA8653FC_ACTIVE_CONFIG_LENGTH);
-	MMA8653FC_stack_error();
+	POWER_stack_error(ERROR_BASE_POWER);
+	mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_ACTIVE_CONFIGURATION[0]), MMA865XFC_ACTIVE_CONFIGURATION_SIZE);
+	MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
 	power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-	POWER_stack_error();
+	POWER_stack_error(ERROR_BASE_POWER);
+	// Init command line interface.
+    cli_status = CLI_init();
+    CLI_stack_error(ERROR_BASE_CLI);
 	// Main loop.
 	while (1) {
 		// Enter sleep mode.
 		IWDG_reload();
 		PWR_enter_sleep_mode();
 		IWDG_reload();
-		// Perform AT commands task.
-		AT_task();
+		// Process command line interface.
+        cli_status = CLI_process();
+        CLI_stack_error(ERROR_BASE_CLI);
 	}
 	return 0;
 }

@@ -12,13 +12,17 @@
 
 /*** Board modes ***/
 
-//#define ATM
-//#define DEBUG
-
-/*** Board options ***/
+#define TKFX_MODE_CAR
+//#define TKFX_MODE_BIKE
+//#define TKFX_MODE_HIKING
 
 #define TKFX_MODE_SUPERCAPACITOR
 //#define TKFX_MODE_BATTERY
+
+//#define TKFX_MODE_CLI
+//#define TKFX_MODE_DEBUG
+
+/*** Board parameters ***/
 
 #ifdef TKFX_MODE_SUPERCAPACITOR
 #define TKFX_ACTIVE_MODE_VSTR_MIN_MV    1500
@@ -26,10 +30,5 @@
 #ifdef TKFX_MODE_BATTERY
 #define TKFX_ACTIVE_MODE_VSTR_MIN_MV    3400
 #endif
-#define TKFX_GEOLOC_TIMEOUT_SECONDS     180
-
-#define TKFX_MODE_CAR
-//#define TKFX_MODE_BIKE
-//#define TKFX_MODE_HIKING
 
 #endif /* __MODE_H__ */

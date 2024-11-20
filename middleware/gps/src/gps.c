@@ -12,7 +12,6 @@
 #include "iwdg.h"
 #include "mode.h"
 #include "neom8x.h"
-#include "power.h"
 #include "pwr.h"
 #include "rtc.h"
 #include "types.h"
@@ -74,9 +73,9 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     // Local variables.
     GPS_status_t status = GPS_SUCCESS;
     NEOM8X_status_t neom8x_status = NEOM8X_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     NEOM8X_acquisition_t gps_acquisition;
+    NEOM8X_acquisition_status_t expected_status = (altitude_stability_threshold == 0) ? NEOM8X_ACQUISITION_STATUS_FOUND : NEOM8X_ACQUISITION_STATUS_STABLE;
     uint32_t start_time = RTC_get_uptime_seconds();
     int32_t vstr_voltage_mv = 0;
     // Check parameters.
@@ -88,9 +87,6 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     (*acquisition_duration_seconds) = 0;
     (*acquisition_status) = GPS_ACQUISITION_ERROR_TIMEOUT;
     gps_ctx.acquisition_status = NEOM8X_ACQUISITION_STATUS_FAIL;
-    // Turn analog front-end to monitor storage element voltage.
-    power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-    POWER_exit_error(GPS_ERROR_BASE_POWER);
     // Configure GPS acquisition.
     gps_acquisition.gps_data = NEOM8X_GPS_DATA_POSITION;
     gps_acquisition.completion_callback = &_GPS_completion_callback;
@@ -120,10 +116,8 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
             }
         }
         // Check acquisition status.
-        if (gps_ctx.acquisition_status == NEOM8X_ACQUISITION_STATUS_STABLE) break;
+        if (gps_ctx.acquisition_status == expected_status) break;
     }
-    power_status = POWER_disable(POWER_DOMAIN_ANALOG);
-    POWER_exit_error(GPS_ERROR_BASE_POWER);
     neom8x_status = NEOM8X_stop_acquisition();
     NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
     // Check status.
@@ -136,7 +130,6 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     }
     return status;
 errors:
-    POWER_disable(POWER_DOMAIN_ANALOG);
     NEOM8X_stop_acquisition();
     return status;
 }

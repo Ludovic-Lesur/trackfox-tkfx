@@ -87,7 +87,15 @@ S2LP_status_t S2LP_HW_set_sdn_gpio(uint8_t state) {
 #ifdef HW1_0
     UNUSED(state);
 #else
-    GPIO_write(&GPIO_S2LP_SDN, state);
+    if (state == 0) {
+        // Put SDN low.
+        GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+        GPIO_write(&GPIO_S2LP_SDN, 0);
+    }
+    else {
+        // Put SDN in high impedance (pull-up resistor used).
+        GPIO_configure(&GPIO_S2LP_SDN, GPIO_MODE_ANALOG, GPIO_TYPE_OPEN_DRAIN, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+    }
 #endif
     return status;
 }

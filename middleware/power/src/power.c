@@ -10,11 +10,11 @@
 #include "analog.h"
 #include "error.h"
 #include "gpio.h"
-#include "i2c.h"
+#include "gps.h"
 #include "lptim.h"
 #include "gpio_mapping.h"
-#include "neom8x.h"
 #include "s2lp.h"
+#include "sht3x.h"
 #include "types.h"
 
 /*** POWER local global variables ***/
@@ -44,14 +44,18 @@ POWER_status_t POWER_enable(POWER_domain_t domain, LPTIM_delay_mode_t delay_mode
 	// Local variables.
 	POWER_status_t status = POWER_SUCCESS;
 	ANALOG_status_t analog_status = ANALOG_SUCCESS;
-	NEOM8X_status_t neom8x_status = NEOM8X_SUCCESS;
+	GPS_status_t gps_status = GPS_SUCCESS;
+	S2LP_status_t s2lp_status = S2LP_SUCCESS;
+	SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
+	MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
 	LPTIM_status_t lptim_status = LPTIM_SUCCESS;
 	uint32_t delay_ms = 0;
 	// Check domain.
 	switch (domain) {
 	case POWER_DOMAIN_ANALOG:
-		// Turn analog front-end on and init ADC.
+		// Turn analog front-end on.
 		GPIO_write(&GPIO_ADC_POWER_ENABLE, 1);
+		// Init ADC.
 		analog_status = ANALOG_init();
 		ANALOG_exit_error(POWER_ERROR_BASE_ANALOG);
 		delay_ms = POWER_ON_DELAY_MS_ANALOG;
@@ -59,14 +63,19 @@ POWER_status_t POWER_enable(POWER_domain_t domain, LPTIM_delay_mode_t delay_mode
 	case POWER_DOMAIN_SENSORS:
 		// Turn digital sensors on and init common I2C interface.
 		GPIO_write(&GPIO_SENSORS_POWER_ENABLE, 1);
-		I2C_init(I2C_INSTANCE_I2C1, &GPIO_SENSORS_I2C);
+		// Init sensors drivers.
+		sht3x_status = SHT3X_init();
+		SHT3X_exit_error(POWER_ERROR_BASE_SHT30);
+		mma865xfc_status = MMA865XFC_init();
+		MMA865XFC_exit_error(POWER_ERROR_BASE_MMA8653FC);
 		delay_ms = POWER_ON_DELAY_MS_SENSORS;
 		break;
 	case POWER_DOMAIN_GPS:
-		// Turn GPS on and init NEOM8N driver.
+		// Turn GPS on.
 		GPIO_write(&GPIO_GPS_POWER_ENABLE, 1);
-		neom8x_status = NEOM8X_init();
-		NEOM8X_exit_error(POWER_ERROR_BASE_NEOM8N);
+		// Init GPS driver.
+		gps_status = GPS_init();
+		GPS_exit_error(POWER_ERROR_BASE_GPS);
 		delay_ms = POWER_ON_DELAY_MS_GPS;
 		break;
 	case POWER_DOMAIN_TCXO:
@@ -75,9 +84,11 @@ POWER_status_t POWER_enable(POWER_domain_t domain, LPTIM_delay_mode_t delay_mode
 		delay_ms = POWER_ON_DELAY_MS_TCXO;
 		break;
 	case POWER_DOMAIN_RADIO:
-		// Turn radio on and init S2LP driver.
+		// Turn radio on.
 		GPIO_write(&GPIO_RF_POWER_ENABLE, 1);
-		S2LP_init();
+		// Init transceiver.
+		s2lp_status = S2LP_init();
+		S2LP_exit_error(POWER_ERROR_BASE_S2LP);
 		delay_ms = POWER_ON_DELAY_MS_RADIO;
 		break;
 	default:
@@ -89,7 +100,7 @@ POWER_status_t POWER_enable(POWER_domain_t domain, LPTIM_delay_mode_t delay_mode
 	// Power on delay.
 	if (delay_ms != 0) {
 		lptim_status = LPTIM_delay_milliseconds(delay_ms, delay_mode);
-		LPTIM_exit_error(POWER_ERROR_BASE_LPTIM1);
+		LPTIM_exit_error(POWER_ERROR_BASE_LPTIM);
 	}
 errors:
 	return status;
@@ -100,33 +111,44 @@ POWER_status_t POWER_disable(POWER_domain_t domain) {
 	// Local variables.
 	POWER_status_t status = POWER_SUCCESS;
 	ANALOG_status_t analog_status = ANALOG_SUCCESS;
-	NEOM8X_status_t neom8x_status = NEOM8X_SUCCESS;
-	// Check domain.
+	GPS_status_t gps_status = GPS_SUCCESS;
+    S2LP_status_t s2lp_status = S2LP_SUCCESS;
+    SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
+    MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
+    // Check domain.
 	switch (domain) {
 	case POWER_DOMAIN_ANALOG:
-		// Turn analog front-end off and release ADC.
+		// Release ADC.
 	    analog_status = ANALOG_de_init();
+	    ANALOG_exit_error(POWER_ERROR_BASE_ANALOG);
+	    // Turn analog front-end off.
 		GPIO_write(&GPIO_ADC_POWER_ENABLE, 0);
-		ANALOG_exit_error(POWER_ERROR_BASE_ANALOG);
 		break;
 	case POWER_DOMAIN_SENSORS:
+	    // Release sensors drivers.
+        sht3x_status = SHT3X_de_init();
+        SHT3X_exit_error(POWER_ERROR_BASE_SHT30);
+        mma865xfc_status = MMA865XFC_de_init();
+        MMA865XFC_exit_error(POWER_ERROR_BASE_MMA8653FC);
 		// Turn digital sensors off and release I2C interface.
-		I2C_de_init(I2C_INSTANCE_I2C1, &GPIO_SENSORS_I2C);
 		GPIO_write(&GPIO_SENSORS_POWER_ENABLE, 0);
 		break;
 	case POWER_DOMAIN_GPS:
-		// Turn GPS off and release NEOM8N driver.
-	    neom8x_status = NEOM8X_de_init();
+	    // Release GPS driver.
+	    gps_status = GPS_de_init();
+	    GPS_exit_error(POWER_ERROR_BASE_GPS);
+	    // Turn GPS off.
 	    GPIO_write(&GPIO_GPS_POWER_ENABLE, 0);
-	    NEOM8X_exit_error(POWER_ERROR_BASE_NEOM8N);
 		break;
 	case POWER_DOMAIN_TCXO:
 		// Turn TCXO off.
 		GPIO_write(&GPIO_TCXO_POWER_ENABLE, 0);
 		break;
 	case POWER_DOMAIN_RADIO:
+		// Release transceiver.
+		s2lp_status = S2LP_de_init();
+		S2LP_exit_error(POWER_ERROR_BASE_S2LP);
 		// Turn radio off and release S2LP driver.
-		S2LP_de_init();
 		GPIO_write(&GPIO_RF_POWER_ENABLE, 0);
 		break;
 	default:
