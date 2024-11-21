@@ -2,7 +2,7 @@
     path = middleware/sigfox/sigfox-ep-lib
     url = https://github.com/sigfox-tech-radio/sigfox-ep-lib.git
 [submodule "sigfox-ep-addon-rfp"]
-    path = sigfox-ep-addon-rfp
+    path = middleware/sigfox/sigfox-ep-addon-rfp
     url = https://github.com/sigfox-tech-radio/sigfox-ep-addon-rfp.git
 [submodule "stm32l0xx-registers"]
     path = drivers/registers/stm32l0xx-registers
