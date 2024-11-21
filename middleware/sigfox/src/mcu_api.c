@@ -47,12 +47,12 @@
 #include "at.h"
 #include "error.h"
 #include "error_base.h"
-#include "mode.h"
 #include "nvic_priority.h"
 #include "nvm.h"
 #include "nvm_address.h"
 #include "power.h"
 #include "tim.h"
+#include "tkfx_flags.h"
 #include "types.h"
 
 /*** MCU_API local macros ***/
@@ -335,7 +335,7 @@ errors:
 MCU_API_status_t MCU_API_print_dl_payload(sfx_u8* dl_payload, sfx_u8 dl_payload_size, sfx_s16 rssi_dbm) {
     // Local variables.
     MCU_API_status_t status = MCU_API_SUCCESS;
-#ifdef ATM
+#ifdef TKFX_MODE_CLI
     // Print data on bus.
     AT_print_dl_payload(dl_payload, dl_payload_size, rssi_dbm);
 #else

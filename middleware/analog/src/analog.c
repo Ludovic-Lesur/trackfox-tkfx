@@ -9,7 +9,7 @@
 
 #include "adc.h"
 #include "error.h"
-#include "mode.h"
+#include "tkfx_flags.h"
 #include "types.h"
 
 /*** ANALOG local macros ***/

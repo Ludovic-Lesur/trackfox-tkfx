@@ -37,7 +37,7 @@
 // Applicative.
 #include "at.h"
 #include "error_base.h"
-#include "mode.h"
+#include "tkfx_flags.h"
 #include "version.h"
 
 /*** MAIN macros ***/

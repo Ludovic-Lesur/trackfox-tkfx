@@ -1,12 +1,12 @@
 /*
- * mode.h
+ * tkfx_flags.h
  *
  *  Created on: 18 apr. 2020
  *      Author: Ludo
  */
 
-#ifndef __MODE_H__
-#define __MODE_H__
+#ifndef __TKFX_FLAGS_H__
+#define __TKFX_FLAGS_H__
 
 #include "types.h"
 
@@ -31,4 +31,4 @@
 #define TKFX_ACTIVE_MODE_VSTR_MIN_MV    3400
 #endif
 
-#endif /* __MODE_H__ */
+#endif /* __TKFX_FLAGS_H__ */

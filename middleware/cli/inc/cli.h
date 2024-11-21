@@ -9,8 +9,8 @@
 #define __CLI_H__
 
 #include "at.h"
-#include "mode.h"
 #include "sigfox_types.h"
+#include "tkfx_flags.h"
 #include "types.h"
 
 /*** CLI structures ***/

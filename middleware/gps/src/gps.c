@@ -10,10 +10,10 @@
 #include "analog.h"
 #include "error.h"
 #include "iwdg.h"
-#include "mode.h"
 #include "neom8x.h"
 #include "pwr.h"
 #include "rtc.h"
+#include "tkfx_flags.h"
 #include "types.h"
 
 /*** GPS local structures ***/
