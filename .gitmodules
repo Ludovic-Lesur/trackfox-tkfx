@@ -1,27 +1,27 @@
 [submodule "sigfox-ep-lib"]
-	path = middleware/sigfox/sigfox-ep-lib
-	url = https://github.com/sigfox-tech-radio/sigfox-ep-lib.git
+    path = middleware/sigfox/sigfox-ep-lib
+    url = https://github.com/sigfox-tech-radio/sigfox-ep-lib.git
 [submodule "sigfox-ep-addon-rfp"]
-	path = sigfox-ep-addon-rfp
-	url = https://github.com/sigfox-tech-radio/sigfox-ep-addon-rfp.git
+    path = sigfox-ep-addon-rfp
+    url = https://github.com/sigfox-tech-radio/sigfox-ep-addon-rfp.git
 [submodule "stm32l0xx-registers"]
-	path = drivers/registers/stm32l0xx-registers
-	url = https://github.com/Ludovic-Lesur/stm32l0xx-registers.git
+    path = drivers/registers/stm32l0xx-registers
+    url = https://github.com/Ludovic-Lesur/stm32l0xx-registers.git
 [submodule "stm32l0xx-drivers"]
-	path = drivers/peripherals/stm32l0xx-drivers
-	url = https://github.com/Ludovic-Lesur/stm32l0xx-drivers.git
+    path = drivers/peripherals/stm32l0xx-drivers
+    url = https://github.com/Ludovic-Lesur/stm32l0xx-drivers.git
 [submodule "embedded-utils"]
-	path = drivers/utils/embedded-utils
-	url = https://github.com/Ludovic-Lesur/embedded-utils.git
+    path = drivers/utils/embedded-utils
+    url = https://github.com/Ludovic-Lesur/embedded-utils.git
 [submodule "neom8x-driver"]
-	path = drivers/components/neom8x-driver
-	url = https://github.com/Ludovic-Lesur/neom8x-driver.git
+    path = drivers/components/neom8x-driver
+    url = https://github.com/Ludovic-Lesur/neom8x-driver.git
 [submodule "sht3x-driver"]
-	path = drivers/components/sht3x-driver
-	url = https://github.com/Ludovic-Lesur/sht3x-driver.git
+    path = drivers/components/sht3x-driver
+    url = https://github.com/Ludovic-Lesur/sht3x-driver.git
 [submodule "mma865xfc-driver"]
-	path = drivers/components/mma865xfc-driver
-	url = https://github.com/Ludovic-Lesur/mma865xfc-driver.git
+    path = drivers/components/mma865xfc-driver
+    url = https://github.com/Ludovic-Lesur/mma865xfc-driver.git
 [submodule "s2lp-driver"]
-	path = drivers/components/s2lp-driver
-	url = https://github.com/Ludovic-Lesur/s2lp-driver.git
+    path = drivers/components/s2lp-driver
+    url = https://github.com/Ludovic-Lesur/s2lp-driver.git

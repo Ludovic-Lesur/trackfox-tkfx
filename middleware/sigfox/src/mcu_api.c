@@ -79,7 +79,7 @@ typedef enum {
 #if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION) && (defined BIDIRECTIONAL)
 // @formatter:off
 static sfx_u32 MCU_API_LATENCY_MS[MCU_API_LATENCY_LAST] = {
-	(POWER_ON_DELAY_MS_ANALOG + ADC_INIT_DELAY_MS) // Get voltage and temperature function.
+    (POWER_ON_DELAY_MS_ANALOG + ADC_INIT_DELAY_MS) // Get voltage and temperature function.
 };
 // @formatter:on
 #endif
@@ -207,14 +207,14 @@ MCU_API_status_t MCU_API_aes_128_cbc_encrypt(MCU_API_encryption_data_t* aes_data
     switch (aes_data -> key) {
     case SIGFOX_EP_KEY_PRIVATE:
         // Retrieve private key from NVM.
-        for (idx=0 ; idx<SIGFOX_EP_KEY_SIZE_BYTES ; idx++) {
+        for (idx = 0; idx < SIGFOX_EP_KEY_SIZE_BYTES; idx++) {
             nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_KEY + idx), &(local_key[idx]));
             NVM_stack_exit_error(ERROR_BASE_NVM, (MCU_API_status_t) MCU_API_ERROR_DRIVER_NVM);
         }
         break;
     case SIGFOX_EP_KEY_PUBLIC:
         // Use public key.
-        for (idx=0 ; idx<SIGFOX_EP_KEY_SIZE_BYTES ; idx++) {
+        for (idx = 0; idx < SIGFOX_EP_KEY_SIZE_BYTES; idx++) {
             local_key[idx] = SIGFOX_EP_PUBLIC_KEY[idx];
         }
         break;

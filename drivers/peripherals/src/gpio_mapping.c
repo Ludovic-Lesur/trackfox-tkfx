@@ -73,4 +73,4 @@ const I2C_gpio_t GPIO_SENSORS_I2C = { &GPIO_I2C1_SCL, &GPIO_I2C1_SDA };
 // AT interface.
 const USART_gpio_t GPIO_AT_USART = { &GPIO_USART2_TX, &GPIO_USART2_RX };
 // Test point.
-const GPIO_pin_t GPIO_TP2 =	(GPIO_pin_t) {GPIOA, 0, 4, 0};
+const GPIO_pin_t GPIO_TP2 = (GPIO_pin_t) {GPIOA, 0, 4, 0};
