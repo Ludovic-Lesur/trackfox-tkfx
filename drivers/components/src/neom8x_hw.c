@@ -26,6 +26,10 @@ NEOM8X_status_t NEOM8X_HW_init(NEOM8X_HW_configuration_t* configuration) {
     NEOM8X_status_t status = NEOM8X_SUCCESS;
     LPUART_status_t lpuart_status = LPUART_SUCCESS;
     LPUART_configuration_t lpuart_config;
+#ifdef HW1_1
+    // Init backup pin.
+    GPIO_configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+#endif
     // Init LPUART.
     lpuart_config.baud_rate = (configuration->uart_baud_rate);
     lpuart_config.nvic_priority = NVIC_PRIORITY_GPS_UART;
@@ -101,8 +105,12 @@ errors:
 NEOM8X_status_t NEOM8X_HW_set_backup_voltage(uint8_t state) {
     // Local variables.
     NEOM8X_status_t status = NEOM8X_SUCCESS;
+#ifdef HW1_1
     // Set GPIO.
     GPIO_write(&GPIO_GPS_VBCKP, state);
+#else
+    UNUSED(state);
+#endif
     return status;
 }
 #endif
@@ -111,7 +119,11 @@ NEOM8X_status_t NEOM8X_HW_set_backup_voltage(uint8_t state) {
 /*******************************************************************/
 uint8_t NEOM8X_HW_get_backup_voltage(void) {
     // Read GPIO.
+#ifdef HW1_1
     return GPIO_read(&GPIO_GPS_VBCKP);
+#else
+    return 1;
+#endif
 }
 #endif
 

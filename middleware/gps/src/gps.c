@@ -138,23 +138,15 @@ errors:
 GPS_status_t GPS_set_backup_voltage(uint8_t state) {
     // Local variables.
     GPS_status_t status = GPS_SUCCESS;
-#ifdef HW1_1
     NEOM8X_status_t neom8x_status = NEOM8X_SUCCESS;
     // Set backup state.
     neom8x_status = NEOM8X_set_backup_voltage(state);
     NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
 errors:
-#else
-    UNUSED(state);
-#endif
     return status;
 }
 
 /*******************************************************************/
 uint8_t GPS_get_backup_voltage(void) {
-#ifdef HW1_0
-    return 1;
-#else
     return NEOM8X_get_backup_voltage();
-#endif
 }

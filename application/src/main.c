@@ -611,13 +611,11 @@ int main(void) {
                 // Update status.
                 tkfx_ctx.status.accelerometer_status = 0;
             }
-#ifdef HW1_1
             // Disable GPS backup in low power mode.
             if (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) {
                 gps_status = GPS_set_backup_voltage(0);
                 GPS_stack_error(ERROR_BASE_GPS);
             }
-#endif
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_OFF;
             break;
