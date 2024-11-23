@@ -150,7 +150,6 @@ typedef struct {
 /*** RF API local global variables ***/
 
 #if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION)
-// @formatter:off
 static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
     POWER_ON_DELAY_MS_TCXO, // Wake-up.
     (POWER_ON_DELAY_MS_RADIO + S2LP_EXIT_SHUTDOWN_DELAY_MS + 1), // TX init (power on delay + 1.75ms).
@@ -165,7 +164,6 @@ static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
     0, // RX de-init (70µs).
 #endif
 };
-// @formatter:on
 #endif
 static RF_API_context_t rf_api_ctx;
 
