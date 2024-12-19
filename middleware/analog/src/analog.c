@@ -9,12 +9,13 @@
 
 #include "adc.h"
 #include "error.h"
+#include "gpio_mapping.h"
 #include "tkfx_flags.h"
 #include "types.h"
 
 /*** ANALOG local macros ***/
 
-#define ANALOG_VMCU_MV_DEFAULT                  3300
+#define ANALOG_VMCU_MV_DEFAULT                  3000
 #define ANALOG_TMCU_DEGREES_DEFAULT             25
 
 #define ANALOG_LM4040_VOLTAGE_MV                2048
@@ -76,7 +77,7 @@ ANALOG_status_t ANALOG_init(void) {
     analog_ctx.vmcu_mv = ANALOG_VMCU_MV_DEFAULT;
     analog_ctx.lm4040_data_12bits = ANALOG_ERROR_VALUE;
     // Init internal ADC.
-    adc_status = ADC_init(NULL);
+    adc_status = ADC_init(&GPIO_ADC);
     ADC_exit_error(ANALOG_ERROR_BASE_ADC);
     // Calibration with external reference.
     status = _ANALOG_calibrate();

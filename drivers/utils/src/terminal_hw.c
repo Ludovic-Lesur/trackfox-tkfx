@@ -33,7 +33,7 @@ TERMINAL_status_t TERMINAL_HW_init(uint8_t instance, TERMINAL_rx_irq_cb_t rx_irq
     UNUSED(instance);
     // Init USART.
     usart_config.baud_rate = TERMINAL_HW_USART_BAUD_RATE;
-    usart_config.nvic_priority = NVIC_PRIORITY_AT;
+    usart_config.nvic_priority = NVIC_PRIORITY_CLI;
     usart_config.rxne_callback = rx_irq_callback;
     usart_status = USART_init(TERMINAL_HW_USART_INSTANCE, &GPIO_AT_USART, &usart_config);
     USART_exit_error(TERMINAL_ERROR_BASE_HW_INTERFACE);

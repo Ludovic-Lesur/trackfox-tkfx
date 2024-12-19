@@ -32,7 +32,7 @@ typedef enum {
 
 // Analog inputs.
 extern const GPIO_pin_t GPIO_ADC_POWER_ENABLE;
-extern const ADC_gpio_t GPIO_ADC_GPIO;
+extern const ADC_gpio_t GPIO_ADC;
 // Accelerometer.
 extern const GPIO_pin_t GPIO_ACCELERO_IRQ;
 // GPS.

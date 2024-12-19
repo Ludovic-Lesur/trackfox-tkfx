@@ -31,7 +31,7 @@
 #include "analog.h"
 #include "gps.h"
 #include "power.h"
-// Sigfox.#include "nvic_priority.h"
+// Sigfox.
 #include "manuf/rf_api.h"
 #include "sigfox_ep_addon_rfp_api.h"
 #include "sigfox_ep_api.h"
@@ -111,7 +111,7 @@ static AT_status_t _CLI_cw_callback(void);
 static AT_status_t _CLI_rssi_callback(void);
 #endif
 
-/*** AT local global variables ***/
+/*** CLI local global variables ***/
 
 static const AT_command_t CLI_COMMANDS_LIST[] = {
     {
@@ -236,7 +236,7 @@ static const AT_command_t CLI_COMMANDS_LIST[] = {
 
 static CLI_context_t cli_ctx;
 
-/*** AT local functions ***/
+/*** CLI local functions ***/
 
 /*******************************************************************/
 #define _CLI_check_driver_status(driver_status, driver_success, driver_error_base) { \

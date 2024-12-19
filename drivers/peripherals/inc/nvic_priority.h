@@ -26,7 +26,7 @@ typedef enum {
     NVIC_PRIORITY_SIGFOX_RADIO_IRQ_GPIO = 0,
     NVIC_PRIORITY_SIGFOX_TIMER = 1,
     // AT interface.
-    NVIC_PRIORITY_AT = 3
+    NVIC_PRIORITY_CLI = 3
 } NVIC_priority_list_t;
 
 #endif /* __NVIC_PRIORITY_H__ */
