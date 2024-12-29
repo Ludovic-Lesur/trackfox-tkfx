@@ -54,7 +54,7 @@
 // Sigfox payload lengths.
 #define TKFX_SIGFOX_STARTUP_DATA_SIZE           8
 #define TKFX_SIGFOX_GEOLOC_DATA_SIZE            11
-#define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_SIZE    3
+#define TKFX_SIGFOX_GEOLOC_TIMEOUT_DATA_SIZE    2
 #define TKFX_SIGFOX_MONITORING_DATA_SIZE        7
 #define TKFX_SIGFOX_ERROR_STACK_DATA_SIZE       12
 // Error values.
