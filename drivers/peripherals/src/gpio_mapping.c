@@ -14,6 +14,19 @@
 #include "spi.h"
 #include "usart.h"
 
+/*** GPIO MAPPING local structures ***/
+
+/*!******************************************************************
+ * \enum GPIO_adc_channel_t
+ * \brief GPIO ADC channels list.
+ *******************************************************************/
+typedef enum {
+    GPIO_ADC_CHANNEL_INDEX_LM4040_OUT = 0,
+    GPIO_ADC_CHANNEL_INDEX_VSRC_MEASURE,
+    GPIO_ADC_CHANNEL_INDEX_VCAP_MEASURE,
+    GPIO_ADC_CHANNEL_INDEX_LAST
+} GPIO_adc_channel_index_t;
+
 /*** GPIO MAPPING local global variables ***/
 
 // Analog inputs.
@@ -21,7 +34,7 @@ static const GPIO_pin_t GPIO_ADC_LM4040_OUT = { GPIOB, 1, 0, 0 };
 static const GPIO_pin_t GPIO_ADC_VSRC_MEASURE = { GPIOA, 0, 6, 0 };
 static const GPIO_pin_t GPIO_ADC_VSTR_MEASURE = { GPIOA, 0, 7, 0 };
 // Analog inputs list.
-static const GPIO_pin_t* GPIO_ADC_PINS_LIST[GPIO_ADC_CHANNEL_LAST] = { &GPIO_ADC_LM4040_OUT, &GPIO_ADC_VSRC_MEASURE, &GPIO_ADC_VSTR_MEASURE };
+static const GPIO_pin_t* GPIO_ADC_PINS_LIST[GPIO_ADC_CHANNEL_INDEX_LAST] = { &GPIO_ADC_LM4040_OUT, &GPIO_ADC_VSRC_MEASURE, &GPIO_ADC_VSTR_MEASURE };
 // I2C1.
 static const GPIO_pin_t GPIO_I2C1_SCL = (GPIO_pin_t) { GPIOB, 1, 6, 1 };
 static const GPIO_pin_t GPIO_I2C1_SDA = (GPIO_pin_t) { GPIOB, 1, 7, 1 };
@@ -40,7 +53,7 @@ static const GPIO_pin_t GPIO_USART2_RX = (GPIO_pin_t) { GPIOA, 0, 10, 4 };
 
 // Analog inputs.
 const GPIO_pin_t GPIO_ADC_POWER_ENABLE = (GPIO_pin_t) { GPIOB, 1, 1, 0 };
-const ADC_gpio_t GPIO_ADC = { (const GPIO_pin_t**) &GPIO_ADC_PINS_LIST, GPIO_ADC_CHANNEL_LAST };
+const ADC_gpio_t GPIO_ADC = { (const GPIO_pin_t**) &GPIO_ADC_PINS_LIST, GPIO_ADC_CHANNEL_INDEX_LAST };
 // Accelerometer.
 #ifdef HW1_0
 const GPIO_pin_t GPIO_ACCELERO_IRQ = (GPIO_pin_t) {GPIOA, 0, 1, 0};
