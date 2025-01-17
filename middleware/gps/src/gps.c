@@ -104,6 +104,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
         (*acquisition_duration_seconds) = (RTC_get_uptime_seconds() - start_time);
         // Check flag.
         if (gps_ctx.process_flag != 0) {
+            // Process driver.
             neom8x_status = NEOM8X_process();
             NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
             // Check VSTR voltage.
@@ -128,7 +129,6 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
         // Update status.
         (*acquisition_status) = GPS_ACQUISITION_SUCCESS;
     }
-    return status;
 errors:
     NEOM8X_stop_acquisition();
     return status;

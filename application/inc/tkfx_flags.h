@@ -28,7 +28,7 @@
 #define TKFX_ACTIVE_MODE_VSTR_MIN_MV    1500
 #endif
 #ifdef TKFX_MODE_BATTERY
-#define TKFX_ACTIVE_MODE_VSTR_MIN_MV    3400
+#define TKFX_ACTIVE_MODE_VSTR_MIN_MV    3600
 #endif
 
 #endif /* __TKFX_FLAGS_H__ */

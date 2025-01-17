@@ -44,7 +44,7 @@
 
 #include "aes.h"
 #include "analog.h"
-#include "at.h"
+#include "cli.h"
 #include "error.h"
 #include "error_base.h"
 #include "nvic_priority.h"
