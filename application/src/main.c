@@ -51,6 +51,14 @@
 #ifdef TKFX_MODE_HIKING
 #define TKFX_MODE                               0b10
 #endif
+// Voltage hysteresis for radio.
+#ifdef TKFX_MODE_SUPERCAPACITOR
+#define TKFX_RADIO_OFF_VCAP_THRESHOLD_MV        1000
+#endif
+#ifdef TKFX_MODE_BATTERY
+#define TKFX_RADIO_OFF_VCAP_THRESHOLD_MV        3500
+#endif
+#define TKFX_RADIO_ON_VCAP_THRESHOLD_MV         TKFX_ACTIVE_MODE_VSTR_MIN_MV
 // Sigfox payload lengths.
 #define TKFX_SIGFOX_STARTUP_DATA_SIZE           8
 #define TKFX_SIGFOX_GEOLOC_DATA_SIZE            11
@@ -108,7 +116,7 @@ typedef union {
 /*******************************************************************/
 typedef union {
     struct {
-        unsigned unused :5;
+        unsigned radio_enabled : 1;
         unsigned geoloc_request :1;
         unsigned monitoring_request :1;
         unsigned por :1;
@@ -254,6 +262,7 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.mode = TKFX_MODE_ACTIVE;
     tkfx_ctx.flags.all = 0;
     tkfx_ctx.flags.por = 1;
+    tkfx_ctx.flags.radio_enabled = 1;
     tkfx_ctx.status.all = 0;
     tkfx_ctx.status.tracker_mode = TKFX_MODE;
     tkfx_ctx.start_detection_irq_count = 0;
@@ -312,6 +321,8 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     // Local variables.
     SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
     SIGFOX_EP_API_config_t lib_config;
+    // Directly exit of the radio is disabled due to low storage element voltage.
+    if (tkfx_ctx.flags.radio_enabled == 0) goto errors;
     // Disable motion interrupts.
     SENSORS_HW_disable_accelerometer_interrupt();
     // Library configuration.
@@ -332,6 +343,8 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
         // Enable interrupt.
         SENSORS_HW_enable_accelerometer_interrupt();
     }
+errors:
+    return;
 }
 #endif
 
@@ -615,6 +628,13 @@ int main(void) {
             if (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) {
                 gps_status = GPS_set_backup_voltage(0);
                 GPS_stack_error(ERROR_BASE_GPS);
+            }
+            // Voltage hysteresis for radio.
+            if (tkfx_ctx.vstr_mv < TKFX_RADIO_OFF_VCAP_THRESHOLD_MV) {
+                tkfx_ctx.flags.radio_enabled = 0;
+            }
+            if (tkfx_ctx.vstr_mv > TKFX_RADIO_ON_VCAP_THRESHOLD_MV) {
+                tkfx_ctx.flags.radio_enabled = 1;
             }
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_OFF;
