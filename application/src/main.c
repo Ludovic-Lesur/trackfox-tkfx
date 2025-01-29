@@ -356,7 +356,6 @@ int main(void) {
     _TKFX_init_hw();
     // Local variables.
     RCC_status_t rcc_status = RCC_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     MATH_status_t math_status = MATH_SUCCESS;
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
@@ -414,12 +413,10 @@ int main(void) {
         case TKFX_STATE_MEASURE:
             IWDG_reload();
             // Get temperature from SHT30.
-            power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-            POWER_stack_error(ERROR_BASE_POWER);
+            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
             sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &generic_s32_1, &generic_s32_2);
             SHT3X_stack_error(ERROR_BASE_SHT30);
-            power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-            POWER_stack_error(ERROR_BASE_POWER);
+            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
             // Reset data.
             tkfx_ctx.tamb_degrees = TKFX_ERROR_VALUE_TEMPERATURE;
             tkfx_ctx.hamb_percent = TKFX_ERROR_VALUE_HUMIDITY;
@@ -436,8 +433,7 @@ int main(void) {
             tkfx_ctx.vsrc_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
             tkfx_ctx.vstr_mv = TKFX_ERROR_VALUE_ANALOG_16BITS;
             // Get voltages measurements.
-            power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-            POWER_stack_error(ERROR_BASE_POWER);
+            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
             analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSRC_MV, &generic_s32_1);
             ANALOG_stack_error(ERROR_BASE_ANALOG);
             if (analog_status == ANALOG_SUCCESS) {
@@ -448,8 +444,7 @@ int main(void) {
             if (analog_status == ANALOG_SUCCESS) {
                 tkfx_ctx.vstr_mv = (uint32_t) generic_s32_1;
             }
-            power_status = POWER_disable(POWER_DOMAIN_ANALOG);
-            POWER_stack_error(ERROR_BASE_POWER);
+            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
             // Compute next state.
             if (tkfx_ctx.flags.monitoring_request != 0) {
                 tkfx_ctx.state = TKFX_STATE_MONITORING;
@@ -532,18 +527,13 @@ int main(void) {
             geoloc_fix_duration_seconds = 0;
             // Pre-check storage voltage.
             if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_VSTR_MIN_MV) {
-                // Turn analog front-end to monitor storage element voltage.
-                power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
-                POWER_stack_error(ERROR_BASE_POWER);
-                // Get position from GPS.
-                power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
-                POWER_stack_error(ERROR_BASE_POWER);
+                // Turn analog front-end to monitor storage element voltage and get position from GPS.
+                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
+                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
                 gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &geoloc_fix_duration_seconds, &gps_acquisition_status);
                 GPS_stack_error(ERROR_BASE_GPS);
-                power_status = POWER_disable(POWER_DOMAIN_GPS);
-                POWER_stack_error(ERROR_BASE_POWER);
-                power_status = POWER_disable(POWER_DOMAIN_ANALOG);
-                POWER_stack_error(ERROR_BASE_POWER);
+                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS);
+                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
             }
             else {
                 gps_acquisition_status = GPS_ACQUISITION_ERROR_VSTR_THRESHOLD;
@@ -587,12 +577,10 @@ int main(void) {
         case TKFX_STATE_MODE_UPDATE:
             IWDG_reload();
             // Perform measurements.
-            power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-            POWER_stack_error(ERROR_BASE_POWER);
+            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
             analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &generic_s32_1);
             ANALOG_stack_error(ERROR_BASE_ANALOG);
-            power_status = POWER_disable(POWER_DOMAIN_ANALOG);
-            POWER_stack_error(ERROR_BASE_POWER);
+            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
             // Read storage voltage.
             tkfx_ctx.vstr_mv = (analog_status == ANALOG_SUCCESS) ? generic_s32_1 : 0;
             // Check storage voltage.
@@ -600,12 +588,10 @@ int main(void) {
             // Configure accelerometer according to mode.
             if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_status == 0) || (tkfx_ctx.flags.por != 0))) {
                 // Active mode.
-                power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-                POWER_stack_error(ERROR_BASE_POWER);
+                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
                 mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_ACTIVE_CONFIGURATION[0]), MMA865XFC_ACTIVE_CONFIGURATION_SIZE);
                 MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
-                power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-                POWER_stack_error(ERROR_BASE_POWER);
+                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
                 // Enable interrupt.
                 SENSORS_HW_enable_accelerometer_interrupt();
                 // Update status.
@@ -613,12 +599,10 @@ int main(void) {
             }
             if ((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) && ((tkfx_ctx.status.accelerometer_status != 0) || (tkfx_ctx.flags.por != 0))) {
                 // Sleep mode.
-                power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-                POWER_stack_error(ERROR_BASE_POWER);
+                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
                 mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_SLEEP_CONFIGURATION[0]), MMA865XFC_SLEEP_CONFIGURATION_SIZE);
                 MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
-                power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-                POWER_stack_error(ERROR_BASE_POWER);
+                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
                 // Disable interrupt.
                 SENSORS_HW_disable_accelerometer_interrupt();
                 // Update status.

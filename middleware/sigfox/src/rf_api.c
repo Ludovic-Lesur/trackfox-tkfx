@@ -99,7 +99,6 @@ typedef enum {
     RF_API_ERROR_LATENCY_TYPE,
     // Low level drivers errors.
     RF_API_ERROR_DRIVER_MCU_API,
-    RF_API_ERROR_DRIVER_POWER,
     RF_API_ERROR_DRIVER_S2LP
 } RF_API_custom_status_t;
 
@@ -432,11 +431,8 @@ RF_API_status_t RF_API_process(void) {
 RF_API_status_t RF_API_wake_up(void) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     // Turn radio TCXO on.
-    power_status = POWER_enable(POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
-    POWER_stack_exit_error(ERROR_BASE_POWER, (RF_API_status_t) RF_API_ERROR_DRIVER_POWER);
-errors:
+    POWER_enable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
     RETURN();
 }
 
@@ -444,11 +440,8 @@ errors:
 RF_API_status_t RF_API_sleep(void) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     // Turn radio TCXO off.
-    power_status = POWER_disable(POWER_DOMAIN_TCXO);
-    POWER_stack_exit_error(ERROR_BASE_POWER, (RF_API_status_t) RF_API_ERROR_DRIVER_POWER);
-errors:
+    POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_TCXO);
     RETURN();
 }
 
@@ -456,14 +449,12 @@ errors:
 RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     S2LP_status_t s2lp_status = S2LP_SUCCESS;
     S2LP_modulation_t modulation = S2LP_MODULATION_NONE;
     sfx_u32 datarate_bps = 0;
     sfx_u32 deviation_hz = 0;
     // Turn radio on.
-    power_status = POWER_enable(POWER_DOMAIN_RADIO, LPTIM_DELAY_MODE_SLEEP);
-    POWER_stack_exit_error(ERROR_BASE_POWER, (RF_API_status_t) RF_API_ERROR_DRIVER_POWER);
+    POWER_enable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO, LPTIM_DELAY_MODE_SLEEP);
     // Exit shutdown.
     s2lp_status = S2LP_shutdown(0);
     S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
@@ -580,15 +571,12 @@ errors:
 RF_API_status_t RF_API_de_init(void) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     S2LP_status_t s2lp_status = S2LP_SUCCESS;
     // Turn transceiver off.
     s2lp_status = S2LP_shutdown(1);
     S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-    // Turn radio off.
-    power_status = POWER_disable(POWER_DOMAIN_RADIO);
-    POWER_stack_exit_error(ERROR_BASE_POWER, (RF_API_status_t) RF_API_ERROR_DRIVER_POWER);
 errors:
+    POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO);
     RETURN();
 }
 
@@ -768,6 +756,6 @@ RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) 
 void RF_API_error(void) {
     // Force all front-end off.
     S2LP_shutdown(1);
-    POWER_disable(POWER_DOMAIN_RADIO);
+    POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO);
 }
 #endif
