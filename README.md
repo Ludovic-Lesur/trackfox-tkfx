@@ -34,9 +34,9 @@ The TrackFox boards are based on the **STM32L041K6U6** microcontroller of the ST
 
 The project is organized as follow:
 
-* `startup` : MCU **startup** code (from ARM).
-* `linker` : MCU **linker** script (from ARM).
 * `drivers` :
+    * `device` : MCU **startup** code and **linker** script.
+    * `registers` : MCU **registers** address definition.
     * `registers` : MCU **registers** address definition.
     * `peripherals` : internal MCU **peripherals** drivers.
     * `components` : external **components** drivers.
