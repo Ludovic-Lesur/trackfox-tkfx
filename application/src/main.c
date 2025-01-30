@@ -5,8 +5,6 @@
  *      Author: Ludo
  */
 
-// Registers
-#include "rcc_reg.h"
 // Peripherals.
 #include "exti.h"
 #include "gpio.h"
@@ -386,7 +384,7 @@ int main(void) {
         case TKFX_STATE_STARTUP:
             IWDG_reload();
             // Fill reset reason and software version.
-            tkfx_ctx.sigfox_startup_data.reset_reason = ((RCC->CSR) >> 24) & 0xFF;
+            tkfx_ctx.sigfox_startup_data.reset_reason = PWR_get_reset_flags();
             tkfx_ctx.sigfox_startup_data.major_version = GIT_MAJOR_VERSION;
             tkfx_ctx.sigfox_startup_data.minor_version = GIT_MINOR_VERSION;
             tkfx_ctx.sigfox_startup_data.commit_index = GIT_COMMIT_INDEX;
@@ -708,17 +706,14 @@ int main(void) {
 int main(void) {
     // Local variables.
     CLI_status_t cli_status = CLI_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
     // Init board.
     _TKFX_init_hw();
     // Configure accelerometer.
-    power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-    POWER_stack_error(ERROR_BASE_POWER);
+    POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
     mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_ACTIVE_CONFIGURATION[0]), MMA865XFC_ACTIVE_CONFIGURATION_SIZE);
     MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
-    power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-    POWER_stack_error(ERROR_BASE_POWER);
+    POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
     // Init command line interface.
     cli_status = CLI_init();
     CLI_stack_error(ERROR_BASE_CLI);

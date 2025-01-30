@@ -19,12 +19,11 @@
 #if (!(defined EMBEDDED_UTILS_TERMINAL_DRIVER_DISABLE) && (EMBEDDED_UTILS_TERMINAL_INSTANCES_NUMBER > 0))
 
 #define TERMINAL_HW_USART_INSTANCE      USART_INSTANCE_USART2
-#define TERMINAL_HW_USART_BAUD_RATE     9600
 
 /*** TERMINAL HW functions ***/
 
 /*******************************************************************/
-TERMINAL_status_t TERMINAL_HW_init(uint8_t instance, TERMINAL_rx_irq_cb_t rx_irq_callback) {
+TERMINAL_status_t TERMINAL_HW_init(uint8_t instance, uint32_t baud_rate, TERMINAL_rx_irq_cb_t rx_irq_callback) {
     // Local variables.
     TERMINAL_status_t status = TERMINAL_SUCCESS;
     USART_status_t usart_status = USART_SUCCESS;
@@ -32,7 +31,7 @@ TERMINAL_status_t TERMINAL_HW_init(uint8_t instance, TERMINAL_rx_irq_cb_t rx_irq
     // Unused parameter.
     UNUSED(instance);
     // Init USART.
-    usart_config.baud_rate = TERMINAL_HW_USART_BAUD_RATE;
+    usart_config.baud_rate = baud_rate;
     usart_config.nvic_priority = NVIC_PRIORITY_CLI;
     usart_config.rxne_callback = rx_irq_callback;
     usart_status = USART_init(TERMINAL_HW_USART_INSTANCE, &GPIO_AT_USART, &usart_config);

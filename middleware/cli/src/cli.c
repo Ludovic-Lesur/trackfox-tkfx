@@ -18,7 +18,6 @@
 #include "rcc.h"
 // Utils.
 #include "at.h"
-#include "at_instance.h"
 #include "error.h"
 #include "math.h"
 #include "parser.h"
@@ -71,11 +70,10 @@ typedef struct {
 /*** CLI local functions declaration ***/
 
 /*******************************************************************/
-static AT_status_t _CLI_rst_callback(void);
+static AT_status_t _CLI_z_callback(void);
 static AT_status_t _CLI_rcc_callback(void);
 /*******************************************************************/
 #ifdef CLI_COMMAND_NVM
-static AT_status_t _CLI_nvm_callback(void);
 static AT_status_t _CLI_get_ep_id_callback(void);
 static AT_status_t _CLI_set_ep_id_callback(void);
 static AT_status_t _CLI_get_ep_key_callback(void);
@@ -115,10 +113,10 @@ static AT_status_t _CLI_rssi_callback(void);
 
 static const AT_command_t CLI_COMMANDS_LIST[] = {
     {
-        .syntax = "$RST",
+        .syntax = "Z",
         .parameters = NULL,
         .description = "Reset MCU",
-        .callback = &_CLI_rst_callback
+        .callback = &_CLI_z_callback
     },
     {
         .syntax = "$RCC?",
@@ -127,12 +125,6 @@ static const AT_command_t CLI_COMMANDS_LIST[] = {
         .callback = &_CLI_rcc_callback
     },
 #ifdef CLI_COMMAND_NVM
-    {
-        .syntax = "$NVM=",
-        .parameters = "<address[dec]>",
-        .description = "Read NVM byte",
-        .callback = &_CLI_nvm_callback
-    },
     {
         .syntax = "$ID?",
         .parameters = NULL,
@@ -257,7 +249,7 @@ static void _CLI_at_process_callback(void) {
 }
 
 /*******************************************************************/
-static AT_status_t _CLI_rst_callback(void) {
+static AT_status_t _CLI_z_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
     // Execute command.
@@ -289,38 +281,15 @@ static AT_status_t _CLI_rcc_callback(void) {
         rcc_status = RCC_get_frequency_hz(rcc_clock_index, &clock_frequency);
         _CLI_check_driver_status(rcc_status, RCC_SUCCESS, ERROR_BASE_RCC);
         // Print data.
-        AT_reply_add_string(AT_INSTANCE_CLI, rcc_clock_name[idx]);
-        AT_reply_add_string(AT_INSTANCE_CLI, (clock_status == 0) ? ": OFF " : ": ON  ");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (int32_t) clock_frequency, STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "Hz");
-        AT_send_reply(AT_INSTANCE_CLI);
+        AT_reply_add_string(rcc_clock_name[idx]);
+        AT_reply_add_string((clock_status == 0) ? ":OFF:" : ":ON:");
+        AT_reply_add_integer((int32_t) clock_frequency, STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("Hz");
+        AT_send_reply();
     }
 errors:
     return status;
 }
-
-#ifdef CLI_COMMAND_NVM
-/*******************************************************************/
-static AT_status_t _CLI_nvm_callback(void) {
-    // Local variables.
-    AT_status_t status = AT_SUCCESS;
-    PARSER_status_t parser_status = PARSER_SUCCESS;
-    NVM_status_t nvm_status = NVM_SUCCESS;
-    int32_t address = 0;
-    uint8_t nvm_data = 0;
-    // Read address parameter.
-    parser_status = PARSER_get_parameter(cli_ctx.at_parser_ptr, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &address);
-    PARSER_exit_error(AT_ERROR_BASE_PARSER);
-    // Read byte at requested address.
-    nvm_status = NVM_read_byte((NVM_address_t) address, &nvm_data);
-    _CLI_check_driver_status(nvm_status, NVM_SUCCESS, ERROR_BASE_NVM);
-    // Print data.
-    AT_reply_add_integer(AT_INSTANCE_CLI, (int32_t) nvm_data, STRING_FORMAT_HEXADECIMAL, 1);
-    AT_send_reply(AT_INSTANCE_CLI);
-errors:
-    return status;
-}
-#endif
 
 #ifdef CLI_COMMAND_NVM
 /*******************************************************************/
@@ -334,9 +303,9 @@ static AT_status_t _CLI_get_ep_id_callback(void) {
     for (idx = 0; idx < SIGFOX_EP_ID_SIZE_BYTES; idx++) {
         nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_ID + idx), &id_byte);
         _CLI_check_driver_status(nvm_status, NVM_SUCCESS, ERROR_BASE_NVM);
-        AT_reply_add_integer(AT_INSTANCE_CLI, id_byte, STRING_FORMAT_HEXADECIMAL, ((idx == 0) ? 1 : 0));
+        AT_reply_add_integer(id_byte, STRING_FORMAT_HEXADECIMAL, 0);
     }
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_send_reply();
 errors:
     return status;
 }
@@ -377,9 +346,9 @@ static AT_status_t _CLI_get_ep_key_callback(void) {
     for (idx = 0; idx < SIGFOX_EP_KEY_SIZE_BYTES; idx++) {
         nvm_status = NVM_read_byte((NVM_ADDRESS_SIGFOX_EP_KEY + idx), &key_byte);
         _CLI_check_driver_status(nvm_status, NVM_SUCCESS, ERROR_BASE_NVM);
-        AT_reply_add_integer(AT_INSTANCE_CLI, key_byte, STRING_FORMAT_HEXADECIMAL, ((idx == 0) ? 1 : 0));
+        AT_reply_add_integer(key_byte, STRING_FORMAT_HEXADECIMAL, 0);
     }
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_send_reply();
 errors:
     return status;
 }
@@ -413,47 +382,40 @@ errors:
 static AT_status_t _CLI_adc_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     int32_t generic_s32 = 0;
     // Turn analog front-end on.
-    power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
     // MCU voltage.
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VMCU_MV, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
-    AT_reply_add_string(AT_INSTANCE_CLI, "Vmcu=");
-    AT_reply_add_integer(AT_INSTANCE_CLI, generic_s32, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "mV");
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_reply_add_string("Vmcu=");
+    AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("mV");
+    AT_send_reply();
     // MCU temperature.
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_TMCU_DEGREES, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
-    AT_reply_add_string(AT_INSTANCE_CLI, "Tmcu=");
-    AT_reply_add_integer(AT_INSTANCE_CLI, generic_s32, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "dC");
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_reply_add_string("Tmcu=");
+    AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("dC");
+    AT_send_reply();
     // Source voltage.
-    AT_reply_add_string(AT_INSTANCE_CLI, "Vsrc=");
+    AT_reply_add_string("Vsrc=");
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSRC_MV, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
-    AT_reply_add_integer(AT_INSTANCE_CLI, generic_s32, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "mV");
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("mV");
+    AT_send_reply();
     // Supercap voltage.
-    AT_reply_add_string(AT_INSTANCE_CLI, "Vstr=");
+    AT_reply_add_string("Vstr=");
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
-    AT_reply_add_integer(AT_INSTANCE_CLI, generic_s32, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "mV");
-    AT_send_reply(AT_INSTANCE_CLI);
-    // Turn analog front-end off.
-    power_status = POWER_disable(POWER_DOMAIN_ANALOG);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
-    goto end;
+    AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("mV");
+    AT_send_reply();
 errors:
-    POWER_disable(POWER_DOMAIN_ANALOG);
-end:
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_ANALOG);
     return status;
 }
 #endif
@@ -463,34 +425,27 @@ end:
 static AT_status_t _CLI_ths_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
     int32_t temperature_degrees = 0;
     int32_t humidity_percent = 0;
     // Turn digital sensors on.
-    power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
     // Perform measurements.
     sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &temperature_degrees, &humidity_percent);
     _CLI_check_driver_status(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT30);
-    // Turn digital sensors off.
-    power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
     // Read and print data.
     // Temperature.
-    AT_reply_add_string(AT_INSTANCE_CLI, "T=");
-    AT_reply_add_integer(AT_INSTANCE_CLI, temperature_degrees, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "dC");
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_reply_add_string("T=");
+    AT_reply_add_integer(temperature_degrees, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("dC");
+    AT_send_reply();
     // Humidity.
-    AT_reply_add_string(AT_INSTANCE_CLI, "H=");
-    AT_reply_add_integer(AT_INSTANCE_CLI, humidity_percent, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "%");
-    AT_send_reply(AT_INSTANCE_CLI);
-    goto end;
+    AT_reply_add_string("H=");
+    AT_reply_add_integer(humidity_percent, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("%");
+    AT_send_reply();
 errors:
-    POWER_disable(POWER_DOMAIN_SENSORS);
-end:
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS);
     return status;
 }
 #endif
@@ -504,23 +459,18 @@ static AT_status_t _CLI_acc_callback(void) {
     MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
     uint8_t chip_id = 0;
     // Turn digital sensors on.
-    power_status = POWER_enable(POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
     _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
     // Perform measurements.
     mma865xfc_status = MMA865XFC_get_id(I2C_ADDRESS_MMA8653FC, &chip_id);
     _CLI_check_driver_status(mma865xfc_status, MMA865XFC_SUCCESS, ERROR_BASE_MMA8653FC);
-    // Turn digital sensors off.
-    power_status = POWER_disable(POWER_DOMAIN_SENSORS);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
     // Read and print data.
     // Temperature.
-    AT_reply_add_string(AT_INSTANCE_CLI, "MMA8653FC chip_id=");
-    AT_reply_add_integer(AT_INSTANCE_CLI, chip_id, STRING_FORMAT_HEXADECIMAL, 1);
-    AT_send_reply(AT_INSTANCE_CLI);
-    goto end;
+    AT_reply_add_string("MMA8653FC chip_id=");
+    AT_reply_add_integer(chip_id, STRING_FORMAT_HEXADECIMAL, 1);
+    AT_send_reply();
 errors:
-    POWER_disable(POWER_DOMAIN_SENSORS);
-end:
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS);
     return status;
 }
 #endif
@@ -530,7 +480,6 @@ end:
 static AT_status_t _CLI_gps_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     PARSER_status_t parser_status = PARSER_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
     GPS_position_t gps_position;
@@ -540,57 +489,45 @@ static AT_status_t _CLI_gps_callback(void) {
     // Read timeout parameter.
     parser_status = PARSER_get_parameter(cli_ctx.at_parser_ptr, STRING_FORMAT_DECIMAL, STRING_CHAR_NULL, &timeout_seconds);
     PARSER_exit_error(AT_ERROR_BASE_PARSER);
-    // Turn analog front-end to monitor storage element voltage.
-    power_status = POWER_enable(POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
-    // Turn GPS on.
-    power_status = POWER_enable(POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
+    // Turn GPS and analog front-end to monitor storage element voltage.
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
     // Perform time acquisition.
     gps_status = GPS_get_position(&gps_position, 0, (uint32_t) timeout_seconds, &fix_duration_seconds, &acquisition_status);
     _CLI_check_driver_status(gps_status, GPS_SUCCESS, ERROR_BASE_GPS);
-    // Turn GPS off.
-    power_status = POWER_disable(POWER_DOMAIN_GPS);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
-    power_status = POWER_disable(POWER_DOMAIN_ANALOG);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
     // Check status.
     if (acquisition_status == GPS_ACQUISITION_SUCCESS) {
         // Latitude.
-        AT_reply_add_string(AT_INSTANCE_CLI, "Lat=");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.lat_degrees), STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "d");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.lat_minutes), STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "'");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.lat_seconds), STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "''");
-        AT_reply_add_string(AT_INSTANCE_CLI, ((gps_position.lat_north_flag) == 0) ? "S" : "N");
+        AT_reply_add_integer((gps_position.lat_degrees), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("d");
+        AT_reply_add_integer((gps_position.lat_minutes), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("'");
+        AT_reply_add_integer((gps_position.lat_seconds), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("''");
+        AT_reply_add_string(((gps_position.lat_north_flag) == 0) ? "S" : "N");
         // Longitude.
-        AT_reply_add_string(AT_INSTANCE_CLI, " Long=");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.long_degrees), STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "d");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.long_minutes), STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "'");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.long_seconds), STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "''");
-        AT_reply_add_string(AT_INSTANCE_CLI, ((gps_position.long_east_flag) == 0) ? "W" : "E");
+        AT_reply_add_string(":");
+        AT_reply_add_integer((gps_position.long_degrees), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("d");
+        AT_reply_add_integer((gps_position.long_minutes), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("'");
+        AT_reply_add_integer((gps_position.long_seconds), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("''");
+        AT_reply_add_string(((gps_position.long_east_flag) == 0) ? "W" : "E");
         // Altitude.
-        AT_reply_add_string(AT_INSTANCE_CLI, " Alt=");
-        AT_reply_add_integer(AT_INSTANCE_CLI, (gps_position.altitude), STRING_FORMAT_DECIMAL, 0);
-        // Fix duration.
-        AT_reply_add_string(AT_INSTANCE_CLI, "m Fix=");
-        AT_reply_add_integer(AT_INSTANCE_CLI, fix_duration_seconds, STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "s");
+        AT_reply_add_string(":");
+        AT_reply_add_integer((gps_position.altitude), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("m:");
     }
     else {
-        AT_reply_add_string(AT_INSTANCE_CLI, "GPS timeout");
+        AT_reply_add_string("TIMEOUT:");
     }
-    AT_send_reply(AT_INSTANCE_CLI);
-    goto end;
+    AT_reply_add_integer((int32_t) fix_duration_seconds, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("s");
+    AT_send_reply();
 errors:
-    POWER_disable(POWER_DOMAIN_GPS);
-    POWER_disable(POWER_DOMAIN_ANALOG);
-end:
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_GPS);
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_ANALOG);
     return status;
 }
 #endif
@@ -869,8 +806,8 @@ static AT_status_t _CLI_cw_callback(void) {
         // Start CW.
         rf_api_status = RF_API_start_continuous_wave();
         _CLI_check_driver_status(rf_api_status, RF_API_SUCCESS, (ERROR_BASE_SIGFOX_EP_LIB + (SIGFOX_ERROR_SOURCE_RF_API * ERROR_BASE_STEP)));
-        AT_reply_add_string(AT_INSTANCE_CLI, "CW running...");
-        AT_send_reply(AT_INSTANCE_CLI);
+        AT_reply_add_string("CW running...");
+        AT_send_reply();
     }
     goto end;
 errors:
@@ -926,10 +863,10 @@ static AT_status_t _CLI_rssi_callback(void) {
         s2lp_status = S2LP_get_rssi(S2LP_RSSI_TYPE_RUN, &rssi_dbm);
         _CLI_check_driver_status(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP);
         // Print RSSI.
-        AT_reply_add_string(AT_INSTANCE_CLI, "RSSI=");
-        AT_reply_add_integer(AT_INSTANCE_CLI, rssi_dbm, STRING_FORMAT_DECIMAL, 0);
-        AT_reply_add_string(AT_INSTANCE_CLI, "dBm");
-        AT_send_reply(AT_INSTANCE_CLI);
+        AT_reply_add_string("RSSI=");
+        AT_reply_add_integer(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("dBm");
+        AT_send_reply();
         // Report delay.
         lptim_status = LPTIM_delay_milliseconds(CLI_RSSI_REPORT_PERIOD_MS, LPTIM_DELAY_MODE_ACTIVE);
         _CLI_check_driver_status(lptim_status, LPTIM_SUCCESS, ERROR_BASE_LPTIM);
@@ -958,16 +895,19 @@ CLI_status_t CLI_init(void) {
     // Local variables.
     CLI_status_t status = CLI_SUCCESS;
     AT_status_t at_status = AT_SUCCESS;
+    AT_configuration_t at_config;
     uint8_t idx = 0;
     // Init context.
     cli_ctx.at_process_flag = 0;
     cli_ctx.at_parser_ptr = NULL;
     // Init AT driver.
-    at_status = AT_init(AT_INSTANCE_CLI, TERMINAL_INSTANCE_CLI, &_CLI_at_process_callback, &(cli_ctx.at_parser_ptr));
+    at_config.terminal_instance = TERMINAL_INSTANCE_CLI;
+    at_config.process_callback = &_CLI_at_process_callback;
+    at_status = AT_init(&at_config, &(cli_ctx.at_parser_ptr));
     AT_exit_error(CLI_ERROR_BASE_AT);
     // Register commands.
     for (idx = 0; idx < (sizeof(CLI_COMMANDS_LIST) / sizeof(AT_command_t)); idx++) {
-        at_status = AT_register_command(AT_INSTANCE_CLI, &(CLI_COMMANDS_LIST[idx]));
+        at_status = AT_register_command(&(CLI_COMMANDS_LIST[idx]));
         AT_exit_error(CLI_ERROR_BASE_AT);
     }
 errors:
@@ -982,11 +922,11 @@ CLI_status_t CLI_de_init(void) {
     uint8_t idx = 0;
     // Unregister commands.
     for (idx = 0; idx < (sizeof(CLI_COMMANDS_LIST) / sizeof(AT_command_t)); idx++) {
-        at_status = AT_unregister_command(AT_INSTANCE_CLI, &(CLI_COMMANDS_LIST[idx]));
+        at_status = AT_unregister_command(&(CLI_COMMANDS_LIST[idx]));
         AT_exit_error(CLI_ERROR_BASE_AT);
     }
     // Release AT driver.
-    at_status = AT_de_init(AT_INSTANCE_CLI);
+    at_status = AT_de_init();
     AT_exit_error(CLI_ERROR_BASE_AT);
 errors:
     return status;
@@ -1002,7 +942,7 @@ CLI_status_t CLI_process(void) {
         // Clear flag.
         cli_ctx.at_process_flag = 0;
         // Process AT driver.
-        at_status = AT_process(AT_INSTANCE_CLI);
+        at_status = AT_process();
         AT_exit_error(CLI_ERROR_BASE_AT);
     }
 errors:
@@ -1014,14 +954,14 @@ void CLI_print_dl_payload(sfx_u8* dl_payload, sfx_u8 dl_payload_size, sfx_s16 rs
     // Local variables.
     uint8_t idx = 0;
     // Print DL payload.
-    AT_reply_add_string(AT_INSTANCE_CLI, "+RX=");
+    AT_reply_add_string("+RX=");
     for (idx = 0; idx < dl_payload_size; idx++) {
-        AT_reply_add_integer(AT_INSTANCE_CLI, dl_payload[idx], STRING_FORMAT_HEXADECIMAL, 0);
+        AT_reply_add_integer(dl_payload[idx], STRING_FORMAT_HEXADECIMAL, 0);
     }
-    AT_reply_add_string(AT_INSTANCE_CLI, " (RSSI=");
-    AT_reply_add_integer(AT_INSTANCE_CLI, rssi_dbm, STRING_FORMAT_DECIMAL, 0);
-    AT_reply_add_string(AT_INSTANCE_CLI, "dBm)");
-    AT_send_reply(AT_INSTANCE_CLI);
+    AT_reply_add_string(" (RSSI=");
+    AT_reply_add_integer(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("dBm)");
+    AT_send_reply();
 }
 
 #endif /* TKFX_MODE_CLI */
