@@ -36,7 +36,7 @@
 
 #include "manuf/rf_api.h"
 
-#ifdef USE_SIGFOX_EP_FLAGS_H
+#ifndef SIGFOX_EP_DISABLE_FLAGS_FILE
 #include "sigfox_ep_flags.h"
 #endif
 #include "sigfox_types.h"
@@ -70,11 +70,11 @@
 #define RF_API_FIFO_TX_ALMOST_EMPTY_THRESHOLD   (RF_API_SYMBOL_FIFO_BUFFER_SIZE_BYTES >> 1)
 
 #define RF_API_SMPS_FREQUENCY_HZ_TX             5500000
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
 #define RF_API_SMPS_FREQUENCY_HZ_RX             1500000
 #endif
 
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
 #define RF_API_DL_PR_SIZE_BITS                  32
 #define RF_API_RX_BANDWIDTH_HZ                  3000
 #define RF_API_DOWNLINK_RSSI_THRESHOLD_DBM      -139
@@ -82,7 +82,7 @@
 
 static const sfx_u8 RF_API_RAMP_AMPLITUDE_PROFILE[RF_API_SYMBOL_PROFILE_SIZE_BYTES] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5, 7, 10, 14, 19, 25, 31, 39, 60, 220 };
 static const sfx_u8 RF_API_BIT0_AMPLITUDE_PROFILE[RF_API_SYMBOL_PROFILE_SIZE_BYTES] = { 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 5, 7, 10, 14, 19, 25, 31, 39, 60, 220, 220, 60, 39, 31, 25, 19, 14, 10, 7, 5, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1 };
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
 static const sfx_u8 RF_API_DL_FT[SIGFOX_DL_FT_SIZE_BYTES] = SIGFOX_DL_FT;
 #endif
 
@@ -110,7 +110,7 @@ typedef enum {
     RF_API_STATE_TX_RAMP_DOWN,
     RF_API_STATE_TX_PADDING_BIT,
     RF_API_STATE_TX_END,
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
     RF_API_STATE_RX_START,
     RF_API_STATE_RX,
 #endif
@@ -139,7 +139,7 @@ typedef struct {
     sfx_u8 tx_byte_idx;
     sfx_u8 tx_bit_idx;
     sfx_u8 tx_fdev;
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
     // RX.
     sfx_u8 dl_phy_content[SIGFOX_DL_PHY_CONTENT_SIZE_BYTES];
     sfx_s16 dl_rssi_dbm;
@@ -148,7 +148,7 @@ typedef struct {
 
 /*** RF API local global variables ***/
 
-#if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION)
+#if (defined SIGFOX_EP_TIMER_REQUIRED) && (defined SIGFOX_EP_LATENCY_COMPENSATION)
 static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
     POWER_ON_DELAY_MS_TCXO, // Wake-up.
     (POWER_ON_DELAY_MS_RADIO + S2LP_EXIT_SHUTDOWN_DELAY_MS + 1), // TX init (power on delay + 1.75ms).
@@ -156,7 +156,7 @@ static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
     0, // Send stop (depends on bit rate and will be computed during init function).
     0, // TX de-init (70µs).
     0, // Sleep.
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
     (POWER_ON_DELAY_MS_RADIO + S2LP_EXIT_SHUTDOWN_DELAY_MS + 6), // RX init (power on delay + 5.97ms).
     0, // Receive start (300µs).
     7, // Receive stop (6.7ms).
@@ -341,7 +341,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
             rf_api_ctx.state = RF_API_STATE_READY;
         }
         break;
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
     case RF_API_STATE_RX_START:
         // Flush FIFO.
         s2lp_status = S2LP_send_command(S2LP_COMMAND_FLUSHRXFIFO);
@@ -386,18 +386,18 @@ static RF_API_status_t _RF_API_internal_process(void) {
             rf_api_ctx.state = RF_API_STATE_READY;
         }
         break;
-#endif /* BIDIRECTIONAL */
+#endif /* SIGFOX_EP_BIDIRECTIONAL */
     default:
-        EXIT_ERROR((RF_API_status_t) RF_API_ERROR_STATE);
+        SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_STATE);
         break;
     }
 errors:
-    RETURN();
+    SIGFOX_RETURN();
 }
 
 /*** RF API functions ***/
 
-#if (defined ASYNCHRONOUS) || (defined LOW_LEVEL_OPEN_CLOSE)
+#if (defined SIGFOX_EP_ASYNCHRONOUS) || (defined SIGFOX_EP_LOW_LEVEL_OPEN_CLOSE)
 /*******************************************************************/
 RF_API_status_t RF_API_open(RF_API_config_t* rf_api_config) {
     // Local variables.
@@ -405,25 +405,25 @@ RF_API_status_t RF_API_open(RF_API_config_t* rf_api_config) {
     // Ignore unused parameters.
     UNUSED(rf_api_config);
     // Return.
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
-#ifdef LOW_LEVEL_OPEN_CLOSE
+#ifdef SIGFOX_EP_LOW_LEVEL_OPEN_CLOSE
 /*******************************************************************/
 RF_API_status_t RF_API_close(void) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
-#ifdef ASYNCHRONOUS
+#ifdef SIGFOX_EP_ASYNCHRONOUS
 /*******************************************************************/
 RF_API_status_t RF_API_process(void) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
@@ -433,7 +433,7 @@ RF_API_status_t RF_API_wake_up(void) {
     RF_API_status_t status = RF_API_SUCCESS;
     // Turn radio TCXO on.
     POWER_enable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
-    RETURN();
+    SIGFOX_RETURN();
 }
 
 /*******************************************************************/
@@ -442,7 +442,7 @@ RF_API_status_t RF_API_sleep(void) {
     RF_API_status_t status = RF_API_SUCCESS;
     // Turn radio TCXO off.
     POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_TCXO);
-    RETURN();
+    SIGFOX_RETURN();
 }
 
 /*******************************************************************/
@@ -477,7 +477,7 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
     case RF_API_MODULATION_NONE:
         modulation = S2LP_MODULATION_NONE;
         datarate_bps = (radio_parameters->bit_rate_bps);
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
         deviation_hz = (radio_parameters->deviation_hz);
 #endif
         // Set CW output power.
@@ -492,12 +492,12 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
     case RF_API_MODULATION_GFSK:
         modulation = S2LP_MODULATION_2GFSK_BT1;
         datarate_bps = (radio_parameters->bit_rate_bps);
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
         deviation_hz = (radio_parameters->deviation_hz);
 #endif
         break;
     default:
-        EXIT_ERROR((RF_API_status_t) RF_API_ERROR_MODULATION);
+        SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_MODULATION);
         break;
     }
     // Set modulation scheme.
@@ -528,14 +528,14 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
         s2lp_status = S2LP_set_fifo_threshold(S2LP_FIFO_THRESHOLD_TX_EMPTY, RF_API_FIFO_TX_ALMOST_EMPTY_THRESHOLD);
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-#if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION)
+#if (defined SIGFOX_EP_TIMER_REQUIRED) && (defined SIGFOX_EP_LATENCY_COMPENSATION)
         // Start latency = ramp-up.
         RF_API_LATENCY_MS[RF_API_LATENCY_SEND_START] = ((1000) / ((sfx_u32) (radio_parameters->bit_rate_bps)));
         // Stop latency = ramp-down + half of padding bit (since IRQ is raised at the middle of the symbol).
         RF_API_LATENCY_MS[RF_API_LATENCY_SEND_STOP] = ((1500) / ((sfx_u32) (radio_parameters->bit_rate_bps)));
 #endif
         break;
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
     case RF_API_MODE_RX:
         // Enable RX data ready interrupt.
         s2lp_status = S2LP_configure_irq(S2LP_IRQ_INDEX_RX_DATA_READY, 1);
@@ -560,11 +560,11 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
         break;
 #endif
     default:
-        EXIT_ERROR((RF_API_status_t) RF_API_ERROR_MODE);
+        SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_MODE);
         break;
     }
 errors:
-    RETURN();
+    SIGFOX_RETURN();
 }
 
 /*******************************************************************/
@@ -577,7 +577,7 @@ RF_API_status_t RF_API_de_init(void) {
     S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 errors:
     POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO);
-    RETURN();
+    SIGFOX_RETURN();
 }
 
 /*******************************************************************/
@@ -592,7 +592,7 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t* tx_data) {
     }
     // Enable GPIO interrupt.
     status = _RF_API_enable_s2lp_nirq(S2LP_FIFO_FLAG_DIRECTION_TX);
-    CHECK_STATUS(RF_API_SUCCESS);
+    SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
     // Init state.
     rf_api_ctx.tx_bit_idx = 0;
     rf_api_ctx.tx_byte_idx = 0;
@@ -600,7 +600,7 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t* tx_data) {
     rf_api_ctx.flags.all = 0;
     // Trigger TX.
     status = _RF_API_internal_process();
-    CHECK_STATUS(RF_API_SUCCESS);
+    SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
     // Wait for transmission to complete.
     while (rf_api_ctx.state != RF_API_STATE_READY) {
         // Wait for GPIO interrupt.
@@ -612,33 +612,33 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t* tx_data) {
         rf_api_ctx.flags.field.gpio_irq_flag = 0;
         // Call process function.
         status = _RF_API_internal_process();
-        CHECK_STATUS(RF_API_SUCCESS);
+        SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
     }
 errors:
     // Disable GPIO interrupt.
     _RF_API_disable_s2lp_nirq();
-    RETURN();
+    SIGFOX_RETURN();
 }
 
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
 /*******************************************************************/
 RF_API_status_t RF_API_receive(RF_API_rx_data_t* rx_data) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
     MCU_API_status_t mcu_api_status = MCU_API_SUCCESS;
     S2LP_status_t s2lp_status = S2LP_SUCCESS;
-    sfx_bool dl_timeout = SFX_FALSE;
+    sfx_bool dl_timeout = SIGFOX_FALSE;
     // Enable GPIO interrupt.
     status = _RF_API_enable_s2lp_nirq(S2LP_FIFO_FLAG_DIRECTION_RX);
-    CHECK_STATUS(RF_API_SUCCESS);
+    SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
     // Reset flag.
-    (rx_data->data_received) = SFX_FALSE;
+    (rx_data->data_received) = SIGFOX_FALSE;
     // Init state.
     rf_api_ctx.state = RF_API_STATE_RX_START;
     rf_api_ctx.flags.all = 0;
     // Trigger RX.
     status = _RF_API_internal_process();
-    CHECK_STATUS(RF_API_SUCCESS);
+    SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
     // Wait for reception to complete.
     while (rf_api_ctx.state != RF_API_STATE_READY) {
         // Wait for GPIO interrupt.
@@ -650,7 +650,7 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t* rx_data) {
             mcu_api_status = MCU_API_timer_status(MCU_API_TIMER_INSTANCE_T_RX, &dl_timeout);
             MCU_API_check_status((RF_API_status_t) RF_API_ERROR_DRIVER_MCU_API);
             // Exit if timeout.
-            if (dl_timeout == SFX_TRUE) {
+            if (dl_timeout == SIGFOX_TRUE) {
                 // Stop radio.
                 s2lp_status = S2LP_send_command(S2LP_COMMAND_SABORT);
                 S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
@@ -662,29 +662,29 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t* rx_data) {
         rf_api_ctx.flags.field.gpio_irq_flag = 0;
         // Call process function.
         status = _RF_API_internal_process();
-        CHECK_STATUS(RF_API_SUCCESS);
+        SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
     }
     // Update status flag.
-    (rx_data->data_received) = SFX_TRUE;
+    (rx_data->data_received) = SIGFOX_TRUE;
 errors:
     // Disable GPIO interrupt.
     _RF_API_disable_s2lp_nirq();
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
-#ifdef BIDIRECTIONAL
+#ifdef SIGFOX_EP_BIDIRECTIONAL
 /*******************************************************************/
 RF_API_status_t RF_API_get_dl_phy_content_and_rssi(sfx_u8* dl_phy_content, sfx_u8 dl_phy_content_size, sfx_s16* dl_rssi_dbm) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
     sfx_u8 idx = 0;
     // Check parameters.
-    if ((dl_phy_content == SFX_NULL) || (dl_rssi_dbm == SFX_NULL)) {
-        EXIT_ERROR((RF_API_status_t) RF_API_ERROR_NULL_PARAMETER);
+    if ((dl_phy_content == SIGFOX_NULL) || (dl_rssi_dbm == SIGFOX_NULL)) {
+        SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_NULL_PARAMETER);
     }
     if (dl_phy_content_size > SIGFOX_DL_PHY_CONTENT_SIZE_BYTES) {
-        EXIT_ERROR((RF_API_status_t) RF_API_ERROR_BUFFER_SIZE);
+        SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_BUFFER_SIZE);
     }
     // Fill data.
     for (idx = 0; idx < dl_phy_content_size; idx++) {
@@ -692,36 +692,37 @@ RF_API_status_t RF_API_get_dl_phy_content_and_rssi(sfx_u8* dl_phy_content, sfx_u
     }
     (*dl_rssi_dbm) = (sfx_s16) rf_api_ctx.dl_rssi_dbm;
 errors:
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
-#if (defined REGULATORY) && (defined SPECTRUM_ACCESS_LBT)
+#if (defined SIGFOX_EP_REGULATORY) && (defined SIGFOX_EP_SPECTRUM_ACCESS_LBT)
 /*******************************************************************/
 RF_API_status_t RF_API_carrier_sense(RF_API_carrier_sense_parameters_t *carrier_sense_params) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    RETURN();
+    SIGFOX_UNUSED(carrier_sense_params);
+    SIGFOX_RETURN();
 }
 #endif
 
-#if (defined TIMER_REQUIRED) && (defined LATENCY_COMPENSATION)
+#if (defined SIGFOX_EP_TIMER_REQUIRED) && (defined SIGFOX_EP_LATENCY_COMPENSATION)
 /*******************************************************************/
 RF_API_status_t RF_API_get_latency(RF_API_latency_t latency_type, sfx_u32* latency_ms) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
     // Check parameter.
     if (latency_type >= RF_API_LATENCY_LAST) {
-        EXIT_ERROR((RF_API_status_t) RF_API_ERROR_LATENCY_TYPE);
+        SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_LATENCY_TYPE);
     }
     // Set latency.
     (*latency_ms) = RF_API_LATENCY_MS[latency_type];
 errors:
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
-#ifdef CERTIFICATION
+#ifdef SIGFOX_EP_CERTIFICATION
 /*******************************************************************/
 RF_API_status_t RF_API_start_continuous_wave(void) {
     // Local variables.
@@ -738,20 +739,22 @@ RF_API_status_t RF_API_start_continuous_wave(void) {
     s2lp_status = S2LP_wait_for_state(S2LP_STATE_TX);
     S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
 errors:
-    RETURN();
+    SIGFOX_RETURN();
 }
 #endif
 
-#ifdef VERBOSE
+#ifdef SIGFOX_EP_VERBOSE
 /*******************************************************************/
 RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
-    RETURN();
+    SIGFOX_UNUSED(version);
+    SIGFOX_UNUSED(version_size_char);
+    SIGFOX_RETURN();
 }
 #endif
 
-#ifdef ERROR_CODES
+#ifdef SIGFOX_EP_ERROR_CODES
 /*******************************************************************/
 void RF_API_error(void) {
     // Force all front-end off.
