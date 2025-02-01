@@ -9,10 +9,10 @@
 #define __S2LP_DRIVER_FLAGS_H__
 
 #include "lptim.h"
-#include "spi.h"
 #ifndef SIGFOX_EP_DISABLE_FLAGS_FILE
 #include "sigfox_ep_flags.h"
 #endif
+#include "spi.h"
 
 /*** S2LP driver compilation flags ***/
 
