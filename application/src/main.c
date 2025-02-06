@@ -390,6 +390,8 @@ int main(void) {
             tkfx_ctx.sigfox_startup_data.commit_index = GIT_COMMIT_INDEX;
             tkfx_ctx.sigfox_startup_data.commit_id = GIT_COMMIT_ID;
             tkfx_ctx.sigfox_startup_data.dirty_flag = GIT_DIRTY_FLAG;
+            // Clear reset flags.
+            PWR_clear_reset_flags();
             // Send SW version frame.
             application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
             application_message.ul_payload = (sfx_u8*) (tkfx_ctx.sigfox_startup_data.frame);
