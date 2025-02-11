@@ -111,7 +111,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
             analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &vstr_voltage_mv);
             ANALOG_exit_error(GPS_ERROR_BASE_ANALOG);
             // Check threshold.
-            if (vstr_voltage_mv < TKFX_ACTIVE_MODE_VSTR_MIN_MV) {
+            if (vstr_voltage_mv < TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) {
                 (*acquisition_status) = GPS_ACQUISITION_ERROR_VSTR_THRESHOLD;
                 break;
             }

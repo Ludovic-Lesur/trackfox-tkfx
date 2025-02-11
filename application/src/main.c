@@ -49,14 +49,16 @@
 #ifdef TKFX_MODE_HIKING
 #define TKFX_MODE                               0b10
 #endif
-// Voltage hysteresis for radio.
+// Voltage hysteresis for radio and active mode.
 #ifdef TKFX_MODE_SUPERCAPACITOR
-#define TKFX_RADIO_OFF_VCAP_THRESHOLD_MV        1000
+#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV   2000
+#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV        1000
 #endif
 #ifdef TKFX_MODE_BATTERY
-#define TKFX_RADIO_OFF_VCAP_THRESHOLD_MV        3500
+#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV   3900
+#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV        3500
 #endif
-#define TKFX_RADIO_ON_VCAP_THRESHOLD_MV         TKFX_ACTIVE_MODE_VSTR_MIN_MV
+#define TKFX_RADIO_ON_VSTR_THRESHOLD_MV         TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV
 // Sigfox payload lengths.
 #define TKFX_SIGFOX_STARTUP_DATA_SIZE           8
 #define TKFX_SIGFOX_GEOLOC_DATA_SIZE            11
@@ -526,7 +528,7 @@ int main(void) {
             // Reset fix duration.
             geoloc_fix_duration_seconds = 0;
             // Pre-check storage voltage.
-            if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_VSTR_MIN_MV) {
+            if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) {
                 // Turn analog front-end to monitor storage element voltage and get position from GPS.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
@@ -584,7 +586,12 @@ int main(void) {
             // Read storage voltage.
             tkfx_ctx.vstr_mv = (analog_status == ANALOG_SUCCESS) ? generic_s32_1 : 0;
             // Check storage voltage.
-            tkfx_ctx.mode = ((tkfx_ctx.vstr_mv < TKFX_ACTIVE_MODE_VSTR_MIN_MV) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_VSTR_THRESHOLD)) ? TKFX_MODE_LOW_POWER : TKFX_MODE_ACTIVE;
+            if ((tkfx_ctx.vstr_mv < TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_VSTR_THRESHOLD)) {
+                tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
+            }
+            if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV) {
+                tkfx_ctx.mode = TKFX_MODE_ACTIVE;
+            }
             // Configure accelerometer according to mode.
             if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_status == 0) || (tkfx_ctx.flags.por != 0))) {
                 // Active mode.
@@ -614,10 +621,10 @@ int main(void) {
                 GPS_stack_error(ERROR_BASE_GPS);
             }
             // Voltage hysteresis for radio.
-            if (tkfx_ctx.vstr_mv < TKFX_RADIO_OFF_VCAP_THRESHOLD_MV) {
+            if (tkfx_ctx.vstr_mv < TKFX_RADIO_OFF_VSTR_THRESHOLD_MV) {
                 tkfx_ctx.flags.radio_enabled = 0;
             }
-            if (tkfx_ctx.vstr_mv > TKFX_RADIO_ON_VCAP_THRESHOLD_MV) {
+            if (tkfx_ctx.vstr_mv > TKFX_RADIO_ON_VSTR_THRESHOLD_MV) {
                 tkfx_ctx.flags.radio_enabled = 1;
             }
             // Compute next state.
