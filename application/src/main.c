@@ -104,8 +104,8 @@ typedef union {
     struct {
         unsigned gps_backup_status :1;
         unsigned accelerometer_status :1;
+        unsigned tracker_state :1;
         unsigned lse_status :1;
-        unsigned lsi_status :1;
         unsigned moving_flag :1;
         unsigned alarm_flag :1;
         unsigned tracker_mode :2;
@@ -464,10 +464,9 @@ int main(void) {
             IWDG_reload();
             // Update GPS backup  status.
             tkfx_ctx.status.gps_backup_status = GPS_get_backup_voltage();
-            // Get clocks status.
-            rcc_status = RCC_get_status(RCC_CLOCK_LSI, &generic_u8);
-            RCC_stack_error(ERROR_BASE_RCC);
-            tkfx_ctx.status.lsi_status = (generic_u8 == 0) ? 0b0 : 0b1;
+            // Get tracker state.
+            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
+            // Get clock status.
             rcc_status = RCC_get_status(RCC_CLOCK_LSE, &generic_u8);
             RCC_stack_error(ERROR_BASE_RCC);
             tkfx_ctx.status.lse_status = (generic_u8 == 0) ? 0b0 : 0b1;
