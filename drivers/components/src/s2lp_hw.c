@@ -12,17 +12,13 @@
 #endif
 #include "error.h"
 #include "gpio.h"
-#include "gpio_mapping.h"
 #include "lptim.h"
+#include "mcu_mapping.h"
 #include "s2lp.h"
 #include "spi.h"
 #include "types.h"
 
 #ifndef S2LP_DRIVER_DISABLE
-
-/*** S2LP HW macros ***/
-
-#define S2LP_HW_SPI_INSTANCE    SPI_INSTANCE_SPI1
 
 /*** S2LP HW functions ***/
 
@@ -36,7 +32,7 @@ S2LP_status_t S2LP_HW_init(void) {
     spi_config.baud_rate_prescaler = SPI_BAUD_RATE_PRESCALER_2;
     spi_config.data_format = SPI_DATA_FORMAT_8_BITS;
     spi_config.clock_polarity = SPI_CLOCK_POLARITY_LOW;
-    spi_status = SPI_init(S2LP_HW_SPI_INSTANCE, &GPIO_S2LP_SPI, &spi_config);
+    spi_status = SPI_init(SPI_INSTANCE_RADIO, &SPI_GPIO_S2LP, &spi_config);
     SPI_exit_error(S2LP_ERROR_BASE_SPI);
     // Configure GPIOs as input
 #ifdef HW1_1
@@ -57,7 +53,7 @@ S2LP_status_t S2LP_HW_de_init(void) {
     // Release chip select pin.
     GPIO_write(&GPIO_S2LP_CS, 0);
     // Release SPI.
-    spi_status = SPI_de_init(S2LP_HW_SPI_INSTANCE, &GPIO_S2LP_SPI);
+    spi_status = SPI_de_init(SPI_INSTANCE_RADIO, &SPI_GPIO_S2LP);
     SPI_exit_error(S2LP_ERROR_BASE_SPI);
 errors:
     return status;
@@ -71,7 +67,7 @@ S2LP_status_t S2LP_HW_spi_write_read_8(uint8_t* tx_data, uint8_t* rx_data, uint8
     // CS low.
     GPIO_write(&GPIO_S2LP_CS, 0);
     // SPI transfer.
-    spi_status = SPI_write_read_8(S2LP_HW_SPI_INSTANCE, tx_data, rx_data, transfer_size);
+    spi_status = SPI_write_read_8(SPI_INSTANCE_RADIO, tx_data, rx_data, transfer_size);
     SPI_exit_error(S2LP_ERROR_BASE_SPI);
 errors:
     // CS high.

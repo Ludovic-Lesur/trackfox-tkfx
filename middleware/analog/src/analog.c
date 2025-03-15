@@ -9,30 +9,26 @@
 
 #include "adc.h"
 #include "error.h"
-#include "gpio_mapping.h"
+#include "mcu_mapping.h"
 #include "tkfx_flags.h"
 #include "types.h"
 
 /*** ANALOG local macros ***/
 
-#define ANALOG_VMCU_MV_DEFAULT                  3000
-#define ANALOG_TMCU_DEGREES_DEFAULT             25
+#define ANALOG_VMCU_MV_DEFAULT          3000
+#define ANALOG_TMCU_DEGREES_DEFAULT     25
 
-#define ANALOG_LM4040_VOLTAGE_MV                2048
+#define ANALOG_LM4040_VOLTAGE_MV        2048
 
-#define ANALOG_ADC_CHANNEL_VSRC                 ADC_CHANNEL_IN6
-#define ANALOG_ADC_CHANNEL_VSTR                 ADC_CHANNEL_IN7
-#define ANALOG_ADC_CHANNEL_LM4040               ADC_CHANNEL_IN8
-
-#define ANALOG_VSRC_DIVIDER_RATIO               10
+#define ANALOG_VSRC_DIVIDER_RATIO       10
 #ifdef TKFX_MODE_SUPERCAPACITOR
-#define ANALOG_VSTR_DIVIDER_RATIO               1
+#define ANALOG_VSTR_DIVIDER_RATIO       1
 #endif
 #ifdef TKFX_MODE_BATTERY
-#define ANALOG_VSTR_DIVIDER_RATIO               2
+#define ANALOG_VSTR_DIVIDER_RATIO       2
 #endif
 
-#define ANALOG_ERROR_VALUE                      0xFFFF
+#define ANALOG_ERROR_VALUE              0xFFFF
 
 /*** ANALOG local structures ***/
 
@@ -58,7 +54,7 @@ static ANALOG_status_t _ANALOG_calibrate(void) {
     ADC_status_t adc_status = ADC_SUCCESS;
     int32_t adc_data_12bits = 0;
     // Convert external voltage reference.
-    adc_status = ADC_convert_channel(ANALOG_ADC_CHANNEL_LM4040, &adc_data_12bits);
+    adc_status = ADC_convert_channel(ADC_CHANNEL_LM4040, &adc_data_12bits);
     ADC_exit_error(ANALOG_ERROR_BASE_ADC);
     // Update local calibration value.
     analog_ctx.lm4040_data_12bits = adc_data_12bits;
@@ -77,7 +73,7 @@ ANALOG_status_t ANALOG_init(void) {
     analog_ctx.vmcu_mv = ANALOG_VMCU_MV_DEFAULT;
     analog_ctx.lm4040_data_12bits = ANALOG_ERROR_VALUE;
     // Init internal ADC.
-    adc_status = ADC_init(&GPIO_ADC);
+    adc_status = ADC_init(&ADC_GPIO);
     ADC_exit_error(ANALOG_ERROR_BASE_ADC);
     // Calibration with external reference.
     status = _ANALOG_calibrate();
@@ -138,7 +134,7 @@ ANALOG_status_t ANALOG_convert_channel(ANALOG_channel_t channel, int32_t* analog
             goto errors;
         }
         // Solar cell voltage.
-        adc_status = ADC_convert_channel(ANALOG_ADC_CHANNEL_VSRC, &adc_data_12bits);
+        adc_status = ADC_convert_channel(ADC_CHANNEL_VSRC, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to mV.
         (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_VSRC_DIVIDER_RATIO) / (analog_ctx.lm4040_data_12bits);
@@ -150,7 +146,7 @@ ANALOG_status_t ANALOG_convert_channel(ANALOG_channel_t channel, int32_t* analog
             goto errors;
         }
         // Supercap voltage.
-        adc_status = ADC_convert_channel(ANALOG_ADC_CHANNEL_VSTR, &adc_data_12bits);
+        adc_status = ADC_convert_channel(ADC_CHANNEL_VSTR, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to mV.
         (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_VSTR_DIVIDER_RATIO) / (analog_ctx.lm4040_data_12bits);

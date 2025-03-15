@@ -11,16 +11,16 @@
 #include "error.h"
 #include "error_base.h"
 #include "gpio.h"
-#include "gpio_mapping.h"
 #include "gps.h"
 #include "lptim.h"
+#include "mcu_mapping.h"
 #include "s2lp.h"
 #include "sht3x.h"
 #include "types.h"
 
 /*** POWER local global variables ***/
 
-static uint32_t power_domain_state[POWER_DOMAIN_LAST];
+static uint32_t power_domain_state[POWER_DOMAIN_LAST] = { [0 ... (POWER_DOMAIN_LAST - 1)] = 0 };
 
 /*** POWER local functions ***/
 
