@@ -574,8 +574,11 @@ RF_API_status_t RF_API_de_init(void) {
     S2LP_status_t s2lp_status = S2LP_SUCCESS;
     // Turn transceiver off.
     s2lp_status = S2LP_shutdown(1);
-    S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-errors:
+    // Check status.
+    if (s2lp_status != S2LP_SUCCESS) {
+        S2LP_stack_error(ERROR_BASE_S2LP);
+        status = (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP;
+    }
     POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO);
     SIGFOX_RETURN();
 }
