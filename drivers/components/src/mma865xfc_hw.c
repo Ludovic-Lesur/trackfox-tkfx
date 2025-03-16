@@ -10,6 +10,7 @@
 #ifndef MMA865XFC_DRIVER_DISABLE_FLAGS_FILE
 #include "mma865xfc_driver_flags.h"
 #endif
+#include "error_base.h"
 #include "mma865xfc.h"
 #include "sensors_hw.h"
 #include "types.h"
@@ -25,7 +26,7 @@ MMA865XFC_status_t MMA865XFC_HW_init(void) {
 
 /*******************************************************************/
 MMA865XFC_status_t MMA865XFC_HW_de_init(void) {
-    return ((MMA865XFC_status_t) SENSORS_HW_de_init(MMA865XFC_ERROR_BASE_I2C));
+    return ((MMA865XFC_status_t) SENSORS_HW_de_init(ERROR_BASE_MMA8653FC + MMA865XFC_ERROR_BASE_I2C));
 }
 
 /*******************************************************************/

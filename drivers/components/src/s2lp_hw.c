@@ -11,6 +11,7 @@
 #include "s2lp_driver_flags.h"
 #endif
 #include "error.h"
+#include "error_base.h"
 #include "gpio.h"
 #include "lptim.h"
 #include "mcu_mapping.h"
@@ -54,8 +55,7 @@ S2LP_status_t S2LP_HW_de_init(void) {
     GPIO_write(&GPIO_S2LP_CS, 0);
     // Release SPI.
     spi_status = SPI_de_init(SPI_INSTANCE_RADIO, &SPI_GPIO_S2LP);
-    SPI_exit_error(S2LP_ERROR_BASE_SPI);
-errors:
+    SPI_stack_error(ERROR_BASE_S2LP + S2LP_ERROR_BASE_SPI);
     return status;
 }
 
