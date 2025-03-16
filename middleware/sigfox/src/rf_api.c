@@ -609,7 +609,7 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t* tx_data) {
         // Wait for GPIO interrupt.
         while (rf_api_ctx.flags.field.gpio_irq_flag == 0) {
             // Enter sleep mode.
-            PWR_enter_sleep_mode();
+            PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
         }
         // Clear flag.
         rf_api_ctx.flags.field.gpio_irq_flag = 0;
@@ -647,7 +647,7 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t* rx_data) {
         // Wait for GPIO interrupt.
         while (rf_api_ctx.flags.field.gpio_irq_flag == 0) {
             // Enter sleep mode.
-            PWR_enter_sleep_mode();
+            PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
             IWDG_reload();
             // Check timeout.
             mcu_api_status = MCU_API_timer_status(MCU_API_TIMER_INSTANCE_T_RX, &dl_timeout);

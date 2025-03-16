@@ -640,7 +640,7 @@ int main(void) {
         case TKFX_STATE_SLEEP:
             // Enter stop mode.
             IWDG_reload();
-            PWR_enter_stop_mode();
+            PWR_enter_deepsleep_mode(PWR_DEEPSLEEP_MODE_STOP);
             IWDG_reload();
             // Periodic monitoring.
             if (RTC_get_uptime_seconds() >= tkfx_ctx.monitoring_next_time_seconds) {
@@ -728,7 +728,7 @@ int main(void) {
     while (1) {
         // Enter sleep mode.
         IWDG_reload();
-        PWR_enter_sleep_mode();
+        PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
         IWDG_reload();
         // Process command line interface.
         cli_status = CLI_process();
