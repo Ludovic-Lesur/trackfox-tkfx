@@ -201,7 +201,9 @@
  * \def SIGFOX_EP_CERTIFICATION
  * \brief Enable certification features if defined.
  *******************************************************************/
+#ifdef TKFX_MODE_CLI
 #define SIGFOX_EP_CERTIFICATION
+#endif
 
 /*!******************************************************************
  * \def SIGFOX_EP_PUBLIC_KEY_CAPABLE
