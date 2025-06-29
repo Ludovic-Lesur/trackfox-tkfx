@@ -229,7 +229,7 @@ static const TKFX_configuration_t TKFX_CONFIG = { 0, 150, 300, 86400, 3600 };
 static const TKFX_configuration_t TKFX_CONFIG = { 2, 150, 300, 86400, 3600 };
 #endif
 #ifdef TKFX_MODE_HIKING
-static const TKFX_configuration_t TKFX_CONFIG = { 5, 60, 600, 86400, 3600 };
+static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400, 3600 };
 #endif
 #endif
 
