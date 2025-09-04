@@ -79,7 +79,8 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     NEOM8X_acquisition_t gps_acquisition;
     NEOM8X_acquisition_status_t expected_status = (altitude_stability_threshold == 0) ? NEOM8X_ACQUISITION_STATUS_FOUND : NEOM8X_ACQUISITION_STATUS_STABLE;
-    uint32_t start_time = RTC_get_uptime_seconds();
+    uint32_t uptime = RTC_get_uptime_seconds();
+    uint32_t start_time = uptime;
     int32_t vstr_voltage_mv = 0;
     // Check parameters.
     if ((acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
@@ -99,12 +100,17 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     neom8x_status = NEOM8X_start_acquisition(&gps_acquisition);
     NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
     // Processing loop.
-    while (RTC_get_uptime_seconds() < (start_time + timeout_seconds)) {
+    while (uptime < (start_time + timeout_seconds)) {
+        // Ensure RTC is running.
+        if (RTC_get_uptime_seconds() > uptime) {
+            // Update time and reload watchdog.
+            uptime = RTC_get_uptime_seconds();
+            IWDG_reload();
+        }
         // Enter sleep mode.
-        IWDG_reload();
         PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
         // Update acquisition duration.
-        (*acquisition_duration_seconds) = (RTC_get_uptime_seconds() - start_time);
+        (*acquisition_duration_seconds) = (uptime - start_time);
         // Check flag.
         if (gps_ctx.process_flag != 0) {
             // Process driver.
