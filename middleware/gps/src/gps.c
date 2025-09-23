@@ -17,6 +17,10 @@
 #include "tkfx_flags.h"
 #include "types.h"
 
+/*** GPS local macros ***/
+
+#define GPS_TIMEOUT_SECONDS     10
+
 /*** GPS local structures ***/
 
 /*******************************************************************/
@@ -82,6 +86,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     uint32_t uptime = RTC_get_uptime_seconds();
     uint32_t start_time = uptime;
     int32_t vstr_voltage_mv = 0;
+    uint8_t callback_flag = 0;
     // Check parameters.
     if ((acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
         status = GPS_ERROR_NULL_PARAMETER;
@@ -113,6 +118,9 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
         (*acquisition_duration_seconds) = (uptime - start_time);
         // Check flag.
         if (gps_ctx.process_flag != 0) {
+            // Update flags.
+            gps_ctx.process_flag = 0;
+            callback_flag = 1;
             // Process driver.
             neom8x_status = NEOM8X_process();
             NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
@@ -127,6 +135,11 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
         }
         // Check acquisition status.
         if (gps_ctx.acquisition_status == expected_status) break;
+        // Exit if process callback has never been called.
+        if ((callback_flag == 0) && (uptime > (start_time + GPS_TIMEOUT_SECONDS))) {
+            status = GPS_ERROR_PROCESS_CALLBACK;
+            goto errors;
+        }
     }
     neom8x_status = NEOM8X_stop_acquisition();
     NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);

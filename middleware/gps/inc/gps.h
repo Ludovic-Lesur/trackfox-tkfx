@@ -23,6 +23,7 @@ typedef enum {
     // Driver errors.
     GPS_SUCCESS = 0,
     GPS_ERROR_NULL_PARAMETER,
+    GPS_ERROR_PROCESS_CALLBACK,
     // Low level drivers errors.
     GPS_ERROR_BASE_NEOM8N = ERROR_BASE_STEP,
     GPS_ERROR_BASE_ANALOG = (GPS_ERROR_BASE_NEOM8N + NEOM8X_ERROR_BASE_LAST),
