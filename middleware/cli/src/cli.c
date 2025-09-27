@@ -458,12 +458,10 @@ errors:
 static AT_status_t _CLI_acc_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
-    POWER_status_t power_status = POWER_SUCCESS;
     MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
     uint8_t chip_id = 0;
     // Turn digital sensors on.
     POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
-    _CLI_check_driver_status(power_status, POWER_SUCCESS, ERROR_BASE_POWER);
     // Perform measurements.
     mma865xfc_status = MMA865XFC_get_id(I2C_ADDRESS_MMA8653FC, &chip_id);
     _CLI_check_driver_status(mma865xfc_status, MMA865XFC_SUCCESS, ERROR_BASE_MMA8653FC);

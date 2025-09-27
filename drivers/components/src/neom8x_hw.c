@@ -15,7 +15,9 @@
 #include "lptim.h"
 #include "lpuart.h"
 #include "mcu_mapping.h"
+#include "neom8x.h"
 #include "nvic_priority.h"
+#include "types.h"
 
 #ifndef NEOM8X_DRIVER_DISABLE
 
