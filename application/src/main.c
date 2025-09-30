@@ -101,6 +101,7 @@ typedef enum {
 
 /*******************************************************************/
 typedef union {
+    uint8_t all;
     struct {
         unsigned gps_backup_status :1;
         unsigned accelerometer_status :1;
@@ -110,18 +111,17 @@ typedef union {
         unsigned alarm_flag :1;
         unsigned tracker_mode :2;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
-    uint8_t all;
 } TKFX_status_t;
 
 /*******************************************************************/
 typedef union {
+    uint8_t all;
     struct {
         unsigned radio_enabled : 1;
         unsigned geoloc_request :1;
         unsigned monitoring_request :1;
         unsigned por :1;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
-    uint8_t all;
 } TKFX_flags_t;
 
 /*******************************************************************/

@@ -119,11 +119,11 @@ typedef enum {
 
 /*******************************************************************/
 typedef union {
+    sfx_u8 all;
     struct {
         unsigned gpio_irq_enable :1;
         unsigned gpio_irq_flag :1;
-    } field;
-    sfx_u8 all;
+    } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } RF_API_flags_t;
 
 /*******************************************************************/
@@ -171,7 +171,7 @@ static RF_API_context_t rf_api_ctx;
 /*******************************************************************/
 static void _RF_API_s2lp_gpio_irq_callback(void) {
     // Set flag if IRQ is enabled.
-    rf_api_ctx.flags.field.gpio_irq_flag = rf_api_ctx.flags.field.gpio_irq_enable;
+    rf_api_ctx.flags.gpio_irq_flag = rf_api_ctx.flags.gpio_irq_enable;
 }
 
 /*******************************************************************/
@@ -225,7 +225,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
         // Enable external GPIO interrupt.
         s2lp_status = S2LP_clear_all_irq();
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-        rf_api_ctx.flags.field.gpio_irq_enable = 1;
+        rf_api_ctx.flags.gpio_irq_enable = 1;
         // Lock PLL.
         s2lp_status = S2LP_send_command(S2LP_COMMAND_LOCKTX);
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
@@ -334,7 +334,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
             s2lp_status = S2LP_send_command(S2LP_COMMAND_SABORT);
             S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
             // Disable interrupt.
-            rf_api_ctx.flags.field.gpio_irq_enable = 0;
+            rf_api_ctx.flags.gpio_irq_enable = 0;
             s2lp_status = S2LP_clear_all_irq();
             S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
             // Update state.
@@ -349,7 +349,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
         // Enable external GPIO interrupt.
         s2lp_status = S2LP_clear_all_irq();
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-        rf_api_ctx.flags.field.gpio_irq_enable = 1;
+        rf_api_ctx.flags.gpio_irq_enable = 1;
         // Lock PLL.
         s2lp_status = S2LP_send_command(S2LP_COMMAND_LOCKRX);
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
@@ -381,7 +381,7 @@ static RF_API_status_t _RF_API_internal_process(void) {
             s2lp_status = S2LP_clear_all_irq();
             S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
             // Disable interrupt.
-            rf_api_ctx.flags.field.gpio_irq_enable = 0;
+            rf_api_ctx.flags.gpio_irq_enable = 0;
             // Update state.
             rf_api_ctx.state = RF_API_STATE_READY;
         }
@@ -619,12 +619,12 @@ RF_API_status_t RF_API_send(RF_API_tx_data_t* tx_data) {
     // Wait for transmission to complete.
     while (rf_api_ctx.state != RF_API_STATE_READY) {
         // Wait for GPIO interrupt.
-        while (rf_api_ctx.flags.field.gpio_irq_flag == 0) {
+        while (rf_api_ctx.flags.gpio_irq_flag == 0) {
             // Enter sleep mode.
             PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
         }
         // Clear flag.
-        rf_api_ctx.flags.field.gpio_irq_flag = 0;
+        rf_api_ctx.flags.gpio_irq_flag = 0;
         // Call process function.
         status = _RF_API_internal_process();
         SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
@@ -663,7 +663,7 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t* rx_data) {
     // Wait for reception to complete.
     while (rf_api_ctx.state != RF_API_STATE_READY) {
         // Wait for GPIO interrupt.
-        while (rf_api_ctx.flags.field.gpio_irq_flag == 0) {
+        while (rf_api_ctx.flags.gpio_irq_flag == 0) {
             // Enter sleep mode.
             PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
             IWDG_reload();
@@ -680,7 +680,7 @@ RF_API_status_t RF_API_receive(RF_API_rx_data_t* rx_data) {
             }
         }
         // Clear flag.
-        rf_api_ctx.flags.field.gpio_irq_flag = 0;
+        rf_api_ctx.flags.gpio_irq_flag = 0;
         // Call process function.
         status = _RF_API_internal_process();
         SIGFOX_CHECK_STATUS(RF_API_SUCCESS);
