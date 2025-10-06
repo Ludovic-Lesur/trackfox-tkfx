@@ -142,7 +142,7 @@ typedef union {
     uint8_t frame[TKFX_SIGFOX_MONITORING_DATA_SIZE];
     struct {
         unsigned tamb_degrees :8;
-        unsigned hamb_degrees :8;
+        unsigned hamb_percent :8;
         unsigned vsrc_mv :16;
         unsigned vstr_mv :16;
         unsigned status :8;
@@ -473,7 +473,7 @@ int main(void) {
             tkfx_ctx.status.lse_status = (generic_u8 == 0) ? 0b0 : 0b1;
             // Build Sigfox frame.
             tkfx_ctx.sigfox_monitoring_data.tamb_degrees = tkfx_ctx.tamb_degrees;
-            tkfx_ctx.sigfox_monitoring_data.hamb_degrees = tkfx_ctx.hamb_percent;
+            tkfx_ctx.sigfox_monitoring_data.hamb_percent = tkfx_ctx.hamb_percent;
             tkfx_ctx.sigfox_monitoring_data.vsrc_mv = tkfx_ctx.vsrc_mv;
             tkfx_ctx.sigfox_monitoring_data.vstr_mv = tkfx_ctx.vstr_mv;
             tkfx_ctx.sigfox_monitoring_data.status = tkfx_ctx.status.all;
