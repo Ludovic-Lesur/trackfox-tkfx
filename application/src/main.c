@@ -322,6 +322,7 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     // Local variables.
     SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
     SIGFOX_EP_API_config_t lib_config;
+    uint8_t status = 0;
     // Directly exit of the radio is disabled due to low storage element voltage.
     if (tkfx_ctx.flags.radio_enabled == 0) goto errors;
     // Disable motion interrupts.
@@ -330,21 +331,23 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     lib_config.rc = &SIGFOX_RC1;
     // Open library.
     sigfox_ep_api_status = SIGFOX_EP_API_open(&lib_config);
-    SIGFOX_EP_API_stack_error();
-    if (sigfox_ep_api_status == SIGFOX_EP_API_SUCCESS) {
-        // Send message.
-        sigfox_ep_api_status = SIGFOX_EP_API_send_application_message(application_message);
-        SIGFOX_EP_API_stack_error();
-    }
+    SIGFOX_EP_API_check_status(0);
+    // Send message.
+    sigfox_ep_api_status = SIGFOX_EP_API_send_application_message(application_message);
+    SIGFOX_EP_API_check_status(0);
     // Close library.
     sigfox_ep_api_status = SIGFOX_EP_API_close();
-    SIGFOX_EP_API_stack_error();
+    SIGFOX_EP_API_check_status(0);
+    goto end;
+errors:
+    SIGFOX_EP_API_close();
+    UNUSED(status);
+end:
     // Re-enable motion interrupts if enabled.
     if (tkfx_ctx.status.accelerometer_status != 0) {
         // Enable interrupt.
         SENSORS_HW_enable_accelerometer_interrupt();
     }
-errors:
     return;
 }
 #endif
