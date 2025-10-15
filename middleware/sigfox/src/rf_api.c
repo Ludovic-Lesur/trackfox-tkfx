@@ -552,7 +552,9 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
         // RX parameters.
         s2lp_status = S2LP_set_rx_source(S2LP_RX_SOURCE_NORMAL);
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
-        s2lp_status = S2LP_set_rx_bandwidth(RF_API_RX_BANDWIDTH_HZ, S2LP_AFC_MODE_DISABLE);
+        s2lp_status = S2LP_set_rx_bandwidth(RF_API_RX_BANDWIDTH_HZ);
+        S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
+        s2lp_status = S2LP_set_lna_configuration(0);
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
         s2lp_status = S2LP_set_rssi_threshold(RF_API_DOWNLINK_RSSI_THRESHOLD_DBM);
         S2LP_stack_exit_error(ERROR_BASE_S2LP, (RF_API_status_t) RF_API_ERROR_DRIVER_S2LP);
