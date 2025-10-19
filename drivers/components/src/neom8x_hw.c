@@ -13,11 +13,11 @@
 #include "error.h"
 #include "error_base.h"
 #include "lptim.h"
-#include "lpuart.h"
 #include "mcu_mapping.h"
 #include "neom8x.h"
 #include "nvic_priority.h"
 #include "types.h"
+#include "usart.h"
 
 #ifndef NEOM8X_DRIVER_DISABLE
 
@@ -27,18 +27,19 @@
 NEOM8X_status_t NEOM8X_HW_init(NEOM8X_HW_configuration_t* configuration) {
     // Local variables.
     NEOM8X_status_t status = NEOM8X_SUCCESS;
-    LPUART_status_t lpuart_status = LPUART_SUCCESS;
-    LPUART_configuration_t lpuart_config;
+    USART_status_t usart_status = USART_SUCCESS;
+    USART_configuration_t usart_config;
 #ifdef HW1_1
     // Init backup pin.
     GPIO_configure(&GPIO_GPS_VBCKP, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
 #endif
-    // Init LPUART.
-    lpuart_config.baud_rate = (configuration->uart_baud_rate);
-    lpuart_config.nvic_priority = NVIC_PRIORITY_GPS_UART;
-    lpuart_config.rxne_irq_callback = (LPUART_rx_irq_cb_t) (configuration->rx_irq_callback);
-    lpuart_status = LPUART_init(&LPUART_GPIO_GPS, &lpuart_config);
-    LPUART_exit_error(NEOM8X_ERROR_BASE_UART);
+    // Init USART.
+    usart_config.clock = RCC_CLOCK_SYSTEM;
+    usart_config.baud_rate = (configuration->uart_baud_rate);
+    usart_config.nvic_priority = NVIC_PRIORITY_GPS_UART;
+    usart_config.rxne_irq_callback = (USART_rx_irq_cb_t) (configuration->rx_irq_callback);
+    usart_status = USART_init(USART_INSTANCE_GPS, &USART_GPIO_GPS, &usart_config);
+    USART_exit_error(NEOM8X_ERROR_BASE_UART);
 errors:
     return status;
 }
@@ -47,10 +48,10 @@ errors:
 NEOM8X_status_t NEOM8X_HW_de_init(void) {
     // Local variables.
     NEOM8X_status_t status = NEOM8X_SUCCESS;
-    LPUART_status_t lpuart_status = LPUART_SUCCESS;
-    // Release LPUART.
-    lpuart_status = LPUART_de_init(&LPUART_GPIO_GPS);
-    LPUART_stack_error(ERROR_BASE_NEOM8N + NEOM8X_ERROR_BASE_UART);
+    USART_status_t usart_status = USART_SUCCESS;
+    // Release USART.
+    usart_status = USART_de_init(USART_INSTANCE_GPS, &USART_GPIO_GPS);
+    USART_stack_error(ERROR_BASE_NEOM8N + NEOM8X_ERROR_BASE_UART);
     return status;
 }
 
@@ -58,10 +59,10 @@ NEOM8X_status_t NEOM8X_HW_de_init(void) {
 NEOM8X_status_t NEOM8X_HW_send_message(uint8_t* message, uint32_t message_size_bytes) {
     // Local variables.
     NEOM8X_status_t status = NEOM8X_SUCCESS;
-    LPUART_status_t lpuart_status = LPUART_SUCCESS;
-    // Use LPUART.
-    lpuart_status = LPUART_write(message, message_size_bytes);
-    LPUART_exit_error(NEOM8X_ERROR_BASE_UART);
+    USART_status_t usart_status = USART_SUCCESS;
+    // Use USART.
+    usart_status = USART_write(USART_INSTANCE_GPS, message, message_size_bytes);
+    USART_exit_error(NEOM8X_ERROR_BASE_UART);
 errors:
     return status;
 }
@@ -70,10 +71,10 @@ errors:
 NEOM8X_status_t NEOM8X_HW_start_rx(void) {
     // Local variables.
     NEOM8X_status_t status = NEOM8X_SUCCESS;
-    LPUART_status_t lpuart_status = LPUART_SUCCESS;
-    // Start LPUART.
-    lpuart_status = LPUART_enable_rx();
-    LPUART_exit_error(NEOM8X_ERROR_BASE_UART);
+    USART_status_t usart_status = USART_SUCCESS;
+    // Start USART.
+    usart_status = USART_enable_rx(USART_INSTANCE_GPS);
+    USART_exit_error(NEOM8X_ERROR_BASE_UART);
 errors:
     return status;
 }
@@ -82,10 +83,10 @@ errors:
 NEOM8X_status_t NEOM8X_HW_stop_rx(void) {
     // Local variables.
     NEOM8X_status_t status = NEOM8X_SUCCESS;
-    LPUART_status_t lpuart_status = LPUART_SUCCESS;
-    // Stop LPUART.
-    lpuart_status = LPUART_disable_rx();
-    LPUART_exit_error(NEOM8X_ERROR_BASE_UART);
+    USART_status_t usart_status = USART_SUCCESS;
+    // Stop USART.
+    usart_status = USART_disable_rx(USART_INSTANCE_GPS);
+    USART_exit_error(NEOM8X_ERROR_BASE_UART);
 errors:
     return status;
 }

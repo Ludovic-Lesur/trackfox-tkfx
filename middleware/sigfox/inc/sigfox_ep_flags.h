@@ -99,7 +99,9 @@
  * \def SIGFOX_EP_CONTROL_KEEP_ALIVE_MESSAGE
  * \brief Support uplink control keep alive message if defined.
  *******************************************************************/
-//#define SIGFOX_EP_CONTROL_KEEP_ALIVE_MESSAGE
+#ifdef TKFX_MODE_CLI
+#define SIGFOX_EP_CONTROL_KEEP_ALIVE_MESSAGE
+#endif
 
 /*!******************************************************************
  * \def SIGFOX_EP_BIDIRECTIONAL
@@ -177,7 +179,7 @@
  * \def SIGFOX_EP_AES_HW
  * \brief If defined, enable hardware AES through MCU API function. Otherwise the embedded driver from TI is used.
  *******************************************************************/
-#define SIGFOX_EP_AES_HW
+//#define SIGFOX_EP_AES_HW
 
 /*!******************************************************************
  * \def SIGFOX_EP_CRC_HW

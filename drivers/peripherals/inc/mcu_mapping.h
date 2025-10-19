@@ -27,7 +27,8 @@
 
 #define TIM_INSTANCE_MCU_API    TIM_INSTANCE_TIM2
 
-#define USART_INSTANCE_AT       USART_INSTANCE_USART2
+#define USART_INSTANCE_GPS      USART_INSTANCE_USART2
+#define USART_INSTANCE_AT       USART_INSTANCE_USART1
 
 /*** MCU MAPPING structures ***/
 
@@ -54,7 +55,7 @@ extern const GPIO_pin_t GPIO_GPS_POWER_ENABLE;
 #ifdef HW1_1
 extern const GPIO_pin_t GPIO_GPS_VBCKP;
 #endif
-extern const LPUART_gpio_t LPUART_GPIO_GPS;
+extern const USART_gpio_t USART_GPIO_GPS;
 // Radio power control.
 extern const GPIO_pin_t GPIO_RF_POWER_ENABLE;
 extern const GPIO_pin_t GPIO_TCXO_POWER_ENABLE;

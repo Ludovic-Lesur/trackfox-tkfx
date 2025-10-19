@@ -29,12 +29,12 @@ static const GPIO_pin_t GPIO_I2C1_SDA = { GPIOB, 1, 7, 1 };
 static const GPIO_pin_t GPIO_SPI1_SCK = { GPIOB, 1, 3, 0 };
 static const GPIO_pin_t GPIO_SPI1_MISO = { GPIOB, 1, 4, 0 };
 static const GPIO_pin_t GPIO_SPI1_MOSI = { GPIOB, 1, 5, 0 };
-// LPUART1.
-static const GPIO_pin_t GPIO_LPUART1_TX = { GPIOA, 0, 2, 6 };
-static const GPIO_pin_t GPIO_LPUART1_RX = { GPIOA, 0, 3, 6 };
 // USART2.
-static const GPIO_pin_t GPIO_USART2_TX = { GPIOA, 0, 9, 4 };
-static const GPIO_pin_t GPIO_USART2_RX = { GPIOA, 0, 10, 4 };
+static const GPIO_pin_t GPIO_USART2_TX = { GPIOA, 0, 2, 4 };
+static const GPIO_pin_t GPIO_USART2_RX = { GPIOA, 0, 3, 4 };
+// USART1.
+static const GPIO_pin_t GPIO_USART1_TX = { GPIOA, 0, 9, 4 };
+static const GPIO_pin_t GPIO_USART1_RX = { GPIOA, 0, 10, 4 };
 
 /*** GPIO MAPPING global variables ***/
 
@@ -53,7 +53,7 @@ const GPIO_pin_t GPIO_GPS_POWER_ENABLE = { GPIOA, 0, 5, 0 };
 #ifdef HW1_1
 const GPIO_pin_t GPIO_GPS_VBCKP = { GPIOA, 0, 1, 0 };
 #endif
-const LPUART_gpio_t LPUART_GPIO_GPS = { &GPIO_LPUART1_TX, &GPIO_LPUART1_RX };
+const USART_gpio_t USART_GPIO_GPS = { &GPIO_USART2_TX, &GPIO_USART2_RX };
 // Radio power control.
 const GPIO_pin_t GPIO_RF_POWER_ENABLE = { GPIOB, 1, 2, 0 };
 const GPIO_pin_t GPIO_TCXO_POWER_ENABLE = { GPIOA, 0, 8, 0 };
@@ -71,6 +71,6 @@ const GPIO_pin_t GPIO_S2LP_GPIO0 = { GPIOA, 0, 12, 0 };
 const GPIO_pin_t GPIO_SENSORS_POWER_ENABLE = { GPIOB, 1, 8, 0 };
 const I2C_gpio_t I2C_GPIO_SENSORS = { &GPIO_I2C1_SCL, &GPIO_I2C1_SDA };
 // AT interface.
-const USART_gpio_t USART_GPIO_AT = { &GPIO_USART2_TX, &GPIO_USART2_RX };
+const USART_gpio_t USART_GPIO_AT = { &GPIO_USART1_TX, &GPIO_USART1_RX };
 // Test point.
 const GPIO_pin_t GPIO_TP2 = { GPIOA, 0, 4, 0 };
