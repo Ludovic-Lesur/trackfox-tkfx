@@ -46,8 +46,9 @@
 
 /*** CLI local macros ***/
 
-#define CLI_CHAR_SEPARATOR          STRING_CHAR_COMMA
-#define CLI_RSSI_REPORT_PERIOD_MS   500
+#define CLI_CHAR_SEPARATOR              STRING_CHAR_COMMA
+#define CLI_RSSI_REPORT_PERIOD_MS       500
+#define CLI_TEMPERATURE_STRING_SIZE     5
 
 /*** CLI local structures ***/
 
@@ -377,17 +378,19 @@ static AT_status_t _CLI_ths_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
-    int32_t temperature_degrees = 0;
+    int32_t temperature_tenth_degrees = 0;
+    char_t temperature_str[CLI_TEMPERATURE_STRING_SIZE] = { STRING_CHAR_NULL };
     int32_t humidity_percent = 0;
     // Turn digital sensors on.
     POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
     // Perform measurements.
-    sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &temperature_degrees, &humidity_percent);
+    sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &temperature_tenth_degrees, &humidity_percent);
     _CLI_check_driver_status(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT30);
     // Read and print data.
     // Temperature.
+    STRING_integer_to_floating_decimal_string(temperature_tenth_degrees, 1, (CLI_TEMPERATURE_STRING_SIZE - 1), (char_t*) temperature_str);
     AT_reply_add_string("T=");
-    AT_reply_add_integer(temperature_degrees, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string(temperature_str);
     AT_reply_add_string("dC");
     AT_send_reply();
     // Humidity.

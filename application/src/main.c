@@ -428,7 +428,7 @@ int main(void) {
             tkfx_ctx.hamb_percent = TKFX_ERROR_VALUE_HUMIDITY;
             if (sht3x_status == SHT3X_SUCCESS) {
                 // Convert temperature.
-                math_status = MATH_integer_to_signed_magnitude(generic_s32_1, (MATH_U8_SIZE_BITS - 1), &generic_u32);
+                math_status = MATH_integer_to_signed_magnitude((generic_s32_1 / 10), (MATH_U8_SIZE_BITS - 1), &generic_u32);
                 MATH_stack_error(ERROR_BASE_MATH);
                 if (math_status == MATH_SUCCESS) {
                     tkfx_ctx.tamb_degrees = (uint8_t) generic_u32;
