@@ -41,44 +41,35 @@
 
 /*** MAIN macros ***/
 
-#ifdef TKFX_MODE_CAR
-#define TKFX_MODE                               0b00
-#endif
-#ifdef TKFX_MODE_BIKE
-#define TKFX_MODE                               0b01
-#endif
-#ifdef TKFX_MODE_HIKING
-#define TKFX_MODE                               0b10
-#endif
+// Monitoring period.
+#define TKFX_MONITORING_PERIOD_SECONDS                  3600
+// Error stack.
+#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS          86400
+// Geolocation.
+#define TKFX_GEOLOC_TIMEOUT_SECONDS                     180
+#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING    2
+#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED   5
 // Voltage hysteresis for radio and active mode.
 #ifdef TKFX_MODE_SUPERCAPACITOR
-#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV   1500
-#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV        1000
+#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV           1500
+#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV                1000
 #endif
 #ifdef TKFX_MODE_BATTERY
-#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV   3700
-#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV        3500
+#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV           3700
+#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV                3500
 #endif
-#define TKFX_RADIO_ON_VSTR_THRESHOLD_MV         TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV
-// Error stack message period.
-#define TKFX_ERROR_STACK_PERIOD_SECONDS         86400
-// Altitude stability filter.
-#define TKFX_GEOLOC_TIMEOUT_SECONDS             180
-#define TKFX_ALTITUDE_STABILITY_FILTER_MOVING   2
-#define TKFX_ALTITUDE_STABILITY_FILTER_STOPPED  5
+#define TKFX_RADIO_ON_VSTR_THRESHOLD_MV                 TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV
 
 /*** MAIN structures ***/
 
 /*******************************************************************/
 typedef enum {
     TKFX_STATE_STARTUP,
-    TKFX_STATE_WAKEUP,
-    TKFX_STATE_MEASURE,
     TKFX_STATE_MODE_UPDATE,
     TKFX_STATE_MONITORING,
     TKFX_STATE_GEOLOC,
     TKFX_STATE_ERROR_STACK,
-    TKFX_STATE_OFF,
+    TKFX_STATE_TASK_CHECK,
     TKFX_STATE_SLEEP,
     TKFX_STATE_LAST
 } TKFX_state_t;
@@ -109,6 +100,7 @@ typedef union {
     uint8_t all;
     struct {
         unsigned radio_enabled : 1;
+        unsigned error_stack_enable :1;
         unsigned geoloc_request :1;
         unsigned monitoring_request :1;
         unsigned por :1;
@@ -124,7 +116,6 @@ typedef struct {
     uint32_t stop_detection_threshold_seconds;
     uint32_t moving_geoloc_period_seconds;
     uint32_t stopped_geoloc_period_seconds;
-    uint32_t monitoring_period_seconds;
 } TKFX_configuration_t;
 
 #ifndef TKFX_MODE_CLI
@@ -136,17 +127,17 @@ typedef struct {
     TKFX_mode_t mode;
     volatile TKFX_flags_t flags;
     // Monitoring.
-    uint32_t monitoring_next_time_seconds;
+    uint32_t monitoring_last_time_seconds;
     uint8_t tamb_degrees;
     uint8_t hamb_percent;
-    uint32_t vsrc_mv;
-    uint32_t vstr_mv;
+    uint16_t vsrc_mv;
+    uint16_t vstr_mv;
     // Error stack.
-    uint32_t error_stack_next_time_seconds;
+    uint32_t error_stack_last_time_seconds;
     // Tracker algorithm.
     volatile uint32_t start_detection_irq_count;
-    volatile uint32_t last_motion_irq_time_seconds;
-    uint32_t geoloc_next_time_seconds;
+    volatile uint32_t motion_irq_last_time_seconds;
+    uint32_t geoloc_last_time_seconds;
     NEOM8X_position_t geoloc_position;
 } TKFX_context_t;
 #endif
@@ -156,13 +147,13 @@ typedef struct {
 #ifndef TKFX_MODE_CLI
 static TKFX_context_t tkfx_ctx;
 #ifdef TKFX_MODE_CAR
-static const TKFX_configuration_t TKFX_CONFIG = { 0, 150, 300, 86400, 3600 };
+static const TKFX_configuration_t TKFX_CONFIG = { 0, 150, 300, 86400 };
 #endif
 #ifdef TKFX_MODE_BIKE
-static const TKFX_configuration_t TKFX_CONFIG = { 2, 150, 300, 86400, 3600 };
+static const TKFX_configuration_t TKFX_CONFIG = { 2, 150, 300, 86400 };
 #endif
 #ifdef TKFX_MODE_HIKING
-static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400, 3600 };
+static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400 };
 #endif
 #endif
 
@@ -171,7 +162,7 @@ static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400, 3600 };
 /*******************************************************************/
 static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
 #ifndef TKFX_MODE_CLI
-    // Decrement IRQ count.
+    // Decrement interrupt count.
     if (tkfx_ctx.start_detection_irq_count > 0) {
         tkfx_ctx.start_detection_irq_count--;
     }
@@ -183,7 +174,7 @@ static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
 static void _TKFX_motion_irq_callback(void) {
     // Update variables.
     tkfx_ctx.start_detection_irq_count++;
-    tkfx_ctx.last_motion_irq_time_seconds = RTC_get_uptime_seconds();
+    tkfx_ctx.motion_irq_last_time_seconds = RTC_get_uptime_seconds();
 }
 #endif
 
@@ -196,13 +187,22 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.flags.all = 0;
     tkfx_ctx.flags.por = 1;
     tkfx_ctx.flags.radio_enabled = 1;
+    tkfx_ctx.flags.error_stack_enable = 1;
     tkfx_ctx.status.all = 0;
-    tkfx_ctx.status.tracker_mode = TKFX_MODE;
+#if (defined TKFX_MODE_CAR)
+    tkfx_ctx.status.tracker_mode = 0b00;
+#elif (defined TKFX_MODE_BIKE)
+    tkfx_ctx.status.tracker_mode = 0b01;
+#elif (defined TKFX_MODE_HIKING)
+    tkfx_ctx.status.tracker_mode = 0b10;
+#else
+#error "None mode selected"
+#endif
+    tkfx_ctx.error_stack_last_time_seconds = 0;
+    tkfx_ctx.monitoring_last_time_seconds = 0;
+    tkfx_ctx.geoloc_last_time_seconds = 0;
     tkfx_ctx.start_detection_irq_count = 0;
-    tkfx_ctx.last_motion_irq_time_seconds = 0;
-    tkfx_ctx.monitoring_next_time_seconds = TKFX_CONFIG.monitoring_period_seconds;
-    tkfx_ctx.geoloc_next_time_seconds = TKFX_CONFIG.stopped_geoloc_period_seconds;
-    tkfx_ctx.error_stack_next_time_seconds = 0;
+    tkfx_ctx.motion_irq_last_time_seconds = 0;
     // Set motion interrupt callback address.
     SENSORS_HW_set_accelerometer_irq_callback(&_TKFX_motion_irq_callback);
 }
@@ -251,6 +251,68 @@ static void _TKFX_init_hw(void) {
 
 #ifndef TKFX_MODE_CLI
 /*******************************************************************/
+static void _TKFX_update_source_storage_voltages(void) {
+    // Local variables.
+    ANALOG_status_t analog_status = ANALOG_SUCCESS;
+    int32_t generic_s32 = 0;
+    // Reset data.
+    tkfx_ctx.vsrc_mv = SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS;
+    tkfx_ctx.vstr_mv = SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS;
+    // Turn ADC on.
+    POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
+    // Perform source voltage measurement.
+    analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSRC_MV, &generic_s32);
+    ANALOG_stack_error(ERROR_BASE_ANALOG);
+    if (analog_status == ANALOG_SUCCESS) {
+        // Update data.
+        tkfx_ctx.vsrc_mv = (uint16_t) generic_s32;
+    }
+    // Perform storage element voltage measurement.
+    analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &generic_s32);
+    ANALOG_stack_error(ERROR_BASE_ANALOG);
+    if (analog_status == ANALOG_SUCCESS) {
+        // Update data.
+        tkfx_ctx.vstr_mv = (uint16_t) generic_s32;
+    }
+    // Turn ADC off.
+    POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
+}
+#endif
+
+#ifndef TKFX_MODE_CLI
+/*******************************************************************/
+static void _TKFX_update_temperature_humidity(void) {
+    // Local variables.)
+    MATH_status_t math_status = MATH_SUCCESS;
+    int32_t temperature = 0;
+    uint32_t temperature_signed_magnitude;
+    int32_t humidity = 0;
+    SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
+    // Reset data.
+    tkfx_ctx.tamb_degrees = SIGFOX_EP_ERROR_VALUE_TEMPERATURE;
+    tkfx_ctx.hamb_percent = SIGFOX_EP_ERROR_VALUE_HUMIDITY;
+    // Turn sensors on.
+    POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
+    // Get temperature and humidity from SHT30.
+    sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &temperature, &humidity);
+    SHT3X_stack_error(ERROR_BASE_SHT30);
+    // Check status.
+    if (sht3x_status == SHT3X_SUCCESS) {
+       // Convert temperature.
+       math_status = MATH_integer_to_signed_magnitude((temperature / 10), 7, &temperature_signed_magnitude);
+       MATH_stack_error(ERROR_BASE_MATH);
+       if (math_status == MATH_SUCCESS) {
+           tkfx_ctx.tamb_degrees = (uint8_t) temperature_signed_magnitude;
+       }
+       tkfx_ctx.hamb_percent = (uint8_t) humidity;
+    }
+    // Turn sensors off.
+    POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
+}
+#endif
+
+#ifndef TKFX_MODE_CLI
+/*******************************************************************/
 static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* application_message) {
     // Local variables.
     SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
@@ -293,9 +355,6 @@ int main(void) {
     _TKFX_init_hw();
     // Local variables.
     RCC_status_t rcc_status = RCC_SUCCESS;
-    ANALOG_status_t analog_status = ANALOG_SUCCESS;
-    MATH_status_t math_status = MATH_SUCCESS;
-    SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
     MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
     GPS_acquisition_status_t gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
@@ -306,9 +365,8 @@ int main(void) {
     SIGFOX_EP_ul_payload_geoloc_timeout_t sigfox_ep_ul_payload_geoloc_timeout;
     ERROR_code_t error_code = 0;
     uint8_t sigfox_ep_ul_payload_error_stack[SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK];
-    int32_t generic_s32_1 = 0;
-    int32_t generic_s32_2 = 0;
-    uint32_t generic_u32 = 0;
+    uint32_t generic_u32_1 = 0;
+    uint32_t generic_u32_2 = 0;
     uint8_t generic_u8;
     uint8_t idx = 0;
     // Application message default parameters.
@@ -332,7 +390,7 @@ int main(void) {
             sigfox_ep_ul_payload_startup.dirty_flag = GIT_DIRTY_FLAG;
             // Clear reset flags.
             PWR_clear_reset_flags();
-            // Send SW version frame.
+            // Send startup message.
             sigfox_ep_application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
             sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_startup.frame);
             sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_STARTUP;
@@ -340,73 +398,17 @@ int main(void) {
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
-        case TKFX_STATE_WAKEUP:
-            IWDG_reload();
-            // Calibrate clocks.
-            rcc_status = RCC_calibrate_internal_clocks(NVIC_PRIORITY_CLOCK_CALIBRATION);
-            RCC_stack_error(ERROR_BASE_RCC);
-            // Reset GPS status for mode update.
-            gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
-            // Compute next state.
-            tkfx_ctx.state = ((tkfx_ctx.flags.monitoring_request != 0) || (tkfx_ctx.flags.geoloc_request != 0)) ? TKFX_STATE_MEASURE : TKFX_STATE_MODE_UPDATE;
-            break;
-        case TKFX_STATE_MEASURE:
-            IWDG_reload();
-            // Get temperature from SHT30.
-            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-            sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &generic_s32_1, &generic_s32_2);
-            SHT3X_stack_error(ERROR_BASE_SHT30);
-            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
-            // Reset data.
-            tkfx_ctx.tamb_degrees = SIGFOX_EP_ERROR_VALUE_TEMPERATURE;
-            tkfx_ctx.hamb_percent = SIGFOX_EP_ERROR_VALUE_HUMIDITY;
-            if (sht3x_status == SHT3X_SUCCESS) {
-                // Convert temperature.
-                math_status = MATH_integer_to_signed_magnitude((generic_s32_1 / 10), (MATH_U8_SIZE_BITS - 1), &generic_u32);
-                MATH_stack_error(ERROR_BASE_MATH);
-                if (math_status == MATH_SUCCESS) {
-                    tkfx_ctx.tamb_degrees = (uint8_t) generic_u32;
-                }
-                tkfx_ctx.hamb_percent = (uint8_t) generic_s32_2;
-            }
-            // Reset data.
-            tkfx_ctx.vsrc_mv = SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS;
-            tkfx_ctx.vstr_mv = SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS;
-            // Get voltages measurements.
-            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-            analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSRC_MV, &generic_s32_1);
-            ANALOG_stack_error(ERROR_BASE_ANALOG);
-            if (analog_status == ANALOG_SUCCESS) {
-                tkfx_ctx.vsrc_mv = (uint32_t) generic_s32_1;
-            }
-            analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &generic_s32_1);
-            ANALOG_stack_error(ERROR_BASE_ANALOG);
-            if (analog_status == ANALOG_SUCCESS) {
-                tkfx_ctx.vstr_mv = (uint32_t) generic_s32_1;
-            }
-            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
-            // Compute next state.
-            if (tkfx_ctx.flags.monitoring_request != 0) {
-                tkfx_ctx.state = TKFX_STATE_MONITORING;
-            }
-            else {
-                if (tkfx_ctx.flags.geoloc_request != 0) {
-                    tkfx_ctx.state = TKFX_STATE_GEOLOC;
-                }
-                else {
-                    tkfx_ctx.state = TKFX_STATE_MODE_UPDATE;
-                }
-            }
-            break;
         case TKFX_STATE_MONITORING:
             IWDG_reload();
-            // Update GPS backup  status.
-            tkfx_ctx.status.gps_backup_status = GPS_get_backup_voltage();
-            // Get tracker state.
-            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
+            // Measure related data.
+            _TKFX_update_source_storage_voltages();
+            _TKFX_update_temperature_humidity();
             // Get clock status.
             rcc_status = RCC_get_status(RCC_CLOCK_LSE, &generic_u8);
             RCC_stack_error(ERROR_BASE_RCC);
+            // Update status.
+            tkfx_ctx.status.gps_backup_status = GPS_get_backup_voltage();
+            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
             tkfx_ctx.status.lse_status = (generic_u8 == 0) ? 0b0 : 0b1;
             // Build Sigfox frame.
             sigfox_ep_ul_payload_monitoring.tamb_degrees = tkfx_ctx.tamb_degrees;
@@ -419,39 +421,10 @@ int main(void) {
             sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_monitoring.frame);
             sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_MONITORING;
             _TKFX_send_sigfox_message(&sigfox_ep_application_message);
-            // Reset flag and timer.
+            // Reset request.
             tkfx_ctx.flags.monitoring_request = 0;
-            // Change error value for mode update.
-            if (tkfx_ctx.vstr_mv == SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS) {
-                tkfx_ctx.vstr_mv = 0;
-            }
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
-            break;
-        case TKFX_STATE_ERROR_STACK:
-            // Check period.
-            if (RTC_get_uptime_seconds() >= tkfx_ctx.error_stack_next_time_seconds) {
-                // Import Sigfox library error stack.
-                ERROR_import_sigfox_stack();
-                // Check stack.
-                if (ERROR_stack_is_empty() == 0) {
-                    // Read error stack.
-                    for (idx = 0; idx < (SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK >> 1); idx++) {
-                        error_code = ERROR_stack_read();
-                        sigfox_ep_ul_payload_error_stack[(idx << 1) + 0] = (uint8_t) ((error_code >> 8) & 0x00FF);
-                        sigfox_ep_ul_payload_error_stack[(idx << 1) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
-                    }
-                    // Update next time.
-                    tkfx_ctx.error_stack_next_time_seconds = RTC_get_uptime_seconds() + TKFX_ERROR_STACK_PERIOD_SECONDS;
-                    // Send error stack frame.
-                    sigfox_ep_application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
-                    sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_error_stack);
-                    sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK;
-                    _TKFX_send_sigfox_message(&sigfox_ep_application_message);
-                }
-            }
-            // Compute next state.
-            tkfx_ctx.state = (tkfx_ctx.flags.geoloc_request != 0) ? TKFX_STATE_GEOLOC : TKFX_STATE_MODE_UPDATE;
             break;
         case TKFX_STATE_GEOLOC:
             IWDG_reload();
@@ -461,15 +434,17 @@ int main(void) {
                 GPS_stack_error(ERROR_BASE_GPS);
             }
             // Configure altitude stability filter and reset fix duration.
-            generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_ALTITUDE_STABILITY_FILTER_MOVING;
-            generic_u32 = 0;
+            generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING;
+            generic_u32_1 = 0;
             // Pre-check storage voltage.
             if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) {
-                // Turn analog front-end to monitor storage element voltage and get position from GPS.
+                // Turn GPS and analog front-end on to monitor storage element voltage.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
-                gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &generic_u32, &gps_acquisition_status);
+                // Get position from GPS.
+                gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &generic_u32_1, &gps_acquisition_status);
                 GPS_stack_error(ERROR_BASE_GPS);
+                // Turn analog front-end and GPS off.
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS);
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
             }
@@ -493,14 +468,14 @@ int main(void) {
                 sigfox_ep_ul_payload_geoloc.longitude_seconds = tkfx_ctx.geoloc_position.long_seconds;
                 sigfox_ep_ul_payload_geoloc.longitude_east_flag = tkfx_ctx.geoloc_position.long_east_flag;
                 sigfox_ep_ul_payload_geoloc.altitude_meters = tkfx_ctx.geoloc_position.altitude;
-                sigfox_ep_ul_payload_geoloc.gps_fix_duration_seconds = generic_u32;
+                sigfox_ep_ul_payload_geoloc.gps_fix_duration_seconds = generic_u32_1;
                 // Update message parameters.
                 sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc.frame);
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC;
             }
             else {
                 sigfox_ep_ul_payload_geoloc_timeout.gps_acquisition_status = gps_acquisition_status;
-                sigfox_ep_ul_payload_geoloc_timeout.gps_acquisition_duration_seconds = generic_u32;
+                sigfox_ep_ul_payload_geoloc_timeout.gps_acquisition_duration_seconds = generic_u32_1;
                 // Update message parameters.
                 sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc_timeout.frame);
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT;
@@ -510,17 +485,43 @@ int main(void) {
             // Reset flag and timer.
             tkfx_ctx.flags.geoloc_request = 0;
             // Compute next state.
+            tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
+            break;
+        case TKFX_STATE_ERROR_STACK:
+            IWDG_reload();
+            // Check if blanking time elapsed.
+            if (tkfx_ctx.flags.error_stack_enable != 0) {
+                // Import Sigfox library error stack.
+                ERROR_import_sigfox_stack();
+                // Check stack.
+                if (ERROR_stack_is_empty() == 0) {
+                    // Read error stack.
+                    for (idx = 0; idx < (SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK >> 1); idx++) {
+                        error_code = ERROR_stack_read();
+                        sigfox_ep_ul_payload_error_stack[(idx << 1) + 0] = (uint8_t) ((error_code >> 8) & 0x00FF);
+                        sigfox_ep_ul_payload_error_stack[(idx << 1) + 1] = (uint8_t) ((error_code >> 0) & 0x00FF);
+                    }
+                    // Send error stack frame.
+                    sigfox_ep_application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
+                    sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_error_stack);
+                    sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK;
+                    _TKFX_send_sigfox_message(&sigfox_ep_application_message);
+                    // Disable error stack sending.
+                    tkfx_ctx.flags.error_stack_enable = 0;
+                    tkfx_ctx.error_stack_last_time_seconds = RTC_get_uptime_seconds();
+                }
+            }
+            // Compute next state.
             tkfx_ctx.state = TKFX_STATE_MODE_UPDATE;
             break;
         case TKFX_STATE_MODE_UPDATE:
             IWDG_reload();
-            // Perform measurements.
-            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
-            analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &generic_s32_1);
-            ANALOG_stack_error(ERROR_BASE_ANALOG);
-            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
-            // Read storage voltage.
-            tkfx_ctx.vstr_mv = (analog_status == ANALOG_SUCCESS) ? generic_s32_1 : 0;
+            // Measure related data.
+            _TKFX_update_source_storage_voltages();
+            // Change error value for mode update.
+            if (tkfx_ctx.vstr_mv == SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS) {
+                tkfx_ctx.vstr_mv = 0;
+            }
             // Check storage voltage.
             if ((tkfx_ctx.vstr_mv < TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_VSTR_THRESHOLD)) {
                 tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
@@ -564,81 +565,91 @@ int main(void) {
                 tkfx_ctx.flags.radio_enabled = 1;
             }
             // Compute next state.
-            tkfx_ctx.state = TKFX_STATE_OFF;
+            tkfx_ctx.state = TKFX_STATE_TASK_CHECK;
             break;
-        case TKFX_STATE_OFF:
+        case TKFX_STATE_TASK_CHECK:
             IWDG_reload();
-            // Clear POR flag.
-            tkfx_ctx.flags.por = 0;
-            // Reset IRQ count.
-            tkfx_ctx.start_detection_irq_count = 0;
-            // Enter sleep mode.
+            // Read uptime.
+            generic_u32_1 = RTC_get_uptime_seconds();
+            // Periodic monitoring.
+            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + TKFX_MONITORING_PERIOD_SECONDS)) {
+                // Set request and update last time.
+                tkfx_ctx.flags.monitoring_request = 1;
+                tkfx_ctx.status.alarm_flag = 0;
+                tkfx_ctx.monitoring_last_time_seconds = generic_u32_1;
+            }
+            // Get current geolocation period.
+            generic_u32_2 = ((tkfx_ctx.status.moving_flag == 0) ? TKFX_CONFIG.stopped_geoloc_period_seconds : TKFX_CONFIG.moving_geoloc_period_seconds);
+            // Periodic geolocation.
+            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + generic_u32_2)) {
+                // Check mode.
+                if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
+                    // Update requests.
+                    tkfx_ctx.flags.geoloc_request = 1;
+                    tkfx_ctx.status.alarm_flag = 0;
+                }
+            }
+            // Error stack.
+            if (generic_u32_1 >= (tkfx_ctx.error_stack_last_time_seconds + TKFX_ERROR_STACK_BLANKING_TIME_SECONDS)) {
+                // Enable error stack message.
+                tkfx_ctx.flags.error_stack_enable = 1;
+            }
+            // Start detection.
+            if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.start_detection_irq_count > TKFX_CONFIG.start_detection_threshold_irq) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+                // Update requests.
+                tkfx_ctx.flags.monitoring_request = 1;
+                tkfx_ctx.status.moving_flag = 1;
+                tkfx_ctx.status.alarm_flag = 1;
+                // Always reset timers on event.
+                tkfx_ctx.monitoring_last_time_seconds = generic_u32_1;
+                tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
+            }
+            else {
+                // Stop detection.
+                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+                    // Update requests.
+                    tkfx_ctx.flags.monitoring_request = 1;
+                    tkfx_ctx.flags.geoloc_request = 1;
+                    tkfx_ctx.status.moving_flag = 0;
+                    tkfx_ctx.status.alarm_flag = 1;
+                    // Always reset timers on event.
+                    tkfx_ctx.monitoring_last_time_seconds = generic_u32_1;
+                    tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
+                }
+            }
+            // Go to sleep by default.
             tkfx_ctx.state = TKFX_STATE_SLEEP;
+            // Check wake-up flags.
+            if (tkfx_ctx.flags.geoloc_request != 0) {
+                tkfx_ctx.state = TKFX_STATE_GEOLOC;
+            }
+            if (tkfx_ctx.flags.monitoring_request != 0) {
+                tkfx_ctx.state = TKFX_STATE_MONITORING;
+            }
+            if (tkfx_ctx.state != TKFX_STATE_SLEEP) {
+                // Calibrate clocks.
+                rcc_status = RCC_calibrate_internal_clocks(NVIC_PRIORITY_CLOCK_CALIBRATION);
+                RCC_stack_error(ERROR_BASE_RCC);
+                // Reset GPS status for mode update.
+                gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
+            }
+            else {
+                // Clear POR flag and reset IRQ count.
+                tkfx_ctx.flags.por = 0;
+                tkfx_ctx.start_detection_irq_count = 0;
+            }
             break;
         case TKFX_STATE_SLEEP:
             // Enter stop mode.
             IWDG_reload();
             PWR_enter_deepsleep_mode(PWR_DEEPSLEEP_MODE_STOP);
             IWDG_reload();
-            // Periodic monitoring.
-            if (RTC_get_uptime_seconds() >= tkfx_ctx.monitoring_next_time_seconds) {
-                // Compute next time.
-                tkfx_ctx.monitoring_next_time_seconds += TKFX_CONFIG.monitoring_period_seconds;
-                // Update requests.
-                tkfx_ctx.flags.monitoring_request = 1;
-                // Update status.
-                tkfx_ctx.status.alarm_flag = 0;
-                // Turn tracker on to send monitoring message.
-                tkfx_ctx.state = TKFX_STATE_WAKEUP;
-            }
-            // Periodic geolocation.
-            if (RTC_get_uptime_seconds() >= tkfx_ctx.geoloc_next_time_seconds) {
-                // Compute next time.
-                generic_u32 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_CONFIG.stopped_geoloc_period_seconds : TKFX_CONFIG.moving_geoloc_period_seconds;
-                tkfx_ctx.geoloc_next_time_seconds += generic_u32;
-                // Check mode.
-                if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
-                    // Update requests.
-                    tkfx_ctx.flags.geoloc_request = 1;
-                    // Update status.
-                    tkfx_ctx.status.alarm_flag = 0;
-                    // Turn tracker on to perform periodic geolocation.
-                    tkfx_ctx.state = TKFX_STATE_WAKEUP;
-                }
-            }
-            // Start detection.
-            if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.start_detection_irq_count > TKFX_CONFIG.start_detection_threshold_irq) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
-                // Update requests.
-                tkfx_ctx.flags.monitoring_request = 1;
-                // Update status.
-                tkfx_ctx.status.moving_flag = 1;
-                tkfx_ctx.status.alarm_flag = 1;
-                // Always reset timers on event.
-                tkfx_ctx.monitoring_next_time_seconds = RTC_get_uptime_seconds() + TKFX_CONFIG.monitoring_period_seconds;
-                tkfx_ctx.geoloc_next_time_seconds = RTC_get_uptime_seconds() + TKFX_CONFIG.moving_geoloc_period_seconds;
-                // Turn tracker on to send start alarm.
-                tkfx_ctx.state = TKFX_STATE_WAKEUP;
-            }
-            else {
-                // Stop detection.
-                if ((tkfx_ctx.status.moving_flag != 0) && (RTC_get_uptime_seconds() >= (tkfx_ctx.last_motion_irq_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
-                    // Update requests.
-                    tkfx_ctx.flags.monitoring_request = 1;
-                    tkfx_ctx.flags.geoloc_request = 1;
-                    // Update status.
-                    tkfx_ctx.status.moving_flag = 0;
-                    tkfx_ctx.status.alarm_flag = 1;
-                    // Always reset timers on event.
-                    tkfx_ctx.monitoring_next_time_seconds = RTC_get_uptime_seconds() + TKFX_CONFIG.monitoring_period_seconds;
-                    tkfx_ctx.geoloc_next_time_seconds = RTC_get_uptime_seconds() + TKFX_CONFIG.stopped_geoloc_period_seconds;
-                    // Turn tracker on to send stop alarm.
-                    tkfx_ctx.state = TKFX_STATE_WAKEUP;
-                }
-            }
+            // Check wake-up reason.
+            tkfx_ctx.state = TKFX_STATE_TASK_CHECK;
             break;
         default:
             // Unknown state.
-            tkfx_ctx.state = TKFX_STATE_OFF;
+            tkfx_ctx.state = TKFX_STATE_TASK_CHECK;
             break;
         }
     }
