@@ -596,6 +596,8 @@ int main(void) {
             }
             // Start detection.
             if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.start_detection_irq_count > TKFX_CONFIG.start_detection_threshold_irq) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+                // Reset interrupts count.
+                tkfx_ctx.start_detection_irq_count = 0;
                 // Update requests.
                 tkfx_ctx.flags.monitoring_request = 1;
                 tkfx_ctx.status.moving_flag = 1;
@@ -617,6 +619,8 @@ int main(void) {
                     tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
                 }
             }
+            // Clear POR flag.
+            tkfx_ctx.flags.por = 0;
             // Go to sleep by default.
             tkfx_ctx.state = TKFX_STATE_SLEEP;
             // Check wake-up flags.
@@ -632,11 +636,6 @@ int main(void) {
                 RCC_stack_error(ERROR_BASE_RCC);
                 // Reset GPS status for mode update.
                 gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
-            }
-            else {
-                // Clear POR flag and reset IRQ count.
-                tkfx_ctx.flags.por = 0;
-                tkfx_ctx.start_detection_irq_count = 0;
             }
             break;
         case TKFX_STATE_SLEEP:
