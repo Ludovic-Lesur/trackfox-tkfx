@@ -581,12 +581,13 @@ int main(void) {
             // Get current geolocation period.
             generic_u32_2 = ((tkfx_ctx.status.moving_flag == 0) ? TKFX_CONFIG.stopped_geoloc_period_seconds : TKFX_CONFIG.moving_geoloc_period_seconds);
             // Periodic geolocation.
-            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + generic_u32_2)) {
+            if (generic_u32_1 >= (tkfx_ctx.geoloc_last_time_seconds + generic_u32_2)) {
                 // Check mode.
                 if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
-                    // Update requests.
+                    // Set request and update last time.
                     tkfx_ctx.flags.geoloc_request = 1;
                     tkfx_ctx.status.alarm_flag = 0;
+                    tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
                 }
             }
             // Error stack.
