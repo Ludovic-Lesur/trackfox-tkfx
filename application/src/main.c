@@ -135,7 +135,7 @@ typedef struct {
     // Error stack.
     uint32_t error_stack_last_time_seconds;
     // Tracker algorithm.
-    volatile uint32_t start_detection_irq_count;
+    volatile uint32_t motion_irq_count;
     volatile uint32_t motion_irq_last_time_seconds;
     uint32_t geoloc_last_time_seconds;
     NEOM8X_position_t geoloc_position;
@@ -159,21 +159,21 @@ static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400 };
 
 /*** MAIN functions ***/
 
+#ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
-#ifndef TKFX_MODE_CLI
     // Decrement interrupt count.
-    if (tkfx_ctx.start_detection_irq_count > 0) {
-        tkfx_ctx.start_detection_irq_count--;
+    if (tkfx_ctx.motion_irq_count > 0) {
+        tkfx_ctx.motion_irq_count--;
     }
-#endif
 }
+#endif
 
 #ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_motion_irq_callback(void) {
     // Update variables.
-    tkfx_ctx.start_detection_irq_count++;
+    tkfx_ctx.motion_irq_count++;
     tkfx_ctx.motion_irq_last_time_seconds = RTC_get_uptime_seconds();
 }
 #endif
@@ -201,7 +201,7 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.error_stack_last_time_seconds = 0;
     tkfx_ctx.monitoring_last_time_seconds = 0;
     tkfx_ctx.geoloc_last_time_seconds = 0;
-    tkfx_ctx.start_detection_irq_count = 0;
+    tkfx_ctx.motion_irq_count = 0;
     tkfx_ctx.motion_irq_last_time_seconds = 0;
     // Set motion interrupt callback address.
     SENSORS_HW_set_accelerometer_irq_callback(&_TKFX_motion_irq_callback);
@@ -242,7 +242,11 @@ static void _TKFX_init_hw(void) {
     rcc_status = RCC_calibrate_internal_clocks(NVIC_PRIORITY_CLOCK_CALIBRATION);
     RCC_stack_error(ERROR_BASE_RCC);
     // Init RTC.
+#ifdef TKFX_MODE_CLI
+    rtc_status = RTC_init(NULL, NVIC_PRIORITY_RTC);
+#else
     rtc_status = RTC_init(&_TKFX_rtc_wakeup_timer_irq_callback, NVIC_PRIORITY_RTC);
+#endif
     RTC_stack_error(ERROR_BASE_RTC);
     // Init delay timer.
     lptim_status = LPTIM_init(NVIC_PRIORITY_DELAY);
@@ -586,8 +590,9 @@ int main(void) {
                 if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
                     // Set request and update last time.
                     tkfx_ctx.flags.geoloc_request = 1;
-                    tkfx_ctx.status.alarm_flag = 0;
                     tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
+                    // Update status.
+                    tkfx_ctx.status.alarm_flag = 0;
                 }
             }
             // Error stack.
@@ -596,28 +601,30 @@ int main(void) {
                 tkfx_ctx.flags.error_stack_enable = 1;
             }
             // Start detection.
-            if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.start_detection_irq_count > TKFX_CONFIG.start_detection_threshold_irq) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
-                // Reset interrupts count.
-                tkfx_ctx.start_detection_irq_count = 0;
-                // Update requests.
+            if ((tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.motion_irq_count > TKFX_CONFIG.start_detection_threshold_irq) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+                // Set request and update last time.
                 tkfx_ctx.flags.monitoring_request = 1;
-                tkfx_ctx.status.moving_flag = 1;
-                tkfx_ctx.status.alarm_flag = 1;
-                // Always reset timers on event.
                 tkfx_ctx.monitoring_last_time_seconds = generic_u32_1;
                 tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
+                // Update status.
+                tkfx_ctx.status.moving_flag = 1;
+                tkfx_ctx.status.alarm_flag = 1;
+                // Reset interrupts count.
+                tkfx_ctx.motion_irq_count = 0;
             }
             else {
                 // Stop detection.
                 if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
-                    // Update requests.
+                    // Set request and update last time.
                     tkfx_ctx.flags.monitoring_request = 1;
                     tkfx_ctx.flags.geoloc_request = 1;
-                    tkfx_ctx.status.moving_flag = 0;
-                    tkfx_ctx.status.alarm_flag = 1;
-                    // Always reset timers on event.
                     tkfx_ctx.monitoring_last_time_seconds = generic_u32_1;
                     tkfx_ctx.geoloc_last_time_seconds = generic_u32_1;
+                    // Update status.
+                    tkfx_ctx.status.moving_flag = 0;
+                    tkfx_ctx.status.alarm_flag = 1;
+                    // Reset interrupts count.
+                    tkfx_ctx.motion_irq_count = 0;
                 }
             }
             // Clear POR flag.
@@ -637,6 +644,7 @@ int main(void) {
                 RCC_stack_error(ERROR_BASE_RCC);
                 // Reset GPS status for mode update.
                 gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
+
             }
             break;
         case TKFX_STATE_SLEEP:
