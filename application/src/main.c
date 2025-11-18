@@ -432,8 +432,8 @@ int main(void) {
             break;
         case TKFX_STATE_GEOLOC:
             IWDG_reload();
-            // Enable backup if possible.
-            if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
+            // Enable backup in active mode and moving condition.
+            if ((tkfx_ctx.status.moving_flag != 0) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
                 gps_status = GPS_set_backup_voltage(1);
                 GPS_stack_error(ERROR_BASE_GPS);
             }
@@ -454,6 +454,11 @@ int main(void) {
             }
             else {
                 gps_acquisition_status = GPS_ACQUISITION_ERROR_VSTR_THRESHOLD;
+            }
+            // Disable GPS backup in low power mode or stopped condition.
+            if ((tkfx_ctx.status.moving_flag == 0) || (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_VSTR_THRESHOLD)) {
+                gps_status = GPS_set_backup_voltage(0);
+                GPS_stack_error(ERROR_BASE_GPS);
             }
             // Compute bit rate according to tracker motion state.
 #ifdef TKFX_MODE_HIKING
@@ -555,11 +560,6 @@ int main(void) {
                 SENSORS_HW_disable_accelerometer_interrupt();
                 // Update status.
                 tkfx_ctx.status.accelerometer_status = 0;
-            }
-            // Disable GPS backup in low power mode.
-            if (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) {
-                gps_status = GPS_set_backup_voltage(0);
-                GPS_stack_error(ERROR_BASE_GPS);
             }
             // Voltage hysteresis for radio.
             if (tkfx_ctx.vstr_mv < TKFX_RADIO_OFF_VSTR_THRESHOLD_MV) {
