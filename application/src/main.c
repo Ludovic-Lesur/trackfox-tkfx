@@ -37,6 +37,7 @@
 #include "at.h"
 #include "error_base.h"
 #include "tkfx_flags.h"
+#include "tkfx_flags_slave.h"
 #include "version.h"
 
 /*** MAIN macros ***/

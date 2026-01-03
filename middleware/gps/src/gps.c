@@ -15,6 +15,7 @@
 #include "pwr.h"
 #include "rtc.h"
 #include "tkfx_flags.h"
+#include "tkfx_flags_slave.h"
 #include "types.h"
 
 /*** GPS local macros ***/

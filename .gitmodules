@@ -28,3 +28,6 @@
 [submodule "s2lp-driver"]
     path = drivers/components/s2lp-driver
     url = https://github.com/Ludovic-Lesur/s2lp-driver.git
+[submodule "cmake-arm-none-eabi"]
+    path = script/cmake-arm-none-eabi
+    url = https://github.com/Ludovic-Lesur/cmake-arm-none-eabi.git

@@ -12,10 +12,10 @@ The **TrackFox** is an autonomous GPS tracker. The main goals of the project wer
 
 The boards were designed on **Circuit Maker V1.3**. Below is the list of hardware revisions:
 
-| Hardware revision | Description | Status |
-|:---:|:---:|:---:|
-| [TKFX HW1.0](https://365.altium.com/files/CB5EF2D6-C92D-11EB-A2F6-0A0ABF5AFC1B) | Initial version. | :x: |
-| [TKFX HW1.1](https://365.altium.com/files/C69B8131-C92D-11EB-A2F6-0A0ABF5AFC1B) | Connect S2LP shutdown pin to MCU to fix startup issues.<br>No more connection from RF TCXO to MCU. | :white_check_mark: |
+| Hardware revision | Description | `cmake_hw_version` | Status |
+|:---:|:---:|:---:|:---:|
+| [TKFX HW1.0](https://365.altium.com/files/CB5EF2D6-C92D-11EB-A2F6-0A0ABF5AFC1B) | Initial version. | `HW1_0` | :x: |
+| [TKFX HW1.1](https://365.altium.com/files/C69B8131-C92D-11EB-A2F6-0A0ABF5AFC1B) | Connect S2LP shutdown pin to MCU to fix startup issues.<br>No more connection from RF TCXO to MCU. | `HW1_1` | :white_check_mark: |
 
 # Embedded software
 
@@ -58,3 +58,23 @@ The project is organized as follow:
 * The tracker can operate is very isolated places (mountains, etc...) thanks to the **long range** performance.
 
 The project is based on the [Sigfox end-point open source library](https://github.com/sigfox-tech-radio/sigfox-ep-lib) which is embedded as a **Git submodule**.
+
+## Build
+
+The project can be compiled by command line with `cmake`.
+
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE="script/cmake-arm-none-eabi/toolchain.cmake" \
+      -DTOOLCHAIN_PATH="<arm_none_eabi_gcc_path>" \
+      -DTKFX_HW_VERSION="<cmake_hw_version>" \
+      -DTKFX_MODE_CLI=OFF \
+      -DTKFX_MODE_CAR=ON \
+      -DTKFX_MODE_BIKE=OFF \
+      -DTKFX_MODE_HIKING=OFF \
+      -DTKFX_MODE_BATTERY=ON \
+      -DTKFX_MODE_SUPERCAPACITOR=OFF \
+      -G "Unix Makefiles" ..
+make all
+```
