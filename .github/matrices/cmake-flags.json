@@ -1,0 +1,73 @@
+{
+    "hw_configuration_list": [
+        {
+            "hw_flags": {
+                "TKFX_HW_VERSION": "HW1_0"
+            },
+            "sw_configuration_list": [
+                {
+                    "name": "cli",
+                    "sw_flags": {
+                        "TKFX_MODE_CLI" : "ON",
+                        "TKFX_MODE_CAR" : "ON",
+                        "TKFX_MODE_BIKE" : "OFF",
+                        "TKFX_MODE_HIKING" : "OFF",
+                        "TKFX_MODE_BATTERY" : "ON",
+                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
+                    }
+                }
+            ]
+        },
+        {
+            "hw_flags": {
+                "TKFX_HW_VERSION": "HW1_1"
+            },
+            "sw_configuration_list": [
+                {
+                    "name": "cli",
+                    "sw_flags": {
+                        "TKFX_MODE_CLI" : "ON",
+                        "TKFX_MODE_CAR" : "ON",
+                        "TKFX_MODE_BIKE" : "OFF",
+                        "TKFX_MODE_HIKING" : "OFF",
+                        "TKFX_MODE_BATTERY" : "ON",
+                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
+                    }
+                },
+                {
+                    "name": "car",
+                    "sw_flags": {
+                        "TKFX_MODE_CLI" : "OFF",
+                        "TKFX_MODE_CAR" : "ON",
+                        "TKFX_MODE_BIKE" : "OFF",
+                        "TKFX_MODE_HIKING" : "OFF",
+                        "TKFX_MODE_BATTERY" : "OFF",
+                        "TKFX_MODE_SUPERCAPACITOR": "ON"
+                    }
+                },
+                {
+                    "name": "bike",
+                    "sw_flags": {
+                        "TKFX_MODE_CLI" : "OFF",
+                        "TKFX_MODE_CAR" : "OFF",
+                        "TKFX_MODE_BIKE" : "ON",
+                        "TKFX_MODE_HIKING" : "OFF",
+                        "TKFX_MODE_BATTERY" : "ON",
+                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
+                    }
+                },
+                {
+                    "name": "hiking",
+                    "sw_flags": {
+                        "TKFX_MODE_CLI" : "OFF",
+                        "TKFX_MODE_CAR" : "OFF",
+                        "TKFX_MODE_BIKE" : "OFF",
+                        "TKFX_MODE_HIKING" : "ON",
+                        "TKFX_MODE_BATTERY" : "ON",
+                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
+                    }
+                }
+            ]
+        }
+    ]
+}
