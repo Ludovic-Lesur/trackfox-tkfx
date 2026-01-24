@@ -789,7 +789,7 @@ RF_API_status_t RF_API_get_version(sfx_u8 **version, sfx_u8 *version_size_char) 
 /*******************************************************************/
 void RF_API_error(void) {
     // Force all front-end off.
-    S2LP_shutdown(1);
-    POWER_disable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO);
+    RF_API_de_init();
+    RF_API_sleep();
 }
 #endif
