@@ -16,34 +16,34 @@
 
 /*** ANALOG local macros ***/
 
-#define ANALOG_VMCU_MV_DEFAULT          3000
-#define ANALOG_TMCU_DEGREES_DEFAULT     25
+#define ANALOG_MCU_VOLTAGE_DEFAULT_MV           3000
+#define ANALOG_MCU_TEMPERATURE_DEFAULT_DEGREES  25
 
-#define ANALOG_LM4040_VOLTAGE_MV        2048
+#define ANALOG_LM4040_VOLTAGE_MV                2048
 
-#define ANALOG_VSRC_DIVIDER_RATIO       10
+#define ANALOG_DIVIDER_RATIO_SOURCE_VOLTAGE     10
 #ifdef TKFX_MODE_SUPERCAPACITOR
-#define ANALOG_VSTR_DIVIDER_RATIO       1
+#define ANALOG_DIVIDER_RATIO_STORAGE_VOLTAGE    1
 #endif
 #ifdef TKFX_MODE_BATTERY
-#define ANALOG_VSTR_DIVIDER_RATIO       2
+#define ANALOG_DIVIDER_RATIO_STORAGE_VOLTAGE    2
 #endif
 
-#define ANALOG_ERROR_VALUE              0xFFFF
+#define ANALOG_ERROR_VALUE                      0xFFFF
 
 /*** ANALOG local structures ***/
 
 /*******************************************************************/
 typedef struct {
-    int32_t vmcu_mv;
-    int32_t lm4040_data_12bits;
+    int32_t mcu_voltage_mv;
+    int32_t lm4040_voltage_12bits;
 } ANALOG_context_t;
 
 /*** ANALOG local global variables ***/
 
 static ANALOG_context_t analog_ctx = {
-    .vmcu_mv = ANALOG_VMCU_MV_DEFAULT,
-    .lm4040_data_12bits = ANALOG_ERROR_VALUE
+    .mcu_voltage_mv = ANALOG_MCU_VOLTAGE_DEFAULT_MV,
+    .lm4040_voltage_12bits = ANALOG_ERROR_VALUE
 };
 
 /*** ANALOG local functions ***/
@@ -58,7 +58,7 @@ static ANALOG_status_t _ANALOG_calibrate(void) {
     adc_status = ADC_convert_channel(ADC_CHANNEL_LM4040, &adc_data_12bits);
     ADC_exit_error(ANALOG_ERROR_BASE_ADC);
     // Update local calibration value.
-    analog_ctx.lm4040_data_12bits = adc_data_12bits;
+    analog_ctx.lm4040_voltage_12bits = adc_data_12bits;
 errors:
     return status;
 }
@@ -71,8 +71,8 @@ ANALOG_status_t ANALOG_init(void) {
     ANALOG_status_t status = ANALOG_SUCCESS;
     ADC_status_t adc_status = ADC_SUCCESS;
     // Init context.
-    analog_ctx.vmcu_mv = ANALOG_VMCU_MV_DEFAULT;
-    analog_ctx.lm4040_data_12bits = ANALOG_ERROR_VALUE;
+    analog_ctx.mcu_voltage_mv = ANALOG_MCU_VOLTAGE_DEFAULT_MV;
+    analog_ctx.lm4040_voltage_12bits = ANALOG_ERROR_VALUE;
     // Init internal ADC.
     adc_status = ADC_init(&ADC_GPIO);
     ADC_exit_error(ANALOG_ERROR_BASE_ADC);
@@ -89,7 +89,7 @@ ANALOG_status_t ANALOG_de_init(void) {
     ANALOG_status_t status = ANALOG_SUCCESS;
     ADC_status_t adc_status = ADC_SUCCESS;
     // Erase calibration value.
-    analog_ctx.lm4040_data_12bits = ANALOG_ERROR_VALUE;
+    analog_ctx.lm4040_voltage_12bits = ANALOG_ERROR_VALUE;
     // Release internal ADC.
     adc_status = ADC_de_init();
     ADC_stack_error(ERROR_BASE_ANALOG + ANALOG_ERROR_BASE_ADC);
@@ -109,47 +109,47 @@ ANALOG_status_t ANALOG_convert_channel(ANALOG_channel_t channel, int32_t* analog
     }
     // Check channel.
     switch (channel) {
-    case ANALOG_CHANNEL_VMCU_MV:
+    case ANALOG_CHANNEL_MCU_VOLTAGE_MV:
         // MCU voltage.
         adc_status = ADC_convert_channel(ADC_CHANNEL_VREFINT, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to mV.
-        adc_status = ADC_compute_vmcu(adc_data_12bits, ADC_get_vrefint_voltage_mv(), analog_data);
+        adc_status = ADC_compute_mcu_voltage(adc_data_12bits, ADC_get_vrefint_voltage_mv(), analog_data);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Update local value for temperature computation.
-        analog_ctx.vmcu_mv = (*analog_data);
+        analog_ctx.mcu_voltage_mv = (*analog_data);
         break;
-    case ANALOG_CHANNEL_TMCU_DEGREES:
+    case ANALOG_CHANNEL_MCU_TEMPERATURE_DEGREES:
         // MCU temperature.
         adc_status = ADC_convert_channel(ADC_CHANNEL_TEMPERATURE_SENSOR, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to degrees.
-        adc_status = ADC_compute_tmcu(analog_ctx.vmcu_mv, adc_data_12bits, analog_data);
+        adc_status = ADC_compute_mcu_temperature(analog_ctx.mcu_voltage_mv, adc_data_12bits, analog_data);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         break;
-    case ANALOG_CHANNEL_VSRC_MV:
+    case ANALOG_CHANNEL_SOURCE_VOLTAGE_MV:
         // Check calibration.
-        if (analog_ctx.lm4040_data_12bits == ANALOG_ERROR_VALUE) {
+        if (analog_ctx.lm4040_voltage_12bits == ANALOG_ERROR_VALUE) {
             status = ANALOG_ERROR_CALIBRATION_MISSING;
             goto errors;
         }
-        // Solar cell voltage.
-        adc_status = ADC_convert_channel(ADC_CHANNEL_VSRC, &adc_data_12bits);
+        // Solar cell or dynamo voltage.
+        adc_status = ADC_convert_channel(ADC_CHANNEL_SOURCE_VOLTAGE, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to mV.
-        (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_VSRC_DIVIDER_RATIO) / (analog_ctx.lm4040_data_12bits);
+        (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_DIVIDER_RATIO_SOURCE_VOLTAGE) / (analog_ctx.lm4040_voltage_12bits);
         break;
-    case ANALOG_CHANNEL_VSTR_MV:
+    case ANALOG_CHANNEL_STORAGE_VOLTAGE_MV:
         // Check calibration.
-        if (analog_ctx.lm4040_data_12bits == ANALOG_ERROR_VALUE) {
+        if (analog_ctx.lm4040_voltage_12bits == ANALOG_ERROR_VALUE) {
             status = ANALOG_ERROR_CALIBRATION_MISSING;
             goto errors;
         }
-        // Supercap voltage.
-        adc_status = ADC_convert_channel(ADC_CHANNEL_VSTR, &adc_data_12bits);
+        // Supercap or battery voltage.
+        adc_status = ADC_convert_channel(ADC_CHANNEL_STORAGE_VOLTAGE, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to mV.
-        (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_VSTR_DIVIDER_RATIO) / (analog_ctx.lm4040_data_12bits);
+        (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_DIVIDER_RATIO_STORAGE_VOLTAGE) / (analog_ctx.lm4040_voltage_12bits);
         break;
     default:
         status = ANALOG_ERROR_CHANNEL;

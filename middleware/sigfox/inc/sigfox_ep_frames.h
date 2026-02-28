@@ -21,9 +21,10 @@
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC            11
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT    2
 // Error values.
-#define SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS         0xFFFF
-#define SIGFOX_EP_ERROR_VALUE_TEMPERATURE           0x7F
+#define SIGFOX_EP_ERROR_VALUE_TEMPERATURE           0x7FF
 #define SIGFOX_EP_ERROR_VALUE_HUMIDITY              0xFF
+#define SIGFOX_EP_ERROR_VALUE_SOURCE_VOLTAGE        0xFFF
+#define SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE       0xFFFF
 
 /*** SIGFOX EP FRAMES structures ***/
 
@@ -50,10 +51,10 @@ typedef union {
 typedef union {
     uint8_t frame[SIGFOX_EP_UL_PAYLOAD_SIZE_MONITORING];
     struct {
-        unsigned tamb_degrees :8;
-        unsigned hamb_percent :8;
-        unsigned vsrc_mv :16;
-        unsigned vstr_mv :16;
+        unsigned temperature_tenth_degrees :12;
+        unsigned humidity_percent :8;
+        unsigned source_voltage_ten_mv :12;
+        unsigned storage_voltage_mv :16;
         unsigned status :8;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } SIGFOX_EP_ul_payload_monitoring_t;

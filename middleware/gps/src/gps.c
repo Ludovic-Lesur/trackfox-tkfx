@@ -86,7 +86,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     NEOM8X_acquisition_status_t expected_status = (altitude_stability_threshold == 0) ? NEOM8X_ACQUISITION_STATUS_FOUND : NEOM8X_ACQUISITION_STATUS_STABLE;
     uint32_t uptime = RTC_get_uptime_seconds();
     uint32_t start_time = uptime;
-    int32_t vstr_voltage_mv = 0;
+    int32_t storage_voltage_voltage_mv = 0;
     uint8_t callback_flag = 0;
     // Check parameters.
     if ((acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
@@ -125,12 +125,12 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
             // Process driver.
             neom8x_status = NEOM8X_process();
             NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
-            // Check VSTR voltage.
-            analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &vstr_voltage_mv);
+            // Check STORAGE_VOLTAGE voltage.
+            analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_STORAGE_VOLTAGE_MV, &storage_voltage_voltage_mv);
             ANALOG_exit_error(GPS_ERROR_BASE_ANALOG);
             // Check threshold.
-            if (vstr_voltage_mv < TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) {
-                (*acquisition_status) = GPS_ACQUISITION_ERROR_VSTR_THRESHOLD;
+            if (storage_voltage_voltage_mv < TKFX_ACTIVE_MODE_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) {
+                (*acquisition_status) = GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE;
                 break;
             }
         }

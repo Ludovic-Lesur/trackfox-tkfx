@@ -43,23 +43,23 @@
 /*** MAIN macros ***/
 
 // Monitoring period.
-#define TKFX_MONITORING_PERIOD_SECONDS                  3600
+#define TKFX_MONITORING_PERIOD_SECONDS                      3600
 // Error stack.
-#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS          86400
+#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              86400
 // Geolocation.
-#define TKFX_GEOLOC_TIMEOUT_SECONDS                     180
-#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING    2
-#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED   5
+#define TKFX_GEOLOC_TIMEOUT_SECONDS                         180
+#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING        2
+#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED       5
 // Voltage hysteresis for radio and active mode.
 #ifdef TKFX_MODE_SUPERCAPACITOR
-#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV           1500
-#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV                1000
+#define TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV    1500
+#define TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV         1000
 #endif
 #ifdef TKFX_MODE_BATTERY
-#define TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV           3700
-#define TKFX_RADIO_OFF_VSTR_THRESHOLD_MV                3500
+#define TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV    3700
+#define TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV         3500
 #endif
-#define TKFX_RADIO_ON_VSTR_THRESHOLD_MV                 TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV
+#define TKFX_RADIO_ON_STORAGE_VOLTAGE_THRESHOLD_MV          TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV
 
 /*** MAIN structures ***/
 
@@ -129,10 +129,10 @@ typedef struct {
     volatile TKFX_flags_t flags;
     // Monitoring.
     uint32_t monitoring_last_time_seconds;
-    uint8_t tamb_degrees;
-    uint8_t hamb_percent;
-    uint16_t vsrc_mv;
-    uint16_t vstr_mv;
+    uint16_t temperature_tenth_degrees;
+    uint8_t humidity_percent;
+    uint16_t source_voltage_ten_mv;
+    uint16_t storage_voltage_mv;
     // Error stack.
     uint32_t error_stack_last_time_seconds;
     // Tracker algorithm.
@@ -261,23 +261,23 @@ static void _TKFX_update_source_storage_voltages(void) {
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     int32_t generic_s32 = 0;
     // Reset data.
-    tkfx_ctx.vsrc_mv = SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS;
-    tkfx_ctx.vstr_mv = SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS;
+    tkfx_ctx.source_voltage_ten_mv = SIGFOX_EP_ERROR_VALUE_SOURCE_VOLTAGE;
+    tkfx_ctx.storage_voltage_mv = SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE;
     // Turn ADC on.
     POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_ACTIVE);
     // Perform source voltage measurement.
-    analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSRC_MV, &generic_s32);
+    analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_SOURCE_VOLTAGE_MV, &generic_s32);
     ANALOG_stack_error(ERROR_BASE_ANALOG);
     if (analog_status == ANALOG_SUCCESS) {
         // Update data.
-        tkfx_ctx.vsrc_mv = (uint16_t) generic_s32;
+        tkfx_ctx.source_voltage_ten_mv = (uint16_t) (generic_s32 / 10);
     }
     // Perform storage element voltage measurement.
-    analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_VSTR_MV, &generic_s32);
+    analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_STORAGE_VOLTAGE_MV, &generic_s32);
     ANALOG_stack_error(ERROR_BASE_ANALOG);
     if (analog_status == ANALOG_SUCCESS) {
         // Update data.
-        tkfx_ctx.vstr_mv = (uint16_t) generic_s32;
+        tkfx_ctx.storage_voltage_mv = (uint16_t) generic_s32;
     }
     // Turn ADC off.
     POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
@@ -289,27 +289,27 @@ static void _TKFX_update_source_storage_voltages(void) {
 static void _TKFX_update_temperature_humidity(void) {
     // Local variables.)
     MATH_status_t math_status = MATH_SUCCESS;
-    int32_t temperature = 0;
+    int32_t temperature_tenth_degrees = 0;
     uint32_t temperature_signed_magnitude;
     int32_t humidity = 0;
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
     // Reset data.
-    tkfx_ctx.tamb_degrees = SIGFOX_EP_ERROR_VALUE_TEMPERATURE;
-    tkfx_ctx.hamb_percent = SIGFOX_EP_ERROR_VALUE_HUMIDITY;
+    tkfx_ctx.temperature_tenth_degrees = SIGFOX_EP_ERROR_VALUE_TEMPERATURE;
+    tkfx_ctx.humidity_percent = SIGFOX_EP_ERROR_VALUE_HUMIDITY;
     // Turn sensors on.
     POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
     // Get temperature and humidity from SHT30.
-    sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &temperature, &humidity);
+    sht3x_status = SHT3X_get_temperature_humidity(I2C_ADDRESS_SHT30, &temperature_tenth_degrees, &humidity);
     SHT3X_stack_error(ERROR_BASE_SHT30);
     // Check status.
     if (sht3x_status == SHT3X_SUCCESS) {
        // Convert temperature.
-       math_status = MATH_integer_to_signed_magnitude((temperature / 10), 7, &temperature_signed_magnitude);
+       math_status = MATH_integer_to_signed_magnitude(temperature_tenth_degrees, 11, &temperature_signed_magnitude);
        MATH_stack_error(ERROR_BASE_MATH);
        if (math_status == MATH_SUCCESS) {
-           tkfx_ctx.tamb_degrees = (uint8_t) temperature_signed_magnitude;
+           tkfx_ctx.temperature_tenth_degrees = (uint16_t) temperature_signed_magnitude;
        }
-       tkfx_ctx.hamb_percent = (uint8_t) humidity;
+       tkfx_ctx.humidity_percent = (uint8_t) humidity;
     }
     // Turn sensors off.
     POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
@@ -416,10 +416,10 @@ int main(void) {
             tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
             tkfx_ctx.status.lse_status = (generic_u8 == 0) ? 0b0 : 0b1;
             // Build Sigfox frame.
-            sigfox_ep_ul_payload_monitoring.tamb_degrees = tkfx_ctx.tamb_degrees;
-            sigfox_ep_ul_payload_monitoring.hamb_percent = tkfx_ctx.hamb_percent;
-            sigfox_ep_ul_payload_monitoring.vsrc_mv = tkfx_ctx.vsrc_mv;
-            sigfox_ep_ul_payload_monitoring.vstr_mv = tkfx_ctx.vstr_mv;
+            sigfox_ep_ul_payload_monitoring.temperature_tenth_degrees = tkfx_ctx.temperature_tenth_degrees;
+            sigfox_ep_ul_payload_monitoring.humidity_percent = tkfx_ctx.humidity_percent;
+            sigfox_ep_ul_payload_monitoring.source_voltage_ten_mv = tkfx_ctx.source_voltage_ten_mv;
+            sigfox_ep_ul_payload_monitoring.storage_voltage_mv = tkfx_ctx.storage_voltage_mv;
             sigfox_ep_ul_payload_monitoring.status = tkfx_ctx.status.all;
             // Send uplink monitoring frame.
             sigfox_ep_application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.alarm_flag == 0) ? SIGFOX_UL_BIT_RATE_600BPS : SIGFOX_UL_BIT_RATE_100BPS;
@@ -442,7 +442,7 @@ int main(void) {
             generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING;
             generic_u32_1 = 0;
             // Pre-check storage voltage.
-            if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) {
+            if (tkfx_ctx.storage_voltage_mv > TKFX_ACTIVE_MODE_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) {
                 // Turn GPS and analog front-end on to monitor storage element voltage.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
@@ -454,10 +454,10 @@ int main(void) {
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
             }
             else {
-                gps_acquisition_status = GPS_ACQUISITION_ERROR_VSTR_THRESHOLD;
+                gps_acquisition_status = GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE;
             }
             // Disable GPS backup in low power mode or stopped condition.
-            if ((tkfx_ctx.status.moving_flag == 0) || (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_VSTR_THRESHOLD)) {
+            if ((tkfx_ctx.status.moving_flag == 0) || (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE)) {
                 gps_status = GPS_set_backup_voltage(0);
                 GPS_stack_error(ERROR_BASE_GPS);
             }
@@ -529,14 +529,14 @@ int main(void) {
             // Measure related data.
             _TKFX_update_source_storage_voltages();
             // Change error value for mode update.
-            if (tkfx_ctx.vstr_mv == SIGFOX_EP_ERROR_VALUE_ANALOG_16BITS) {
-                tkfx_ctx.vstr_mv = 0;
+            if (tkfx_ctx.storage_voltage_mv == SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
+                tkfx_ctx.storage_voltage_mv = 0;
             }
             // Check storage voltage.
-            if ((tkfx_ctx.vstr_mv < TKFX_ACTIVE_MODE_OFF_VSTR_THRESHOLD_MV) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_VSTR_THRESHOLD)) {
+            if ((tkfx_ctx.storage_voltage_mv < TKFX_ACTIVE_MODE_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE)) {
                 tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
             }
-            if (tkfx_ctx.vstr_mv > TKFX_ACTIVE_MODE_ON_VSTR_THRESHOLD_MV) {
+            if (tkfx_ctx.storage_voltage_mv > TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV) {
                 tkfx_ctx.mode = TKFX_MODE_ACTIVE;
             }
             // Configure accelerometer according to mode.
@@ -563,10 +563,10 @@ int main(void) {
                 tkfx_ctx.status.accelerometer_status = 0;
             }
             // Voltage hysteresis for radio.
-            if (tkfx_ctx.vstr_mv < TKFX_RADIO_OFF_VSTR_THRESHOLD_MV) {
+            if (tkfx_ctx.storage_voltage_mv < TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) {
                 tkfx_ctx.flags.radio_enabled = 0;
             }
-            if (tkfx_ctx.vstr_mv > TKFX_RADIO_ON_VSTR_THRESHOLD_MV) {
+            if (tkfx_ctx.storage_voltage_mv > TKFX_RADIO_ON_STORAGE_VOLTAGE_THRESHOLD_MV) {
                 tkfx_ctx.flags.radio_enabled = 1;
             }
             // Compute next state.
