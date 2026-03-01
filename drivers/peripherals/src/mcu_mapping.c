@@ -17,11 +17,11 @@
 /*** GPIO MAPPING local global variables ***/
 
 // Analog inputs.
-static const GPIO_pin_t GPIO_ADC_LM4040_OUT = { GPIOB, 1, 0, 0 };
-static const GPIO_pin_t GPIO_ADC_SOURCE_VOLTAGE_MEASURE = { GPIOA, 0, 6, 0 };
-static const GPIO_pin_t GPIO_ADC_STORAGE_VOLTAGE_MEASURE = { GPIOA, 0, 7, 0 };
+static const GPIO_pin_t GPIO_ADC_LM4040 = { GPIOB, 1, 0, 0 };
+static const GPIO_pin_t GPIO_ADC_SOURCE_VOLTAGE = { GPIOA, 0, 6, 0 };
+static const GPIO_pin_t GPIO_ADC_STORAGE_VOLTAGE = { GPIOA, 0, 7, 0 };
 // Analog inputs list.
-static const GPIO_pin_t* const GPIO_ADC_PINS_LIST[ADC_CHANNEL_INDEX_LAST] = { &GPIO_ADC_LM4040_OUT, &GPIO_ADC_SOURCE_VOLTAGE_MEASURE, &GPIO_ADC_STORAGE_VOLTAGE_MEASURE };
+static const GPIO_pin_t* const GPIO_ADC_PINS_LIST[ADC_CHANNEL_INDEX_LAST] = { &GPIO_ADC_LM4040, &GPIO_ADC_SOURCE_VOLTAGE, &GPIO_ADC_STORAGE_VOLTAGE };
 // I2C1.
 static const GPIO_pin_t GPIO_I2C1_SCL = { GPIOB, 1, 6, 1 };
 static const GPIO_pin_t GPIO_I2C1_SDA = { GPIOB, 1, 7, 1 };

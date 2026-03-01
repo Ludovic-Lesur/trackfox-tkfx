@@ -37,9 +37,9 @@
  * \brief ADC channels index.
  *******************************************************************/
 typedef enum {
-    ADC_CHANNEL_INDEX_LM4040_OUT = 0,
-    ADC_CHANNEL_INDEX_SOURCE_VOLTAGE_MEASURE,
-    ADC_CHANNEL_INDEX_STORAGE_VOLTAGE_MEASURE,
+    ADC_CHANNEL_INDEX_LM4040 = 0,
+    ADC_CHANNEL_INDEX_SOURCE_VOLTAGE,
+    ADC_CHANNEL_INDEX_STORAGE_VOLTAGE,
     ADC_CHANNEL_INDEX_LAST
 } ADC_channel_index_t;
 
