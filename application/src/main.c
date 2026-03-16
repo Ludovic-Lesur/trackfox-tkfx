@@ -408,13 +408,16 @@ int main(void) {
             // Measure related data.
             _TKFX_update_source_storage_voltages();
             _TKFX_update_temperature_humidity();
-            // Get clock status.
+            // Update clock status.
             rcc_status = RCC_get_status(RCC_CLOCK_LSE, &generic_u8);
             RCC_stack_error(ERROR_BASE_RCC);
-            // Update status.
-            tkfx_ctx.status.gps_backup_status = GPS_get_backup_voltage();
-            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
             tkfx_ctx.status.lse_status = (generic_u8 == 0) ? 0b0 : 0b1;
+            // Update GPS backup voltage status.
+            gps_status = GPS_get_backup_voltage(&generic_u8);
+            GPS_stack_error(ERROR_BASE_GPS);
+            tkfx_ctx.status.gps_backup_status = (generic_u8 == 0) ? 0b0 : 0b1;
+            // Update state.
+            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
             // Build Sigfox frame.
             sigfox_ep_ul_payload_monitoring.temperature_tenth_degrees = tkfx_ctx.temperature_tenth_degrees;
             sigfox_ep_ul_payload_monitoring.humidity_percent = tkfx_ctx.humidity_percent;

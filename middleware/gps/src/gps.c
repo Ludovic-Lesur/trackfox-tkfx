@@ -170,6 +170,13 @@ errors:
 }
 
 /*******************************************************************/
-uint8_t GPS_get_backup_voltage(void) {
-    return NEOM8X_get_backup_voltage();
+GPS_status_t GPS_get_backup_voltage(uint8_t* state) {
+    // Local variables.
+    GPS_status_t status = GPS_SUCCESS;
+    NEOM8X_status_t neom8x_status = NEOM8X_SUCCESS;
+    // Get backup state.
+    neom8x_status = NEOM8X_get_backup_voltage(state);
+    NEOM8X_exit_error(GPS_ERROR_BASE_NEOM8N);
+errors:
+    return status;
 }
