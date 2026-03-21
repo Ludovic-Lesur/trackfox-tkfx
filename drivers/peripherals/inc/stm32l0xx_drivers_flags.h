@@ -18,6 +18,9 @@
 #ifdef HW1_1
 #define STM32L0XX_DRIVERS_EXTI_GPIO_MASK                0x1001
 #endif
+#ifdef HW2_0
+#define STM32L0XX_DRIVERS_EXTI_GPIO_MASK                0x0201
+#endif
 
 //#define STM32L0XX_DRIVERS_I2C_FAST_MODE
 

@@ -10,6 +10,7 @@
 
 #include "analog.h"
 #include "error.h"
+#include "maxm10x.h"
 #include "neom8x.h"
 #include "types.h"
 
@@ -26,7 +27,8 @@ typedef enum {
     GPS_ERROR_PROCESS_CALLBACK,
     // Low level drivers errors.
     GPS_ERROR_BASE_NEOM8N = ERROR_BASE_STEP,
-    GPS_ERROR_BASE_ANALOG = (GPS_ERROR_BASE_NEOM8N + NEOM8X_ERROR_BASE_LAST),
+    GPS_ERROR_BASE_MAXM10X = (GPS_ERROR_BASE_NEOM8N + NEOM8X_ERROR_BASE_LAST),
+    GPS_ERROR_BASE_ANALOG = (GPS_ERROR_BASE_MAXM10X + MAXM10X_ERROR_BASE_LAST),
     // Last base value.
     GPS_ERROR_BASE_LAST = (GPS_ERROR_BASE_ANALOG + ANALOG_ERROR_BASE_LAST),
 } GPS_status_t;
@@ -46,7 +48,11 @@ typedef enum {
  * \typedef GPS_position_t
  * \brief GPS position structure.
  *******************************************************************/
+#ifdef HW2_0
+typedef MAXM10X_position_t GPS_position_t;
+#else
 typedef NEOM8X_position_t GPS_position_t;
+#endif
 
 /*** GPS functions ***/
 

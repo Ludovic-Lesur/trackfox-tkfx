@@ -7,9 +7,11 @@
 
 #include "power.h"
 
+#include "accelerometer.h"
 #include "analog.h"
 #include "error.h"
 #include "error_base.h"
+#include "fxls89xxxx.h"
 #include "gpio.h"
 #include "gps.h"
 #include "lptim.h"
@@ -55,10 +57,14 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
     // Local variables.
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
-    S2LP_status_t s2lp_status = S2LP_SUCCESS;
-    SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
-    MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
     LPTIM_status_t lptim_status = LPTIM_SUCCESS;
+    SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
+    ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
+#ifdef HW2_0
+    LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
+#else
+    S2LP_status_t s2lp_status = S2LP_SUCCESS;
+#endif
     uint32_t delay_ms = 0;
     uint8_t action_required = 0;
     // Check parameters.
@@ -92,8 +98,8 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         // Init attached drivers.
         sht3x_status = SHT3X_init();
         _POWER_stack_driver_error(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT30, POWER_ERROR_DRIVER_SHT3X);
-        mma865xfc_status = MMA865XFC_init();
-        _POWER_stack_driver_error(mma865xfc_status, MMA865XFC_SUCCESS, ERROR_BASE_MMA8653FC, POWER_ERROR_DRIVER_MMA865XFC);
+        accelerometer_status = ACCELEROMETER_init();
+        _POWER_stack_driver_error(accelerometer_status, ACCELEROMETER_SUCCESS, ACCELEROMETER_ERROR_BASE, ACCELEROMETER_POWER_DRIVER_ERROR);
         break;
     case POWER_DOMAIN_GPS:
         // Turn GPS on.
@@ -113,8 +119,13 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         GPIO_write(&GPIO_RF_POWER_ENABLE, 1);
         delay_ms = POWER_ON_DELAY_MS_RADIO;
         // Init attached drivers.
+#ifdef HW2_0
+        lr11xx_status = LR11XX_init();
+        _POWER_stack_driver_error(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110, POWER_ERROR_DRIVER_LR11XX);
+#else
         s2lp_status = S2LP_init();
         _POWER_stack_driver_error(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP, POWER_ERROR_DRIVER_S2LP);
+#endif
         break;
     default:
         ERROR_stack_add(ERROR_BASE_POWER + POWER_ERROR_DOMAIN);
@@ -134,9 +145,13 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
     // Local variables.
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
-    S2LP_status_t s2lp_status = S2LP_SUCCESS;
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
-    MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
+    ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
+#ifdef HW2_0
+    LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
+#else
+    S2LP_status_t s2lp_status = S2LP_SUCCESS;
+#endif
     // Check parameters.
     if (requester_id >= POWER_REQUESTER_ID_LAST) {
         ERROR_stack_add(ERROR_BASE_POWER + POWER_ERROR_REQUESTER_ID);
@@ -164,8 +179,8 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
         // Release attached drivers.
         sht3x_status = SHT3X_de_init();
         _POWER_stack_driver_error(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT30, POWER_ERROR_DRIVER_SHT3X);
-        mma865xfc_status = MMA865XFC_de_init();
-        _POWER_stack_driver_error(mma865xfc_status, MMA865XFC_SUCCESS, ERROR_BASE_MMA8653FC, POWER_ERROR_DRIVER_MMA865XFC);
+        accelerometer_status = ACCELEROMETER_de_init();
+        _POWER_stack_driver_error(accelerometer_status, ACCELEROMETER_SUCCESS, ACCELEROMETER_ERROR_BASE, ACCELEROMETER_POWER_DRIVER_ERROR);
         // Turn digital sensors off.
         GPIO_write(&GPIO_SENSORS_POWER_ENABLE, 0);
         break;
@@ -182,8 +197,13 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
         break;
     case POWER_DOMAIN_RADIO:
         // Release attached drivers.
+#ifdef HW2_0
+        lr11xx_status = LR11XX_de_init();
+        _POWER_stack_driver_error(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110, POWER_ERROR_DRIVER_LR11XX);
+#else
         s2lp_status = S2LP_de_init();
         _POWER_stack_driver_error(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP, POWER_ERROR_DRIVER_S2LP);
+#endif
         // Turn radio off.
         GPIO_write(&GPIO_RF_POWER_ENABLE, 0);
         break;

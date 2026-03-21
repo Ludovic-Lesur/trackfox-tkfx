@@ -1,0 +1,36 @@
+/*
+ * maxm10x_driver_flags.h
+ *
+ *  Created on: 15 mar. 2026
+ *      Author: Ludo
+ */
+
+#ifndef __MAXM10X_DRIVER_FLAGS_H__
+#define __MAXM10X_DRIVER_FLAGS_H__
+
+#include "lptim.h"
+#include "usart.h"
+
+/*** MAXM10x driver compilation flags ***/
+
+#ifndef HW2_0
+#define MAXM10X_DRIVER_DISABLE
+#endif
+
+#define MAXM10X_DRIVER_GPIO_ERROR_BASE_LAST             0
+#define MAXM10X_DRIVER_UART_ERROR_BASE_LAST             USART_ERROR_BASE_LAST
+#define MAXM10X_DRIVER_DELAY_ERROR_BASE_LAST            LPTIM_ERROR_BASE_LAST
+
+//#define MAXM10X_DRIVER_GPS_DATA_TIME
+#define MAXM10X_DRIVER_GPS_DATA_POSITION
+
+#define MAXM10X_DRIVER_ALTITUDE_STABILITY_FILTER_MODE   2
+#if (MAXM10X_DRIVER_ALTITUDE_STABILITY_FILTER_MODE == 1)
+#define MAXM10X_DRIVER_ALTITUDE_STABILITY_THRESHOLD     5
+#endif
+
+#define MAXM10X_DRIVER_VBCKP_CONTROL
+
+//#define MAXM10X_DRIVER_TIMEPULSE
+
+#endif /* __MAXM10X_DRIVER_FLAGS_H__ */

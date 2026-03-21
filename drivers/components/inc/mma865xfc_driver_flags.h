@@ -12,6 +12,10 @@
 
 /*** MMA865XFC driver compilation flags ***/
 
+#ifdef HW2_0
+#define MMA865XFC_DRIVER_DISABLE
+#endif
+
 #define MMA865XFC_DRIVER_I2C_ERROR_BASE_LAST    I2C_ERROR_BASE_LAST
 
 #define MMA865XFC_DRIVER_NUMBER_OF_BITS         10

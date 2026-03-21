@@ -16,6 +16,10 @@
 
 /*** S2LP driver compilation flags ***/
 
+#ifdef HW2_0
+#define S2LP_DRIVER_DISABLE
+#endif
+
 #define S2LP_DRIVER_SPI_ERROR_BASE_LAST     SPI_ERROR_BASE_LAST
 #define S2LP_DRIVER_DELAY_ERROR_BASE_LAST   LPTIM_ERROR_BASE_LAST
 

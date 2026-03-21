@@ -1,17 +1,21 @@
 /*
- * mma865xfc_configuration.c
+ * accelerometer.c
  *
  *  Created on: 16 nov. 2024
  *      Author: Ludo
  */
 
-#include "mma865xfc_configuration.h"
+#include "accelerometer.h"
 
+#include "fxls89xxxx.h"
 #include "mma865xfc.h"
 
-/*** MMA865XFC CONFIGURATION global variables ***/
+/*** ACCELEROMETER global variables ***/
 
-const MMA865XFC_register_setting_t MMA865XFC_ACTIVE_CONFIGURATION[MMA865XFC_ACTIVE_CONFIGURATION_SIZE] = {
+const ACCELEROMETER_register_setting_t ACCELEROMETER_CONFIGURATION_ACTIVE[ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE] = {
+#ifdef HW2_0
+
+#else
     { MMA865XFC_REGISTER_CTRL_REG1, 0x00 }, // ACTIVE='0' (standby mode required to program registers).
     { MMA865XFC_REGISTER_XYZ_DATA_CFG, 0x00 }, // Full scale = +/-2g.
     { MMA865XFC_REGISTER_CTRL_REG2, 0x1B }, // (S)MODS='11' (low power operation) and SLPE='0' (Auto sleep disabled).
@@ -22,10 +26,15 @@ const MMA865XFC_register_setting_t MMA865XFC_ACTIVE_CONFIGURATION[MMA865XFC_ACTI
     { MMA865XFC_REGISTER_CTRL_REG5, 0x04 }, // INT_CFG_FF_MT='1' (motion interrupt on INT1 pin).
     { MMA865XFC_REGISTER_CTRL_REG4, 0x04 }, // INT_EN_FF_MT='1' (motion interrupt enabled).
     { MMA865XFC_REGISTER_CTRL_REG1, 0x39 } // DR='111' (1Hz) and ACTIVE='1'.
+#endif
 };
 
-const MMA865XFC_register_setting_t MMA865XFC_SLEEP_CONFIGURATION[MMA865XFC_SLEEP_CONFIGURATION_SIZE] = {
+const ACCELEROMETER_register_setting_t ACCELEROMETER_CONFIGURATION_SLEEP[ACCELEROMETER_CONFIGURATION_SIZE_SLEEP] = {
+#ifdef HW2_0
+
+#else
     { MMA865XFC_REGISTER_CTRL_REG2, 0x5B }, // RESET='1'.
     { MMA865XFC_REGISTER_CTRL_REG2, 0x1B }, // RESET='0', (S)MODS='11' (low power operation) and SLPE='0' (auto sleep disabled).
     { MMA865XFC_REGISTER_CTRL_REG3, 0x02 }, // IPOL='1' (interrupt pin active high).
+#endif
 };

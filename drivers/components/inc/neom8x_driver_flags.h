@@ -13,6 +13,10 @@
 
 /*** NEOM8x driver compilation flags ***/
 
+#ifdef HW2_0
+#define NEOM8X_DRIVER_DISABLE
+#endif
+
 #define NEOM8X_DRIVER_GPIO_ERROR_BASE_LAST              0
 #define NEOM8X_DRIVER_UART_ERROR_BASE_LAST              LPUART_ERROR_BASE_LAST
 #define NEOM8X_DRIVER_DELAY_ERROR_BASE_LAST             LPTIM_ERROR_BASE_LAST

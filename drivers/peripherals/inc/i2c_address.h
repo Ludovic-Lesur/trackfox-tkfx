@@ -14,6 +14,7 @@
  *******************************************************************/
 typedef enum {
     I2C_ADDRESS_SHT30 = 0x44,
+    I2C_ADDRESS_FXLS8974CF = 0x18,
     I2C_ADDRESS_MMA8653FC = 0x1D
 } I2C_address_mapping_t;
 

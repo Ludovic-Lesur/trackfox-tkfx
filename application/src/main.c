@@ -17,8 +17,9 @@
 #include "rcc.h"
 #include "rtc.h"
 // Components.
+#include "fxls89xxxx.h"
 #include "mma865xfc.h"
-#include "mma865xfc_configuration.h"
+#include "accelerometer.h"
 #include "sensors_hw.h"
 #include "sht3x.h"
 // Utils.
@@ -139,7 +140,7 @@ typedef struct {
     volatile uint32_t motion_irq_count;
     volatile uint32_t motion_irq_last_time_seconds;
     uint32_t geoloc_last_time_seconds;
-    NEOM8X_position_t geoloc_position;
+    GPS_position_t geoloc_position;
 } TKFX_context_t;
 #endif
 
@@ -360,7 +361,7 @@ int main(void) {
     _TKFX_init_hw();
     // Local variables.
     RCC_status_t rcc_status = RCC_SUCCESS;
-    MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
+    ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
     GPS_acquisition_status_t gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
     SIGFOX_EP_API_application_message_t sigfox_ep_application_message;
@@ -546,8 +547,8 @@ int main(void) {
             if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_status == 0) || (tkfx_ctx.flags.por != 0))) {
                 // Active mode.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-                mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_ACTIVE_CONFIGURATION[0]), MMA865XFC_ACTIVE_CONFIGURATION_SIZE);
-                MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
+                accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_ACTIVE[0]), ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE);
+                ACCELEROMETER_stack_error();
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
                 // Enable interrupt.
                 SENSORS_HW_enable_accelerometer_interrupt();
@@ -557,8 +558,8 @@ int main(void) {
             if ((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) && ((tkfx_ctx.status.accelerometer_status != 0) || (tkfx_ctx.flags.por != 0))) {
                 // Sleep mode.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-                mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_SLEEP_CONFIGURATION[0]), MMA865XFC_SLEEP_CONFIGURATION_SIZE);
-                MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
+                accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_SLEEP[0]), ACCELEROMETER_CONFIGURATION_SIZE_SLEEP);
+                ACCELEROMETER_stack_error();
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
                 // Disable interrupt.
                 SENSORS_HW_disable_accelerometer_interrupt();
@@ -674,13 +675,13 @@ int main(void) {
 int main(void) {
     // Local variables.
     CLI_status_t cli_status = CLI_SUCCESS;
-    MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
+    ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
     // Init board.
     _TKFX_init_hw();
     // Configure accelerometer.
     POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-    mma865xfc_status = MMA865XFC_write_configuration(I2C_ADDRESS_MMA8653FC, &(MMA865XFC_ACTIVE_CONFIGURATION[0]), MMA865XFC_ACTIVE_CONFIGURATION_SIZE);
-    MMA865XFC_stack_error(ERROR_BASE_MMA8653FC);
+    accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_ACTIVE[0]), ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE);
+    ACCELEROMETER_stack_error();
     POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
     // Init command line interface.
     cli_status = CLI_init();

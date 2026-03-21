@@ -55,6 +55,8 @@
 #include "s2lp.h"
 #include "types.h"
 
+#if ((defined HW1_0) || (defined HW1_1))
+
 /*** RF API local macros ***/
 
 #define RF_API_SYMBOL_PROFILE_SIZE_BYTES        40
@@ -793,3 +795,5 @@ void RF_API_error(void) {
     RF_API_sleep();
 }
 #endif
+
+#endif /* HW1_0 or HW1_1 */

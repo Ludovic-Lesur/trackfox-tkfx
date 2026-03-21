@@ -17,46 +17,108 @@
 /*** GPIO MAPPING local global variables ***/
 
 // Analog inputs.
-static const GPIO_pin_t GPIO_ADC_LM4040 = { GPIOB, 1, 0, 0 };
-static const GPIO_pin_t GPIO_ADC_SOURCE_VOLTAGE = { GPIOA, 0, 6, 0 };
+#ifdef HW2_0
+static const GPIO_pin_t GPIO_ADC_SOURCE_VOLTAGE =  { GPIOA, 0, 4, 0 };
+static const GPIO_pin_t GPIO_ADC_STORAGE_VOLTAGE = { GPIOA, 0, 6, 0 };
+#else
+static const GPIO_pin_t GPIO_ADC_SOURCE_VOLTAGE =  { GPIOA, 0, 6, 0 };
 static const GPIO_pin_t GPIO_ADC_STORAGE_VOLTAGE = { GPIOA, 0, 7, 0 };
+static const GPIO_pin_t GPIO_ADC_LM4040 = { GPIOB, 1, 0, 0 };
+#endif
 // Analog inputs list.
-static const GPIO_pin_t* const GPIO_ADC_PINS_LIST[ADC_CHANNEL_INDEX_LAST] = { &GPIO_ADC_LM4040, &GPIO_ADC_SOURCE_VOLTAGE, &GPIO_ADC_STORAGE_VOLTAGE };
-// I2C1.
+static const GPIO_pin_t* const GPIO_ADC_PINS_LIST[ADC_CHANNEL_INDEX_LAST] = {
+    &GPIO_ADC_SOURCE_VOLTAGE,
+    &GPIO_ADC_STORAGE_VOLTAGE,
+#ifndef HW2_0
+    &GPIO_ADC_LM4040,
+#endif
+};
+// I2C sensors.
+#ifdef HW2_0
+static const GPIO_pin_t GPIO_I2C1_SCL = { GPIOB, 1, 8, 4 };
+static const GPIO_pin_t GPIO_I2C1_SDA = { GPIOB, 1, 9, 4 };
+#else
 static const GPIO_pin_t GPIO_I2C1_SCL = { GPIOB, 1, 6, 1 };
 static const GPIO_pin_t GPIO_I2C1_SDA = { GPIOB, 1, 7, 1 };
-// SPI1.
-static const GPIO_pin_t GPIO_SPI1_SCK = { GPIOB, 1, 3, 0 };
+#endif
+// SPI radio.
+#ifdef HW2_0
+static const GPIO_pin_t GPIO_SPI2_SCK =  { GPIOB, 1, 13, 0 };
+static const GPIO_pin_t GPIO_SPI2_MISO = { GPIOB, 1, 14, 0 };
+static const GPIO_pin_t GPIO_SPI2_MOSI = { GPIOB, 1, 15, 0 };
+#else
+static const GPIO_pin_t GPIO_SPI1_SCK =  { GPIOB, 1, 3, 0 };
 static const GPIO_pin_t GPIO_SPI1_MISO = { GPIOB, 1, 4, 0 };
 static const GPIO_pin_t GPIO_SPI1_MOSI = { GPIOB, 1, 5, 0 };
-// USART2.
+#endif
+// USART GPS.
+#ifdef HW2_0
+static const GPIO_pin_t GPIO_USART1_TX = { GPIOB, 1, 6, 0 };
+static const GPIO_pin_t GPIO_USART1_RX = { GPIOB, 1, 7, 0 };
+#else
 static const GPIO_pin_t GPIO_USART2_TX = { GPIOA, 0, 2, 4 };
 static const GPIO_pin_t GPIO_USART2_RX = { GPIOA, 0, 3, 4 };
-// USART1.
+#endif
+// USART AT.
+#ifdef HW2_0
+static const GPIO_pin_t GPIO_USART2_TX = { GPIOA, 0, 2, 4 };
+static const GPIO_pin_t GPIO_USART2_RX = { GPIOA, 0, 3, 4 };
+#else
 static const GPIO_pin_t GPIO_USART1_TX = { GPIOA, 0, 9, 4 };
 static const GPIO_pin_t GPIO_USART1_RX = { GPIOA, 0, 10, 4 };
+#endif
 
 /*** GPIO MAPPING global variables ***/
 
+#ifdef HW2_0
+// Battery charger.
+const GPIO_pin_t GPIO_BATTERY_CHARGER_DISABLE = { GPIOA, 0, 5, 0 };
+#endif
 // Analog inputs.
+#ifdef HW2_0
+const GPIO_pin_t GPIO_ADC_POWER_ENABLE = { GPIOA, 0, 1, 0 };
+#else
 const GPIO_pin_t GPIO_ADC_POWER_ENABLE = { GPIOB, 1, 1, 0 };
+#endif
 const ADC_gpio_t ADC_GPIO = { (const GPIO_pin_t**) &GPIO_ADC_PINS_LIST, ADC_CHANNEL_INDEX_LAST };
 // Accelerometer.
 #ifdef HW1_0
 const GPIO_pin_t GPIO_ACCELERO_IRQ = {GPIOA, 0, 1, 0};
-#endif
-#ifdef HW1_1
+#else
 const GPIO_pin_t GPIO_ACCELERO_IRQ = { GPIOA, 0, 0, 0 };
 #endif
 // GPS.
+#ifdef HW2_0
+const GPIO_pin_t GPIO_GPS_POWER_ENABLE = { GPIOA, 0, 15, 0 };
+const USART_gpio_t USART_GPIO_GPS = { &GPIO_USART1_TX, &GPIO_USART1_RX };
+const GPIO_pin_t GPIO_GPS_VBCKP = { GPIOB, 1, 3, 0 };
+#else
 const GPIO_pin_t GPIO_GPS_POWER_ENABLE = { GPIOA, 0, 5, 0 };
+const USART_gpio_t USART_GPIO_GPS = { &GPIO_USART2_TX, &GPIO_USART2_RX };
 #ifdef HW1_1
 const GPIO_pin_t GPIO_GPS_VBCKP = { GPIOA, 0, 1, 0 };
 #endif
-const USART_gpio_t USART_GPIO_GPS = { &GPIO_USART2_TX, &GPIO_USART2_RX };
+#endif
 // Radio power control.
+#ifdef HW2_0
+const GPIO_pin_t GPIO_RF_POWER_ENABLE = { GPIOA, 0, 11, 0 };
+const GPIO_pin_t GPIO_TCXO_POWER_ENABLE = { GPIOA, 0, 10, 0 };
+#else
 const GPIO_pin_t GPIO_RF_POWER_ENABLE = { GPIOB, 1, 2, 0 };
 const GPIO_pin_t GPIO_TCXO_POWER_ENABLE = { GPIOA, 0, 8, 0 };
+#endif
+#ifdef HW2_0
+// LR1110.
+const SPI_gpio_t SPI_GPIO_LR1110 = { &GPIO_SPI2_SCK, &GPIO_SPI2_MOSI, &GPIO_SPI2_MISO };
+const GPIO_pin_t GPIO_LR1110_CS = { GPIOB, 1, 12, 0 };
+const GPIO_pin_t GPIO_LR1110_NRESET = { GPIOA, 0, 8, 0 };
+const GPIO_pin_t GPIO_LR1110_BUSY = { GPIOB, 1, 2, 0 };
+const GPIO_pin_t GPIO_LR1110_DIO9 = { GPIOA, 0, 9, 0 };
+// RF front-end.
+const GPIO_pin_t GPIO_RF_SW_V1 = { GPIOB, 1, 10, 0 };
+const GPIO_pin_t GPIO_RF_SW_V2 = { GPIOB, 1, 0, 0 };
+const GPIO_pin_t GPIO_RF_LNA_BYPASS = { GPIOB, 1, 11, 0 };
+#else
 // S2LP.
 const SPI_gpio_t SPI_GPIO_S2LP = { &GPIO_SPI1_SCK, &GPIO_SPI1_MOSI, &GPIO_SPI1_MISO };
 const GPIO_pin_t GPIO_S2LP_CS = { GPIOA, 0, 15, 0 };
@@ -67,10 +129,27 @@ const GPIO_pin_t GPIO_S2LP_GPIO3 = {GPIOA, 0, 11, 0};
 const GPIO_pin_t GPIO_S2LP_SDN = { GPIOA, 0, 11, 0 };
 #endif
 const GPIO_pin_t GPIO_S2LP_GPIO0 = { GPIOA, 0, 12, 0 };
+#endif
 // Sensors.
+#ifdef HW2_0
+const GPIO_pin_t GPIO_SENSORS_POWER_ENABLE = { GPIOA, 0, 7, 0 };
+#else
 const GPIO_pin_t GPIO_SENSORS_POWER_ENABLE = { GPIOB, 1, 8, 0 };
+#endif
 const I2C_gpio_t I2C_GPIO_SENSORS = { &GPIO_I2C1_SCL, &GPIO_I2C1_SDA };
 // AT interface.
+#ifdef HW2_0
+const USART_gpio_t USART_GPIO_AT = { &GPIO_USART2_TX, &GPIO_USART2_RX };
+#else
 const USART_gpio_t USART_GPIO_AT = { &GPIO_USART1_TX, &GPIO_USART1_RX };
+#endif
+// RGB LED.
+const GPIO_pin_t GPIO_LED_RED = { GPIOB, 1, 5, 0 };
+const GPIO_pin_t GPIO_LED_GREEN = { GPIOA, 0, 12, 0 };
+const GPIO_pin_t GPIO_LED_BLUE = { GPIOB, 1, 4, 0 };
 // Test point.
+#ifdef HW2_0
+const GPIO_pin_t GPIO_TP8 = { GPIOB, 1, 1, 0 };
+#else
 const GPIO_pin_t GPIO_TP2 = { GPIOA, 0, 4, 0 };
+#endif

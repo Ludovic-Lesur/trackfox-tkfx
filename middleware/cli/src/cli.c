@@ -25,6 +25,8 @@
 #include "terminal_instance.h"
 #include "types.h"
 // Components.
+#include "lr11xx.h"
+#include "s2lp.h"
 #include "sht3x.h"
 // Middleware.
 #include "analog.h"
@@ -32,6 +34,7 @@
 #include "power.h"
 // Sigfox.
 #include "manuf/rf_api.h"
+#include "rfe.h"
 #include "sigfox_ep_addon_rfp_api.h"
 #include "sigfox_ep_api.h"
 #include "sigfox_error.h"
@@ -407,16 +410,19 @@ errors:
 static AT_status_t _CLI_acc_callback(void) {
     // Local variables.
     AT_status_t status = AT_SUCCESS;
-    MMA865XFC_status_t mma865xfc_status = MMA865XFC_SUCCESS;
     uint8_t chip_id = 0;
     // Turn digital sensors on.
     POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_SLEEP);
-    // Perform measurements.
-    mma865xfc_status = MMA865XFC_get_id(I2C_ADDRESS_MMA8653FC, &chip_id);
+    // Get chip ID.
+#ifdef HW2_0
+    FXLS89XXXX_status_t fxls89xxxx_status = FXLS89XXXX_get_id(I2C_ADDRESS_FXLS8974CF, &chip_id);
+    _CLI_check_driver_status(fxls89xxxx_status, FXLS89XXXX_SUCCESS, ERROR_BASE_FXLS8974CF);
+#else
+    MMA865XFC_status_t mma865xfc_status = MMA865XFC_get_id(I2C_ADDRESS_MMA8653FC, &chip_id);
     _CLI_check_driver_status(mma865xfc_status, MMA865XFC_SUCCESS, ERROR_BASE_MMA8653FC);
-    // Read and print data.
-    // Temperature.
-    AT_reply_add_string("MMA8653FC chip_id=");
+#endif
+    // Print data.
+    AT_reply_add_string("Accelerometer chip ID=");
     AT_reply_add_integer(chip_id, STRING_FORMAT_HEXADECIMAL, 1);
     AT_send_reply();
 errors:
@@ -792,8 +798,13 @@ static AT_status_t _CLI_rssi_callback(void) {
     AT_status_t status = AT_SUCCESS;
     PARSER_status_t parser_status = PARSER_SUCCESS;
     RF_API_status_t rf_api_status = RF_API_SUCCESS;
-    S2LP_status_t s2lp_status = S2LP_SUCCESS;
     LPTIM_status_t lptim_status = LPTIM_SUCCESS;
+#ifdef HW2_0
+    LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
+    RFE_status_t rfe_status = RFE_SUCCESS;
+#else
+    S2LP_status_t s2lp_status = S2LP_SUCCESS;
+#endif
     RF_API_radio_parameters_t radio_params;
     int32_t frequency_hz = 0;
     int32_t duration_seconds = 0;
@@ -818,17 +829,27 @@ static AT_status_t _CLI_rssi_callback(void) {
     rf_api_status = RF_API_init(&radio_params);
     _CLI_check_driver_status(rf_api_status, RF_API_SUCCESS, (ERROR_BASE_SIGFOX_EP_LIB + (SIGFOX_ERROR_SOURCE_RF_API * ERROR_BASE_STEP)));
     // Start continuous listening.
+#ifdef HW2_0
+    lr11xx_status = LR11XX_set_mode(LR11XX_MODE_RX);
+    _CLI_check_driver_status(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110);
+#else
     s2lp_status = S2LP_send_command(S2LP_COMMAND_READY);
     _CLI_check_driver_status(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP);
     s2lp_status = S2LP_wait_for_state(S2LP_STATE_READY);
     _CLI_check_driver_status(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP);
     s2lp_status = S2LP_send_command(S2LP_COMMAND_RX);
     _CLI_check_driver_status(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP);
+#endif
     // Measurement loop.
     while (report_loop < ((uint32_t) ((duration_seconds * 1000) / CLI_RSSI_REPORT_PERIOD_MS))) {
         // Read RSSI.
+#ifdef HW2_0
+        rfe_status = RFE_get_rssi(LR11XX_RSSI_TYPE_INSTANTANEOUS, &rssi_dbm);
+        _CLI_check_driver_status(rfe_status, RFE_SUCCESS, ERROR_BASE_RFE);
+#else
         s2lp_status = S2LP_get_rssi(S2LP_RSSI_TYPE_RUN, &rssi_dbm);
         _CLI_check_driver_status(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP);
+#endif
         // Print RSSI.
         AT_reply_add_integer(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
         AT_reply_add_string("dBm");
