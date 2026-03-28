@@ -10,12 +10,13 @@
 
 #include "error.h"
 #include "lptim.h"
+#include "gps.h"
 #include "types.h"
 
 /*** POWER macros ***/
 
 #define POWER_ON_DELAY_MS_ANALOG    100
-#define POWER_ON_DELAY_MS_GPS       1000
+#define POWER_ON_DELAY_MS_GPS       GPS_BOOT_TIME_MS
 #define POWER_ON_DELAY_MS_SENSORS   100
 #define POWER_ON_DELAY_MS_RADIO     100
 #define POWER_ON_DELAY_MS_TCXO      500

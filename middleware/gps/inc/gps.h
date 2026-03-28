@@ -14,6 +14,12 @@
 #include "neom8x.h"
 #include "types.h"
 
+#ifdef HW2_0
+#define GPS_BOOT_TIME_MS    MAXM10X_BOOT_TIME_MS
+#else
+#define GPS_BOOT_TIME_MS    NEOM8X_BOOT_TIME_MS
+#endif
+
 /*** GPS structures ***/
 
 /*!******************************************************************
