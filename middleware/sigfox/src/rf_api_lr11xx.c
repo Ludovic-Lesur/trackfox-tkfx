@@ -346,12 +346,15 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
         // Downlink packet structure.
         gfsk_packet_parameters.preamble_length_bits = RF_API_DL_PR_SIZE_BITS;
         gfsk_packet_parameters.preamble_detector_length = LR11XX_PREAMBLE_DETECTOR_LENGTH_16BITS;
-        for (idx = 0; idx < SIGFOX_DL_FT_SIZE_BYTES; idx++) {
-            gfsk_packet_parameters.sync_word[idx] = dl_ft[idx];
+        for (idx = 0; idx < LR11XX_SYNC_WORD_SIZE_BYTES_MAX; idx++) {
+            gfsk_packet_parameters.sync_word[idx] = (idx < SIGFOX_DL_FT_SIZE_BYTES) ? dl_ft[idx] : 0x00;
         }
         gfsk_packet_parameters.sync_word_length_bits = (SIGFOX_DL_FT_SIZE_BYTES << 3);
         gfsk_packet_parameters.payload_length_bytes = SIGFOX_DL_PHY_CONTENT_SIZE_BYTES;
         lr11xx_status = LR11XX_set_gfsk_packet(&gfsk_packet_parameters);
+        LR11XX_stack_exit_error(ERROR_BASE_LR1110, (RF_API_status_t) RF_API_ERROR_DRIVER_LR11XX);
+        // Clear FIFO.
+        lr11xx_status = LR11XX_clear_fifo();
         LR11XX_stack_exit_error(ERROR_BASE_LR1110, (RF_API_status_t) RF_API_ERROR_DRIVER_LR11XX);
         // Switch to RX.
         rfe_status = RFE_set_path(RFE_PATH_RX_LNA);

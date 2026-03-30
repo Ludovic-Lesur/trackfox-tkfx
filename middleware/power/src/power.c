@@ -16,6 +16,7 @@
 #include "gps.h"
 #include "lptim.h"
 #include "mcu_mapping.h"
+#include "rfe.h"
 #include "s2lp.h"
 #include "sht3x.h"
 #include "types.h"
@@ -61,6 +62,7 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
     ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
 #ifdef HW2_0
+    RFE_status_t rfe_status = RFE_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
 #else
     S2LP_status_t s2lp_status = S2LP_SUCCESS;
@@ -120,6 +122,8 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         delay_ms = POWER_ON_DELAY_MS_RADIO;
         // Init attached drivers.
 #ifdef HW2_0
+        rfe_status = RFE_init();
+        _POWER_stack_driver_error(rfe_status, RFE_SUCCESS, ERROR_BASE_RFE, POWER_ERROR_DRIVER_RFE);
         lr11xx_status = LR11XX_init();
         _POWER_stack_driver_error(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110, POWER_ERROR_DRIVER_LR11XX);
 #else
@@ -149,6 +153,7 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
     ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
 #ifdef HW2_0
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
+    RFE_status_t rfe_status = RFE_SUCCESS;
 #else
     S2LP_status_t s2lp_status = S2LP_SUCCESS;
 #endif
@@ -200,6 +205,8 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
 #ifdef HW2_0
         lr11xx_status = LR11XX_de_init();
         _POWER_stack_driver_error(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110, POWER_ERROR_DRIVER_LR11XX);
+        rfe_status = RFE_de_init();
+        _POWER_stack_driver_error(rfe_status, RFE_SUCCESS, ERROR_BASE_RFE, POWER_ERROR_DRIVER_RFE);
 #else
         s2lp_status = S2LP_de_init();
         _POWER_stack_driver_error(s2lp_status, S2LP_SUCCESS, ERROR_BASE_S2LP, POWER_ERROR_DRIVER_S2LP);
