@@ -36,7 +36,9 @@
 /*******************************************************************/
 typedef struct {
     int32_t mcu_voltage_mv;
+#ifndef HW2_0
     int32_t lm4040_voltage_12bits;
+#endif
 } ANALOG_context_t;
 
 /*** ANALOG local global variables ***/
@@ -138,16 +140,22 @@ ANALOG_status_t ANALOG_convert_channel(ANALOG_channel_t channel, int32_t* analog
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         break;
     case ANALOG_CHANNEL_SOURCE_VOLTAGE_MV:
+#ifndef HW2_0
         // Check calibration.
         if (analog_ctx.lm4040_voltage_12bits == ANALOG_ERROR_VALUE) {
             status = ANALOG_ERROR_CALIBRATION_MISSING;
             goto errors;
         }
+#endif
         // Solar cell or dynamo voltage.
         adc_status = ADC_convert_channel(ADC_CHANNEL_SOURCE_VOLTAGE, &adc_data_12bits);
         ADC_exit_error(ANALOG_ERROR_BASE_ADC);
         // Convert to mV.
+#ifndef HW2_0
         (*analog_data) = (adc_data_12bits * ANALOG_LM4040_VOLTAGE_MV * ANALOG_DIVIDER_RATIO_SOURCE_VOLTAGE) / (analog_ctx.lm4040_voltage_12bits);
+#else
+        (*analog_data) = (adc_data_12bits * analog_ctx.mcu_voltage_mv * ANALOG_DIVIDER_RATIO_SOURCE_VOLTAGE) / (ADC_FULL_SCALE);
+#endif
         break;
     case ANALOG_CHANNEL_STORAGE_VOLTAGE_MV:
 #ifndef HW2_0
