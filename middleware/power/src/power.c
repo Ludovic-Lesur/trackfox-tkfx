@@ -20,6 +20,7 @@
 #include "s2lp.h"
 #include "sht3x.h"
 #include "types.h"
+#include "wifi.h"
 
 /*** POWER local global variables ***/
 
@@ -62,6 +63,7 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
     ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
 #ifdef HW2_0
+    WIFI_status_t wifi_status = WIFI_SUCCESS;
     RFE_status_t rfe_status = RFE_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
 #else
@@ -111,6 +113,16 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         gps_status = GPS_init();
         _POWER_stack_driver_error(gps_status, GPS_SUCCESS, ERROR_BASE_GPS, POWER_ERROR_DRIVER_GPS);
         break;
+#ifdef HW2_0
+    case POWER_DOMAIN_WIFI:
+        // Turn radio on.
+        GPIO_write(&GPIO_RF_POWER_ENABLE, 1);
+        delay_ms = POWER_ON_DELAY_MS_RADIO;
+        // Init attached drivers.
+        wifi_status = WIFI_init();
+        _POWER_stack_driver_error(wifi_status, WIFI_SUCCESS, ERROR_BASE_WIFI, POWER_ERROR_DRIVER_WIFI);
+        break;
+#endif
     case POWER_DOMAIN_TCXO:
         // Turn TCXO on.
         GPIO_write(&GPIO_TCXO_POWER_ENABLE, 1);
@@ -152,6 +164,7 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
     SHT3X_status_t sht3x_status = SHT3X_SUCCESS;
     ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
 #ifdef HW2_0
+    WIFI_status_t wifi_status = WIFI_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
     RFE_status_t rfe_status = RFE_SUCCESS;
 #else
@@ -196,6 +209,15 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
         // Turn GPS off.
         GPIO_write(&GPIO_GPS_POWER_ENABLE, 0);
         break;
+#ifdef HW2_0
+    case POWER_DOMAIN_WIFI:
+        // Release attached drivers.
+        wifi_status = WIFI_de_init();
+        _POWER_stack_driver_error(wifi_status, WIFI_SUCCESS, ERROR_BASE_WIFI, POWER_ERROR_DRIVER_WIFI);
+        // Turn radio off.
+        GPIO_write(&GPIO_RF_POWER_ENABLE, 0);
+        break;
+#endif
     case POWER_DOMAIN_TCXO:
         // Turn TCXO off.
         GPIO_write(&GPIO_TCXO_POWER_ENABLE, 0);

@@ -20,6 +20,8 @@ typedef enum {
     NVIC_PRIORITY_RTC = 3,
     // GPS.
     NVIC_PRIORITY_GPS_UART = 0,
+    // WiFi.
+    NVIC_PRIORITY_WIFI_IRQ_GPIO = 0,
     // Accelerometer.
     NVIC_PRIORITY_ACCELEROMETER = 0,
     // Sigfox.

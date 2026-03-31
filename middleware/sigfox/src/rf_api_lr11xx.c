@@ -149,7 +149,7 @@ static void _RF_API_lr11xx_dio_irq_callback(void) {
 }
 
 /*******************************************************************/
-static RF_API_status_t _RF_API_enable_lr11xx_dio_irq(sfx_u16 irq_mask) {
+static RF_API_status_t _RF_API_enable_lr11xx_dio_irq(sfx_u32 irq_mask) {
     // Local variables.
     RF_API_status_t status = RF_API_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;

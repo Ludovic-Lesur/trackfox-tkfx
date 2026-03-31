@@ -32,6 +32,7 @@
 #include "analog.h"
 #include "gps.h"
 #include "power.h"
+#include "wifi.h"
 // Sigfox.
 #include "manuf/rf_api.h"
 #include "rfe.h"
@@ -49,9 +50,10 @@
 
 /*** CLI local macros ***/
 
-#define CLI_CHAR_SEPARATOR              STRING_CHAR_COMMA
-#define CLI_RSSI_REPORT_PERIOD_MS       500
-#define CLI_TEMPERATURE_STRING_SIZE     5
+#define CLI_CHAR_SEPARATOR                      STRING_CHAR_COMMA
+#define CLI_RSSI_REPORT_PERIOD_MS               500
+#define CLI_TEMPERATURE_STRING_SIZE             5
+#define CLI_WIFI_SCAN_ACCESS_POINT_LIST_SIZE    8
 
 /*** CLI local structures ***/
 
@@ -82,6 +84,9 @@ static AT_status_t _CLI_tm_callback(void);
 static AT_status_t _CLI_cw_callback(void);
 #ifdef SIGFOX_EP_BIDIRECTIONAL
 static AT_status_t _CLI_rssi_callback(void);
+#endif
+#ifdef HW2_0
+static AT_status_t _CLI_wifi_callback(void);
 #endif
 
 /*** CLI local global variables ***/
@@ -185,7 +190,15 @@ static const AT_command_t CLI_COMMANDS_LIST[] = {
         .parameters = "<frequency[hz]>,<duration[s]>",
         .description = "Continuous RSSI measurement",
         .callback = &_CLI_rssi_callback
-    }
+    },
+#endif
+#ifdef HW2_0
+    {
+        .syntax = "$WIFI?",
+        .parameters = NULL,
+        .description = "Perform passive WiFi scan",
+        .callback = &_CLI_wifi_callback
+    },
 #endif
 };
 
@@ -871,6 +884,72 @@ errors:
     RF_API_de_init();
     RF_API_sleep();
 end:
+    return status;
+}
+#endif
+
+#ifdef HW2_0
+/*******************************************************************/
+static AT_status_t _CLI_wifi_callback(void) {
+    // Local variables.
+    AT_status_t status = AT_SUCCESS;
+    WIFI_status_t wifi_status = WIFI_SUCCESS;
+    WIFI_scan_results_t scan_results;
+    WIFI_access_point_t access_point_list[CLI_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
+    uint8_t access_point_idx = 0;
+    uint8_t idx = 0;
+    // Scan results.
+    scan_results.access_point_list = (LR11XX_wifi_access_point_t*) access_point_list;
+    scan_results.access_point_list_size = CLI_WIFI_SCAN_ACCESS_POINT_LIST_SIZE;
+    // Turn radio on.
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
+    // Perform scan.
+    wifi_status = WIFI_scan(&scan_results);
+    _CLI_check_driver_status(wifi_status, WIFI_SUCCESS, ERROR_BASE_WIFI);
+    // Print results.
+    AT_reply_add_string("Access points: ");
+    AT_reply_add_integer(scan_results.number_of_access_points_detected, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string(" detected, ");
+    AT_reply_add_integer(scan_results.number_of_access_points_written, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string(" written");
+    AT_send_reply();
+    for (access_point_idx = 0; access_point_idx < scan_results.number_of_access_points_written; access_point_idx++) {
+        // MAC address.
+        for (idx = 0; idx < LR11XX_WIFI_MAC_ADDRESS_SIZE_BYTES; idx++) {
+            AT_reply_add_integer(access_point_list[access_point_idx].mac_address[idx], STRING_FORMAT_HEXADECIMAL, 0);
+            if (idx < (LR11XX_WIFI_MAC_ADDRESS_SIZE_BYTES - 1)) {
+                AT_reply_add_string(":");
+            }
+        }
+        // RSSI.
+        AT_reply_add_string(" ");
+        AT_reply_add_integer((int32_t) (access_point_list[access_point_idx].rssi_dbm), STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string("dBm ");
+        // Signal type.
+        switch (access_point_list[access_point_idx].wifi_type.signal_type) {
+        case LR11XX_WIFI_SIGNAL_TYPE_B:
+            AT_reply_add_string("B ");
+            break;
+        case LR11XX_WIFI_SIGNAL_TYPE_G:
+            AT_reply_add_string("G ");
+            break;
+        case LR11XX_WIFI_SIGNAL_TYPE_N:
+            AT_reply_add_string("N ");
+            break;
+        default:
+            break;
+        }
+        // Datarate ID.
+        AT_reply_add_string("(");
+        AT_reply_add_integer(access_point_list[access_point_idx].wifi_type.datarate_id, STRING_FORMAT_DECIMAL, 0);
+        AT_reply_add_string(")");
+        AT_send_reply();
+    }
+errors:
+    // Turn radio off.
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_WIFI);
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_TCXO);
     return status;
 }
 #endif
