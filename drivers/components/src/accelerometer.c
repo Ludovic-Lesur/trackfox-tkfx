@@ -14,7 +14,18 @@
 
 const ACCELEROMETER_register_setting_t ACCELEROMETER_CONFIGURATION_ACTIVE[ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE] = {
 #ifdef HW2_0
-
+    { FXLS89XXXX_REGISTER_SENS_CONFIG1, 0x00 }, // // Full scale = +/-2g.
+    { FXLS89XXXX_REGISTER_SENS_CONFIG3, 0x99 }, // ODR = 6.25Hz.
+    { FXLS89XXXX_REGISTER_SDCD_UTHS_MSB, 0x00 }, // High threshold delta = +0.1g.
+    { FXLS89XXXX_REGISTER_SDCD_UTHS_LSB, 0x66 },
+    { FXLS89XXXX_REGISTER_SDCD_LTHS_MSB, 0x0F }, // Low threshold delta = -0.1g.
+    { FXLS89XXXX_REGISTER_SDCD_LTHS_LSB, 0x9A },
+    { FXLS89XXXX_REGISTER_INT_EN, 0x20 }, // Enable outside threshold interrupt.
+    { FXLS89XXXX_REGISTER_SENS_CONFIG4, 0x01 }, // INT polarity is active high.
+    { FXLS89XXXX_REGISTER_INT_PIN_SEL, 0x00 }, // Use INT1 pin.
+    { FXLS89XXXX_REGISTER_SDCD_CONFIG1, 0xB8 }, // Enable event latch and interrupts on all axis.
+    { FXLS89XXXX_REGISTER_SDCD_CONFIG2, 0xD8 }, // Enable SDCD, enable relative mode and disable debouncing.
+    { FXLS89XXXX_REGISTER_SENS_CONFIG1, 0x01 } // ACTIVE='1'.
 #else
     { MMA865XFC_REGISTER_CTRL_REG1, 0x00 }, // ACTIVE='0' (standby mode required to program registers).
     { MMA865XFC_REGISTER_XYZ_DATA_CFG, 0x00 }, // Full scale = +/-2g.
@@ -31,7 +42,7 @@ const ACCELEROMETER_register_setting_t ACCELEROMETER_CONFIGURATION_ACTIVE[ACCELE
 
 const ACCELEROMETER_register_setting_t ACCELEROMETER_CONFIGURATION_SLEEP[ACCELEROMETER_CONFIGURATION_SIZE_SLEEP] = {
 #ifdef HW2_0
-
+    { FXLS89XXXX_REGISTER_SENS_CONFIG1, 0x00 }, // ACTIVE='0'.
 #else
     { MMA865XFC_REGISTER_CTRL_REG2, 0x5B }, // RESET='1'.
     { MMA865XFC_REGISTER_CTRL_REG2, 0x1B }, // RESET='0', (S)MODS='11' (low power operation) and SLPE='0' (auto sleep disabled).
