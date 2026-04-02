@@ -22,7 +22,7 @@
 /*** RFE local global variables ***/
 
 #ifdef SIGFOX_EP_BIDIRECTIONAL
-static const int16_t RFE_RSSI_OFFSET_DB[RFE_PATH_LAST] = { 0, 0, (-2), 15 };
+static const int16_t RFE_RSSI_OFFSET_DB[RFE_PATH_LAST] = { 0, 0, 0, 0, (-3), 15 };
 #endif
 static RFE_path_t rfe_current_path = RFE_PATH_NONE;
 
@@ -48,7 +48,7 @@ RFE_status_t RFE_de_init(void) {
     RFE_status_t status = RFE_SUCCESS;
     RFE_status_t rfe_status = RFE_SUCCESS;
     // Set all pins to output low.
-    rfe_status = RFE_set_path(RFE_PATH_NONE);
+    rfe_status = RFE_set_path(RFE_PATH_OFF);
     RFE_stack_error(ERROR_BASE_RFE);
     return status;
 }
@@ -58,10 +58,15 @@ RFE_status_t RFE_set_path(RFE_path_t radio_path) {
     // Local variables.
     RFE_status_t status = RFE_SUCCESS;
     switch (radio_path) {
-    case RFE_PATH_NONE:
+    case RFE_PATH_OFF:
         GPIO_write(&GPIO_RF_SW_V1, 0);
         GPIO_write(&GPIO_RF_SW_V2, 0);
         GPIO_write(&GPIO_RF_LNA_BYPASS, 0);
+        break;
+    case RFE_PATH_NONE:
+        GPIO_write(&GPIO_RF_SW_V1, 0);
+        GPIO_write(&GPIO_RF_SW_V2, 0);
+        GPIO_write(&GPIO_RF_LNA_BYPASS, 1);
         break;
     case RFE_PATH_TX_LOW_POWER:
         GPIO_write(&GPIO_RF_SW_V1, 1);

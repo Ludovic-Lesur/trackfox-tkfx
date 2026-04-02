@@ -38,7 +38,8 @@ typedef enum {
  * \brief Radio front-end paths list.
  *******************************************************************/
 typedef enum {
-    RFE_PATH_NONE = 0,
+    RFE_PATH_OFF = 0,
+    RFE_PATH_NONE,
     RFE_PATH_TX_LOW_POWER,
     RFE_PATH_TX_HIGH_POWER,
 #ifdef SIGFOX_EP_BIDIRECTIONAL

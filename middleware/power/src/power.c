@@ -119,6 +119,10 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         GPIO_write(&GPIO_RF_POWER_ENABLE, 1);
         delay_ms = POWER_ON_DELAY_MS_RADIO;
         // Init attached drivers.
+        rfe_status = RFE_init();
+        _POWER_stack_driver_error(rfe_status, RFE_SUCCESS, ERROR_BASE_RFE, POWER_ERROR_DRIVER_RFE);
+        rfe_status = RFE_set_path(RFE_PATH_NONE);
+        _POWER_stack_driver_error(rfe_status, RFE_SUCCESS, ERROR_BASE_RFE, POWER_ERROR_DRIVER_RFE);
         wifi_status = WIFI_init();
         _POWER_stack_driver_error(wifi_status, WIFI_SUCCESS, ERROR_BASE_WIFI, POWER_ERROR_DRIVER_WIFI);
         break;
@@ -214,6 +218,8 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
         // Release attached drivers.
         wifi_status = WIFI_de_init();
         _POWER_stack_driver_error(wifi_status, WIFI_SUCCESS, ERROR_BASE_WIFI, POWER_ERROR_DRIVER_WIFI);
+        rfe_status = RFE_de_init();
+        _POWER_stack_driver_error(rfe_status, RFE_SUCCESS, ERROR_BASE_RFE, POWER_ERROR_DRIVER_RFE);
         // Turn radio off.
         GPIO_write(&GPIO_RF_POWER_ENABLE, 0);
         break;
