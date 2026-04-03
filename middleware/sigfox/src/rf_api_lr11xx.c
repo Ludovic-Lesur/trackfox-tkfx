@@ -253,6 +253,9 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
 #endif
     // Turn radio on.
     POWER_enable(POWER_REQUESTER_ID_RF_API, POWER_DOMAIN_RADIO, LPTIM_DELAY_MODE_SLEEP);
+    // Turn LED on.
+    led_status = LED_set_color(LED_COLOR_BLUE);
+    LED_stack_exit_error(ERROR_BASE_LED, (RF_API_status_t) RF_API_ERROR_DRIVER_LED);
     // Exit reset.
     lr11xx_status = LR11XX_reset(0);
     LR11XX_stack_exit_error(ERROR_BASE_LR1110, (RF_API_status_t) RF_API_ERROR_DRIVER_LR11XX);
@@ -372,9 +375,6 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
     if (op_error != 0) {
         SIGFOX_EXIT_ERROR((RF_API_status_t) RF_API_ERROR_LR11XX_STATUS);
     }
-    // Turn LED on.
-    led_status = LED_set_color(LED_COLOR_BLUE);
-    LED_stack_exit_error(ERROR_BASE_LED, (RF_API_status_t) RF_API_ERROR_DRIVER_LED);
 errors:
     SIGFOX_RETURN();
 }

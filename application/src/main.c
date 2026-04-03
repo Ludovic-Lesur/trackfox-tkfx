@@ -219,6 +219,9 @@ static void _TKFX_init_hw(void) {
 #ifndef TKFX_MODE_DEBUG
     IWDG_status_t iwdg_status = IWDG_SUCCESS;
 #endif
+#ifdef HW2_0
+    LED_status_t led_status = LED_SUCCESS;
+#endif
     // Init error stack
     ERROR_stack_init();
     // Init memory.
@@ -253,6 +256,10 @@ static void _TKFX_init_hw(void) {
     // Init delay timer.
     lptim_status = LPTIM_init(NVIC_PRIORITY_DELAY);
     LPTIM_stack_error(ERROR_BASE_LPTIM);
+#ifdef HW2_0
+    led_status = LED_init();
+    LED_stack_error(ERROR_BASE_LED);
+#endif
 }
 
 #ifndef TKFX_MODE_CLI
@@ -364,6 +371,9 @@ int main(void) {
     ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
     GPS_acquisition_status_t gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
+#ifdef HW2_0
+    LED_status_t led_status = LED_SUCCESS;
+#endif
     SIGFOX_EP_API_application_message_t sigfox_ep_application_message;
     SIGFOX_EP_ul_payload_startup_t sigfox_ep_ul_payload_startup;
     SIGFOX_EP_ul_payload_monitoring_t sigfox_ep_ul_payload_monitoring;
@@ -407,8 +417,16 @@ int main(void) {
         case TKFX_STATE_MONITORING:
             IWDG_reload();
             // Measure related data.
+#ifdef HW2_0
+            led_status = LED_set_color(LED_COLOR_GREEN);
+            LED_stack_error(ERROR_BASE_LED);
+#endif
             _TKFX_update_source_storage_voltages();
             _TKFX_update_temperature_humidity();
+#ifdef HW2_0
+            led_status = LED_set_color(LED_COLOR_OFF);
+            LED_stack_error(ERROR_BASE_LED);
+#endif
             // Update clock status.
             rcc_status = RCC_get_status(RCC_CLOCK_LSE, &generic_u8);
             RCC_stack_error(ERROR_BASE_RCC);
@@ -451,8 +469,16 @@ int main(void) {
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
                 // Get position from GPS.
+#ifdef HW2_0
+                led_status = LED_set_color(LED_COLOR_YELLOW);
+                LED_stack_error(ERROR_BASE_LED);
+#endif
                 gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &generic_u32_1, &gps_acquisition_status);
                 GPS_stack_error(ERROR_BASE_GPS);
+#ifdef HW2_0
+                led_status = LED_set_color(LED_COLOR_OFF);
+                LED_stack_error(ERROR_BASE_LED);
+#endif
                 // Turn analog front-end and GPS off.
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS);
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
@@ -531,7 +557,15 @@ int main(void) {
         case TKFX_STATE_MODE_UPDATE:
             IWDG_reload();
             // Measure related data.
+#ifdef HW2_0
+            led_status = LED_set_color(LED_COLOR_GREEN);
+            LED_stack_error(ERROR_BASE_LED);
+#endif
             _TKFX_update_source_storage_voltages();
+#ifdef HW2_0
+            led_status = LED_set_color(LED_COLOR_OFF);
+            LED_stack_error(ERROR_BASE_LED);
+#endif
             // Change error value for mode update.
             if (tkfx_ctx.storage_voltage_mv == SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
                 tkfx_ctx.storage_voltage_mv = 0;
@@ -547,8 +581,16 @@ int main(void) {
             if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_status == 0) || (tkfx_ctx.flags.por != 0))) {
                 // Active mode.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
+#ifdef HW2_0
+                led_status = LED_set_color(LED_COLOR_MAGENTA);
+                LED_stack_error(ERROR_BASE_LED);
+#endif
                 accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_ACTIVE[0]), ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE);
                 ACCELEROMETER_stack_error();
+#ifdef HW2_0
+                led_status = LED_set_color(LED_COLOR_OFF);
+                LED_stack_error(ERROR_BASE_LED);
+#endif
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
                 // Enable interrupt.
                 SENSORS_HW_enable_accelerometer_interrupt();
@@ -558,8 +600,16 @@ int main(void) {
             if ((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) && ((tkfx_ctx.status.accelerometer_status != 0) || (tkfx_ctx.flags.por != 0))) {
                 // Sleep mode.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
+#ifdef HW2_0
+                led_status = LED_set_color(LED_COLOR_MAGENTA);
+                LED_stack_error(ERROR_BASE_LED);
+#endif
                 accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_SLEEP[0]), ACCELEROMETER_CONFIGURATION_SIZE_SLEEP);
                 ACCELEROMETER_stack_error();
+#ifdef HW2_0
+                led_status = LED_set_color(LED_COLOR_OFF);
+                LED_stack_error(ERROR_BASE_LED);
+#endif
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
                 // Disable interrupt.
                 SENSORS_HW_disable_accelerometer_interrupt();

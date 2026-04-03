@@ -22,6 +22,9 @@ LED_status_t LED_init(void) {
     // Local variables.
     LED_status_t status = LED_SUCCESS;
     // Configure LED pins.
+    GPIO_write(&GPIO_LED_RED, 1);
+    GPIO_write(&GPIO_LED_GREEN, 1);
+    GPIO_write(&GPIO_LED_BLUE, 1);
     GPIO_configure(&GPIO_LED_RED, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
     GPIO_configure(&GPIO_LED_GREEN, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
     GPIO_configure(&GPIO_LED_BLUE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
@@ -43,39 +46,39 @@ errors:
 LED_status_t LED_set_color(LED_color_t led_color) {
     // Local variables.
     LED_status_t status = LED_SUCCESS;
-    uint8_t red = 0;
-    uint8_t green = 0;
-    uint8_t blue = 0;
+    uint8_t red = 1;
+    uint8_t green = 1;
+    uint8_t blue = 1;
     // Check color.
     switch (led_color) {
     case LED_COLOR_OFF:
         // Nothing to do.
         break;
     case LED_COLOR_RED:
-        red = 1;
+        red = 0;
         break;
     case LED_COLOR_GREEN:
-        green = 1;
+        green = 0;
         break;
     case LED_COLOR_YELLOW:
-        red = 1;
-        green = 1;
+        red = 0;
+        green = 0;
         break;
     case LED_COLOR_BLUE:
-        blue = 1;
+        blue = 0;
         break;
     case LED_COLOR_MAGENTA:
-        red = 1;
-        blue = 1;
+        red = 0;
+        blue = 0;
         break;
     case LED_COLOR_CYAN:
-        green = 1;
-        blue = 1;
+        green = 0;
+        blue = 0;
         break;
     case LED_COLOR_WHITE:
-        red = 1;
-        green = 1;
-        blue = 1;
+        red = 0;
+        green = 0;
+        blue = 0;
         break;
     default:
         status = LED_ERROR_COLOR;
