@@ -23,7 +23,7 @@ const ACCELEROMETER_register_setting_t ACCELEROMETER_CONFIGURATION_ACTIVE[ACCELE
     { FXLS89XXXX_REGISTER_INT_EN, 0x20 }, // Enable outside threshold interrupt.
     { FXLS89XXXX_REGISTER_SENS_CONFIG4, 0x01 }, // INT polarity is active high.
     { FXLS89XXXX_REGISTER_INT_PIN_SEL, 0x00 }, // Use INT1 pin.
-    { FXLS89XXXX_REGISTER_SDCD_CONFIG1, 0xB8 }, // Enable event latch and interrupts on all axis.
+    { FXLS89XXXX_REGISTER_SDCD_CONFIG1, 0x38 }, // Disable event latch and enable interrupts on all axis.
     { FXLS89XXXX_REGISTER_SDCD_CONFIG2, 0xD8 }, // Enable SDCD, enable relative mode and disable debouncing.
     { FXLS89XXXX_REGISTER_SENS_CONFIG1, 0x01 } // ACTIVE='1'.
 #else
