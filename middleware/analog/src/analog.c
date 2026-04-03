@@ -11,7 +11,6 @@
 #include "error.h"
 #include "error_base.h"
 #include "mcu_mapping.h"
-#include "tkfx_flags.h"
 #include "types.h"
 
 /*** ANALOG local macros ***/
@@ -22,12 +21,7 @@
 #define ANALOG_LM4040_VOLTAGE_MV                2048
 
 #define ANALOG_DIVIDER_RATIO_SOURCE_VOLTAGE     10
-#ifdef TKFX_MODE_SUPERCAPACITOR
-#define ANALOG_DIVIDER_RATIO_STORAGE_VOLTAGE    1
-#endif
-#ifdef TKFX_MODE_BATTERY
 #define ANALOG_DIVIDER_RATIO_STORAGE_VOLTAGE    2
-#endif
 
 #define ANALOG_ERROR_VALUE                      0xFFFF
 
