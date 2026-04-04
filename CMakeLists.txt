@@ -44,6 +44,11 @@ elseif(TKFX_HW_VERSION STREQUAL "HW1_1")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-m0plus -O1")
     set(TKFX_MCU "stm32l0xx")
     set(PROJECT_LINKER_SCRIPT "stm32l051x8xx.ld")
+# TKFX HW2.0.
+elseif(TKFX_HW_VERSION STREQUAL "HW2_0")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-m0plus -O1")
+    set(TKFX_MCU "stm32l0xx")
+    set(PROJECT_LINKER_SCRIPT "stm32l051x8xx.ld")
 # Unknown version.
 else()
     message(FATAL_ERROR "Invalid hardware version.")
@@ -73,7 +78,11 @@ endforeach()
 target_sources(${PROJECT_NAME}
     PRIVATE
         drivers/peripherals/src/mcu_mapping.c
-        drivers/components/src/mma865xfc_configuration.c
+        drivers/components/src/accelerometer.c
+        drivers/components/src/fxls89xxxx_hw.c
+        drivers/components/src/led.c
+        drivers/components/src/lr11xx_hw.c
+        drivers/components/src/maxm10x_hw.c
         drivers/components/src/mma865xfc_hw.c
         drivers/components/src/neom8x_hw.c
         drivers/components/src/s2lp_hw.c
@@ -85,7 +94,10 @@ target_sources(${PROJECT_NAME}
         middleware/power/src/power.c
         middleware/sigfox/sigfox-ep-lib/src/core/TI_aes_128_encr_only.c
         middleware/sigfox/src/mcu_api.c
-        middleware/sigfox/src/rf_api.c
+        middleware/sigfox/src/rf_api_lr11xx.c
+        middleware/sigfox/src/rf_api_s2lp.c
+        middleware/sigfox/src/rfe.c
+        middleware/wifi/src/wifi.c
         application/src/main.c
 )
 
@@ -100,6 +112,9 @@ include_directories(${PROJECT_NAME}
         drivers/utils/inc
         drivers/utils/embedded-utils/inc
         drivers/components/inc
+        drivers/components/fxls89xxxx-driver/inc
+        drivers/components/lr11xx-driver/inc
+        drivers/components/maxm10x-driver/inc
         drivers/components/mma865xfc-driver/inc
         drivers/components/neom8x-driver/inc
         drivers/components/s2lp-driver/inc
@@ -111,6 +126,7 @@ include_directories(${PROJECT_NAME}
         middleware/sigfox/inc
         middleware/sigfox/sigfox-ep-lib/inc
         middleware/sigfox/sigfox-ep-addon-rfp/inc
+        middleware/wifi/inc
         application/inc
 )
 
@@ -118,6 +134,9 @@ include_directories(${PROJECT_NAME}
 add_subdirectory(drivers/device/${TKFX_MCU}-device EXCLUDE_FROM_ALL)
 add_subdirectory(drivers/peripherals/${TKFX_MCU}-drivers EXCLUDE_FROM_ALL)
 add_subdirectory(drivers/utils/embedded-utils EXCLUDE_FROM_ALL)
+add_subdirectory(drivers/components/fxls89xxxx-driver EXCLUDE_FROM_ALL)
+add_subdirectory(drivers/components/lr11xx-driver EXCLUDE_FROM_ALL)
+add_subdirectory(drivers/components/maxm10x-driver EXCLUDE_FROM_ALL)
 add_subdirectory(drivers/components/mma865xfc-driver EXCLUDE_FROM_ALL)
 add_subdirectory(drivers/components/neom8x-driver EXCLUDE_FROM_ALL)
 add_subdirectory(drivers/components/s2lp-driver EXCLUDE_FROM_ALL)
@@ -131,6 +150,9 @@ target_link_libraries(${PROJECT_NAME}
         ${TKFX_MCU}-device
         ${TKFX_MCU}-drivers
         embedded-utils
+        fxls89xxxx-driver
+        lr11xx-driver
+        maxm10x-driver
         mma865xfc-driver
         neom8x-driver
         s2lp-driver
