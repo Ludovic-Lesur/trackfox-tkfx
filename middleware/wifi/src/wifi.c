@@ -141,8 +141,8 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results) {
     scan_params.channel_mask = 0x3FFF;
     scan_params.acquisition_mode = LR11XX_WIFI_ACQUISITION_MODE_BEACON_PACKET;
     scan_params.mac_address_list_size = (wifi_scan_results->access_point_list_size);
-    scan_params.number_of_scans_per_channel = 10;
-    scan_params.single_scan_timeout_ms = 100;
+    scan_params.number_of_scans_per_channel = 5;
+    scan_params.single_scan_timeout_ms = 150;
     // Enable GPIO interrupt.
     status = _WIFI_enable_lr11xx_dio_irq(0b1 << LR11XX_IRQ_INDEX_WIFI_DONE);
     if (status != WIFI_SUCCESS) goto errors;
