@@ -15,7 +15,8 @@ The boards were designed on **Circuit Maker V1.3**. Below is the list of hardwar
 | Hardware revision | Description | `cmake_hw_version` | Status |
 |:---:|:---:|:---:|:---:|
 | [TKFX HW1.0](https://365.altium.com/files/CB5EF2D6-C92D-11EB-A2F6-0A0ABF5AFC1B) | Initial version. | `HW1_0` | :x: |
-| [TKFX HW1.1](https://365.altium.com/files/C69B8131-C92D-11EB-A2F6-0A0ABF5AFC1B) | Connect S2LP shutdown pin to MCU to fix startup issues.<br>No more connection from RF TCXO to MCU. | `HW1_1` | :white_check_mark: |
+| [TKFX HW1.1](https://365.altium.com/files/C69B8131-C92D-11EB-A2F6-0A0ABF5AFC1B) | Connect S2LP shutdown pin to MCU to fix startup issues.<br>No more connection from RF TCXO to MCU. | `HW1_1` | :x: |
+| [TKFX HW2.0](https://365.altium.com/files/679595FA-B106-4994-9DB4-DEC1CDA1A002) | Upgrade based on new radio front-end with passive WiFi scan feature, new GPS module and improved power management compatible with battery or supercap. | `HW2_0` | :white_check_mark: |
 
 # Embedded software
 
@@ -28,7 +29,7 @@ As of version `sw0.0.9` the embedded software is developed under **Eclipse IDE**
 
 ## Target
 
-The TrackFox boards are based on the **STM32L051K8U6** microcontroller of the STMicroelectronics L0 family. Each hardware revision has a corresponding **build configuration** in the Eclipse project, which sets up the code for the selected board version.
+The TrackFox boards are based on the **STM32L051x8U6** microcontroller of the STMicroelectronics L0 family. Each hardware revision has a corresponding **build configuration** in the Eclipse project, which sets up the code for the selected board version.
 
 ## Structure
 
@@ -47,6 +48,7 @@ The project is organized as follow:
     * `gps` : High level **GPS** driver.
     * `power` : Board **power tree** manager.
     * `sigfox` : **Sigfox EP_LIB** and **ADDON_RFP** submodules and low level implementation.
+    * `wifi` : High level **WiFi scan** driver.
 * `application` : Main **application**.
 
 ## Sigfox library
