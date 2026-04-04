@@ -86,6 +86,7 @@ static AT_status_t _CLI_cw_callback(void);
 static AT_status_t _CLI_rssi_callback(void);
 #endif
 #ifdef HW2_0
+static AT_status_t _CLI_lr11xx_callback(void);
 static AT_status_t _CLI_wifi_callback(void);
 #endif
 
@@ -193,6 +194,12 @@ static const AT_command_t CLI_COMMANDS_LIST[] = {
     },
 #endif
 #ifdef HW2_0
+    {
+        .syntax = "$LR11XX?",
+        .parameters = NULL,
+        .description = "Get LR11xx version",
+        .callback = &_CLI_lr11xx_callback
+    },
     {
         .syntax = "$WIFI?",
         .parameters = NULL,
@@ -884,6 +891,42 @@ errors:
     RF_API_de_init();
     RF_API_sleep();
 end:
+    return status;
+}
+#endif
+
+#ifdef HW2_0
+/*******************************************************************/
+static AT_status_t _CLI_lr11xx_callback(void) {
+    // Local variables.
+    AT_status_t status = AT_SUCCESS;
+    LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
+    LR11XX_chip_t chip = LR11XX_CHIP_NONE;
+    uint8_t hw_version = 0;
+    uint8_t fw_version_major = 0;
+    uint8_t fw_version_minor = 0;
+    // Turn radio on.
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
+    POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_RADIO, LPTIM_DELAY_MODE_SLEEP);
+    // Read version.
+    lr11xx_status = LR11XX_reset(0);
+    _CLI_check_driver_status(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110);
+    lr11xx_status = LR11XX_get_version(&chip, &hw_version, &fw_version_major, &fw_version_minor);
+    _CLI_check_driver_status(lr11xx_status, LR11XX_SUCCESS, ERROR_BASE_LR1110);
+    // Print version.
+    AT_reply_add_string("LR11XX:");
+    AT_reply_add_integer((int32_t) chip, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string(":0x");
+    AT_reply_add_integer((int32_t) hw_version, STRING_FORMAT_HEXADECIMAL, 0);
+    AT_reply_add_string(":v");
+    AT_reply_add_integer((int32_t) fw_version_major, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string(".");
+    AT_reply_add_integer((int32_t) fw_version_minor, STRING_FORMAT_DECIMAL, 0);
+    AT_send_reply();
+errors:
+    // Turn radio off.
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_RADIO);
+    POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_TCXO);
     return status;
 }
 #endif
