@@ -97,6 +97,8 @@ WIFI_status_t WIFI_init(void) {
     LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
     lr11xx_status = LR11XX_clear_errors();
     LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
+    lr11xx_status = LR11XX_calibrate(863, 870);
+    LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
     lr11xx_status = LR11XX_set_mode(LR11XX_MODE_STANDBY_XOSC);
     LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
     lr11xx_status = LR11XX_get_errors(&op_error);
