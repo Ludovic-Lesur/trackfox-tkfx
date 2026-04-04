@@ -93,8 +93,10 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         GPIO_write(&GPIO_ADC_POWER_ENABLE, 1);
         delay_ms = POWER_ON_DELAY_MS_ANALOG;
         // Init attached drivers.
+#ifdef HW2_0
         led_status = LED_set_color(LED_COLOR_GREEN);
         _POWER_stack_driver_error(led_status, LED_SUCCESS, ERROR_BASE_LED, POWER_ERROR_DRIVER_LED);
+#endif
         analog_status = ANALOG_init();
         _POWER_stack_driver_error(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG, POWER_ERROR_DRIVER_ANALOG);
         break;
@@ -103,8 +105,10 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         GPIO_write(&GPIO_SENSORS_POWER_ENABLE, 1);
         delay_ms = POWER_ON_DELAY_MS_SENSORS;
         // Init attached drivers.
+#ifdef HW2_0
         led_status = LED_set_color(LED_COLOR_MAGENTA);
         _POWER_stack_driver_error(led_status, LED_SUCCESS, ERROR_BASE_LED, POWER_ERROR_DRIVER_LED);
+#endif
         sht3x_status = SHT3X_init();
         _POWER_stack_driver_error(sht3x_status, SHT3X_SUCCESS, ERROR_BASE_SHT30, POWER_ERROR_DRIVER_SHT3X);
         accelerometer_status = ACCELEROMETER_init();
@@ -115,8 +119,10 @@ void POWER_enable(POWER_requester_id_t requester_id, POWER_domain_t domain, LPTI
         GPIO_write(&GPIO_GPS_POWER_ENABLE, 1);
         delay_ms = POWER_ON_DELAY_MS_GPS;
         // Init attached drivers.
+#ifdef HW2_0
         led_status = LED_set_color(LED_COLOR_YELLOW);
         _POWER_stack_driver_error(led_status, LED_SUCCESS, ERROR_BASE_LED, POWER_ERROR_DRIVER_LED);
+#endif
         gps_status = GPS_init();
         _POWER_stack_driver_error(gps_status, GPS_SUCCESS, ERROR_BASE_GPS, POWER_ERROR_DRIVER_GPS);
         break;
@@ -256,7 +262,9 @@ void POWER_disable(POWER_requester_id_t requester_id, POWER_domain_t domain) {
         goto errors;
     }
 errors:
+#ifdef HW2_0
     LED_set_color(LED_COLOR_OFF);
+#endif
     return;
 }
 
