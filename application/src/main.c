@@ -433,7 +433,7 @@ int main(void) {
             sigfox_ep_ul_payload_monitoring.storage_voltage_mv = tkfx_ctx.storage_voltage_mv;
             sigfox_ep_ul_payload_monitoring.status = tkfx_ctx.status.all;
             // Send uplink monitoring frame.
-            sigfox_ep_application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.alarm_flag == 0) ? SIGFOX_UL_BIT_RATE_600BPS : SIGFOX_UL_BIT_RATE_100BPS;
+            sigfox_ep_application_message.common_parameters.ul_bit_rate = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? SIGFOX_UL_BIT_RATE_600BPS : SIGFOX_UL_BIT_RATE_100BPS;
             sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_monitoring.frame);
             sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_MONITORING;
             _TKFX_send_sigfox_message(&sigfox_ep_application_message);
