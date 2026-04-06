@@ -52,16 +52,6 @@
 #define TKFX_GEOLOC_TIMEOUT_SECONDS                         180
 #define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING        2
 #define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED       5
-// Voltage hysteresis for radio and active mode.
-#ifdef TKFX_MODE_SUPERCAPACITOR
-#define TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV    1500
-#define TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV         1000
-#endif
-#ifdef TKFX_MODE_BATTERY
-#define TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV    3700
-#define TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV         3500
-#endif
-#define TKFX_RADIO_ON_STORAGE_VOLTAGE_THRESHOLD_MV          TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV
 // Charge latching.
 #define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   600
 
@@ -81,8 +71,9 @@ typedef enum {
 
 /*******************************************************************/
 typedef enum {
-    TKFX_MODE_ACTIVE,
-    TKFX_MODE_LOW_POWER,
+    TKFX_MODE_ACTIVE,       // All features enabled.
+    TKFX_MODE_LOW_POWER,    // Tracking disabled and only periodic Sigfox messages.
+    TKFX_MODE_OFF,          // No tracking and no radio.
     TKFX_MODE_LAST
 } TKFX_mode_t;
 
@@ -90,8 +81,8 @@ typedef enum {
 typedef union {
     uint8_t all;
     struct {
-        unsigned gps_backup_status :1;
-        unsigned accelerometer_status :1;
+        unsigned gps_backup_state :1;
+        unsigned accelerometer_state :1;
         unsigned tracker_state :1;
         unsigned lse_status :1;
         unsigned moving_flag :1;
@@ -104,7 +95,6 @@ typedef union {
 typedef union {
     uint8_t all;
     struct {
-        unsigned radio_enabled : 1;
         unsigned error_stack_enable :1;
         unsigned geoloc_request :1;
         unsigned monitoring_request :1;
@@ -194,7 +184,6 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.mode = TKFX_MODE_ACTIVE;
     tkfx_ctx.flags.all = 0;
     tkfx_ctx.flags.por = 1;
-    tkfx_ctx.flags.radio_enabled = 1;
     tkfx_ctx.flags.error_stack_enable = 1;
     tkfx_ctx.status.all = 0;
 #if (defined TKFX_MODE_CAR)
@@ -345,7 +334,7 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     SIGFOX_EP_API_config_t lib_config;
     uint8_t status = 0;
     // Directly exit of the radio is disabled due to low storage element voltage.
-    if (tkfx_ctx.flags.radio_enabled == 0) goto errors;
+    if (tkfx_ctx.mode == TKFX_MODE_OFF) goto errors;
     // Disable motion interrupts.
     SENSORS_HW_disable_accelerometer_interrupt();
     // Library configuration.
@@ -365,7 +354,7 @@ errors:
     UNUSED(status);
 end:
     // Re-enable motion interrupts if enabled.
-    if (tkfx_ctx.status.accelerometer_status != 0) {
+    if (tkfx_ctx.status.accelerometer_state != 0) {
         // Enable interrupt.
         SENSORS_HW_enable_accelerometer_interrupt();
     }
@@ -436,7 +425,7 @@ int main(void) {
             // Update GPS backup voltage status.
             gps_status = GPS_get_backup_voltage(&generic_u8);
             GPS_stack_error(ERROR_BASE_GPS);
-            tkfx_ctx.status.gps_backup_status = (generic_u8 == 0) ? 0b0 : 0b1;
+            tkfx_ctx.status.gps_backup_state = (generic_u8 == 0) ? 0b0 : 0b1;
             // Update state.
             tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
             // Build Sigfox frame.
@@ -466,7 +455,7 @@ int main(void) {
             generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING;
             generic_u32_1 = 0;
             // Pre-check storage voltage.
-            if (tkfx_ctx.storage_voltage_mv > TKFX_ACTIVE_MODE_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) {
+            if (tkfx_ctx.storage_voltage_mv > TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
                 // Turn GPS and analog front-end on to monitor storage element voltage.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
@@ -557,14 +546,17 @@ int main(void) {
                 tkfx_ctx.storage_voltage_mv = 0;
             }
             // Check storage voltage.
-            if ((tkfx_ctx.storage_voltage_mv < TKFX_ACTIVE_MODE_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE)) {
-                tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
-            }
-            if (tkfx_ctx.storage_voltage_mv > TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV) {
+            if (tkfx_ctx.storage_voltage_mv > (TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) {
                 tkfx_ctx.mode = TKFX_MODE_ACTIVE;
             }
+            if ((tkfx_ctx.storage_voltage_mv > (TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) && (tkfx_ctx.storage_voltage_mv < TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) {
+                tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
+            }
+            if (tkfx_ctx.storage_voltage_mv < TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV) {
+                tkfx_ctx.mode = TKFX_MODE_OFF;
+            }
             // Configure accelerometer according to mode.
-            if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_status == 0) || (tkfx_ctx.flags.por != 0))) {
+            if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_state == 0) || (tkfx_ctx.flags.por != 0))) {
                 // Active mode.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
                 accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_ACTIVE[0]), ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE);
@@ -573,9 +565,9 @@ int main(void) {
                 // Enable interrupt.
                 SENSORS_HW_enable_accelerometer_interrupt();
                 // Update status.
-                tkfx_ctx.status.accelerometer_status = 1;
+                tkfx_ctx.status.accelerometer_state = 1;
             }
-            if ((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) && ((tkfx_ctx.status.accelerometer_status != 0) || (tkfx_ctx.flags.por != 0))) {
+            if (((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (tkfx_ctx.mode == TKFX_MODE_OFF)) && ((tkfx_ctx.status.accelerometer_state != 0) || (tkfx_ctx.flags.por != 0))) {
                 // Sleep mode.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
                 accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_SLEEP[0]), ACCELEROMETER_CONFIGURATION_SIZE_SLEEP);
@@ -584,14 +576,7 @@ int main(void) {
                 // Disable interrupt.
                 SENSORS_HW_disable_accelerometer_interrupt();
                 // Update status.
-                tkfx_ctx.status.accelerometer_status = 0;
-            }
-            // Voltage hysteresis for radio.
-            if (tkfx_ctx.storage_voltage_mv < TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV) {
-                tkfx_ctx.flags.radio_enabled = 0;
-            }
-            if (tkfx_ctx.storage_voltage_mv > TKFX_RADIO_ON_STORAGE_VOLTAGE_THRESHOLD_MV) {
-                tkfx_ctx.flags.radio_enabled = 1;
+                tkfx_ctx.status.accelerometer_state = 0;
             }
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_TASK_CHECK;
