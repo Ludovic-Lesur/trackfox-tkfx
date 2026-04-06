@@ -11,6 +11,7 @@
 #include "i2c_address.h"
 #include "iwdg.h"
 #include "lptim.h"
+#include "mcu_mapping.h"
 #include "nvic.h"
 #include "nvic_priority.h"
 #include "pwr.h"
@@ -61,6 +62,8 @@
 #define TKFX_RADIO_OFF_STORAGE_VOLTAGE_THRESHOLD_MV         3500
 #endif
 #define TKFX_RADIO_ON_STORAGE_VOLTAGE_THRESHOLD_MV          TKFX_ACTIVE_MODE_ON_STORAGE_VOLTAGE_THRESHOLD_MV
+// Charge latching.
+#define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   600
 
 /*** MAIN structures ***/
 
@@ -141,6 +144,9 @@ typedef struct {
     volatile uint32_t motion_irq_last_time_seconds;
     uint32_t geoloc_last_time_seconds;
     GPS_position_t geoloc_position;
+#ifdef HW2_0
+    uint32_t charge_toggle_last_time;
+#endif
 } TKFX_context_t;
 #endif
 
@@ -205,6 +211,9 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.geoloc_last_time_seconds = 0;
     tkfx_ctx.motion_irq_count = 0;
     tkfx_ctx.motion_irq_last_time_seconds = 0;
+#ifdef HW2_0
+    tkfx_ctx.charge_toggle_last_time = 0;
+#endif
     // Set motion interrupt callback address.
     SENSORS_HW_set_accelerometer_irq_callback(&_TKFX_motion_irq_callback);
 }
@@ -257,8 +266,12 @@ static void _TKFX_init_hw(void) {
     lptim_status = LPTIM_init(NVIC_PRIORITY_DELAY);
     LPTIM_stack_error(ERROR_BASE_LPTIM);
 #ifdef HW2_0
+    // Init LED.
     led_status = LED_init();
     LED_stack_error(ERROR_BASE_LED);
+    // Init charge control pin.
+    GPIO_configure(&GPIO_CHARGER_DISABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
+    GPIO_write(&GPIO_CHARGER_DISABLE, 0);
 #endif
 }
 
@@ -658,6 +671,17 @@ int main(void) {
                 gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
 
             }
+#ifdef HW2_0
+            // Enable charge by default.
+            GPIO_write(&GPIO_CHARGER_DISABLE, 0);
+            // Check if toggle period is reached and if there is no task to do.
+            if ((generic_u32_1 >= (tkfx_ctx.charge_toggle_last_time + TKFX_CHARGE_TOGGLE_PERIOD_SECONDS)) && (tkfx_ctx.state == TKFX_STATE_SLEEP)) {
+                // Disable charge temporarily.
+                GPIO_write(&GPIO_CHARGER_DISABLE, 1);
+                // Update last time.
+                tkfx_ctx.charge_toggle_last_time = generic_u32_1;
+            }
+#endif
             break;
         case TKFX_STATE_SLEEP:
             // Enter stop mode.

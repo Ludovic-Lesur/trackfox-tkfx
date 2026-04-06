@@ -72,7 +72,7 @@ static const GPIO_pin_t GPIO_USART1_RX = { GPIOA, 0, 10, 4 };
 
 #ifdef HW2_0
 // Battery charger.
-const GPIO_pin_t GPIO_BATTERY_CHARGER_DISABLE = { GPIOA, 0, 5, 0 };
+const GPIO_pin_t GPIO_CHARGER_DISABLE = { GPIOA, 0, 5, 0 };
 #endif
 // Analog inputs.
 #ifdef HW2_0

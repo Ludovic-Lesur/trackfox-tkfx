@@ -63,7 +63,7 @@ typedef enum {
 
 #ifdef HW2_0
 // Battery charger.
-extern const GPIO_pin_t GPIO_BATTERY_CHARGER_DISABLE;
+extern const GPIO_pin_t GPIO_CHARGER_DISABLE;
 #endif
 // Analog inputs.
 extern const GPIO_pin_t GPIO_ADC_POWER_ENABLE;
