@@ -125,16 +125,16 @@ typedef struct {
 #if (defined SIGFOX_EP_TIMER_REQUIRED) && (defined SIGFOX_EP_LATENCY_COMPENSATION)
 static sfx_u32 RF_API_LATENCY_MS[RF_API_LATENCY_LAST] = {
     POWER_ON_DELAY_MS_TCXO, // Wake-up.
-    (POWER_ON_DELAY_MS_RADIO + LR11XX_EXIT_RESET_DELAY_MS + LR11XX_CALIBRATION_DELAY_MS + (RF_API_TCXO_TIMEOUT_MS << 1) + 1), // TX init.
+    (POWER_ON_DELAY_MS_RADIO + LR11XX_EXIT_RESET_DELAY_MS + LR11XX_CALIBRATION_DELAY_MS + 25), // TX init.
     0, // Send start (depends on bit rate and will be computed during init function).
     0, // Send stop (depends on bit rate and will be computed during init function).
-    0, // TX de-init (100us).
+    0, // TX de-init (150us).
     0, // Sleep.
 #ifdef SIGFOX_EP_BIDIRECTIONAL
-    (POWER_ON_DELAY_MS_RADIO + LR11XX_EXIT_RESET_DELAY_MS + LR11XX_CALIBRATION_DELAY_MS + (RF_API_TCXO_TIMEOUT_MS << 1) + 1), // RX init.
+    (POWER_ON_DELAY_MS_RADIO + LR11XX_EXIT_RESET_DELAY_MS + LR11XX_CALIBRATION_DELAY_MS + 25), // RX init.
     0, // Receive start.
     5, // Receive stop.
-    0, // RX de-init (100us).
+    0, // RX de-init (150us).
 #endif
 };
 #endif
@@ -330,9 +330,9 @@ RF_API_status_t RF_API_init(RF_API_radio_parameters_t* radio_parameters) {
         LR11XX_stack_exit_error(ERROR_BASE_LR1110, (RF_API_status_t) RF_API_ERROR_DRIVER_LR11XX);
 #if (defined SIGFOX_EP_TIMER_REQUIRED) && (defined SIGFOX_EP_LATENCY_COMPENSATION)
         // Start latency = ramp-up.
-        RF_API_LATENCY_MS[RF_API_LATENCY_SEND_START] = (((RF_API_RADIO_SEND_START_LATENCY_BITS * 1000) / ((sfx_u32) (radio_parameters->bit_rate_bps))) + RF_API_TCXO_TIMEOUT_MS);
+        RF_API_LATENCY_MS[RF_API_LATENCY_SEND_START] = ((RF_API_RADIO_SEND_START_LATENCY_BITS * 1000) / ((sfx_u32) (radio_parameters->bit_rate_bps)));
         // Stop latency = ramp-down + half of padding bit (since IRQ is raised at the middle of the symbol).
-        RF_API_LATENCY_MS[RF_API_LATENCY_SEND_STOP] = (((RF_API_RADIO_SEND_STOP_LATENCY_BITS * 1000) / ((sfx_u32) (radio_parameters->bit_rate_bps))) + RF_API_TCXO_TIMEOUT_MS);
+        RF_API_LATENCY_MS[RF_API_LATENCY_SEND_STOP] = ((RF_API_RADIO_SEND_STOP_LATENCY_BITS * 1000) / ((sfx_u32) (radio_parameters->bit_rate_bps)));
 #endif
         // Switch to TX.
         rfe_status = RFE_set_path(path);

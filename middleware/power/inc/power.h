@@ -18,7 +18,7 @@
 #define POWER_ON_DELAY_MS_ANALOG    100
 #define POWER_ON_DELAY_MS_GPS       GPS_BOOT_TIME_MS
 #define POWER_ON_DELAY_MS_SENSORS   100
-#define POWER_ON_DELAY_MS_RADIO     100
+#define POWER_ON_DELAY_MS_RADIO     10
 #define POWER_ON_DELAY_MS_TCXO      500
 
 /*** POWER structures ***/
