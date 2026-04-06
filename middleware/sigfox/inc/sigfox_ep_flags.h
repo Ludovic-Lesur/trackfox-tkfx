@@ -151,7 +151,9 @@
  * \def SIGFOX_EP_TX_POWER_DBM_EIRP
  * \brief If defined, give the only TX power supported by the radio. Otherwise the value is dynamically given when sending a message.
  *******************************************************************/
+#ifndef HW2_0
 #define SIGFOX_EP_TX_POWER_DBM_EIRP             14
+#endif
 
 /*!******************************************************************
  * \def SIGFOX_EP_T_IFU_MS

@@ -785,7 +785,11 @@ static AT_status_t _CLI_cw_callback(void) {
         parser_status = PARSER_get_parameter(cli_ctx.at_parser_ptr, STRING_FORMAT_BOOLEAN, STRING_CHAR_NULL, &enable);
         PARSER_exit_error(AT_ERROR_BASE_PARSER);
         // Update radio configuration.
+#ifdef SIGFOX_EP_TX_POWER_DBM_EIRP
         radio_params.tx_power_dbm_eirp = SIGFOX_EP_TX_POWER_DBM_EIRP;
+#else
+        radio_params.tx_power_dbm_eirp = 14;
+#endif
     }
     // Stop CW.
     rf_api_status = RF_API_de_init();
@@ -841,7 +845,11 @@ static AT_status_t _CLI_rssi_callback(void) {
     radio_params.frequency_hz = (sfx_u32) frequency_hz;
     radio_params.modulation = RF_API_MODULATION_NONE;
     radio_params.bit_rate_bps = 0;
+#ifdef SIGFOX_EP_TX_POWER_DBM_EIRP
     radio_params.tx_power_dbm_eirp = SIGFOX_EP_TX_POWER_DBM_EIRP;
+#else
+    radio_params.tx_power_dbm_eirp = 14;
+#endif
     radio_params.deviation_hz = 0;
     // Init radio.
     rf_api_status = RF_API_wake_up();

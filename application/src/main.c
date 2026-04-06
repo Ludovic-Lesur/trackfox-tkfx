@@ -54,6 +54,12 @@
 #define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED       5
 // Charge latching.
 #define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   600
+// Sigfox TX output power range.
+#define TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN                   14
+#define TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX                   22
+// Sigfox oscillator accuracy.
+#define TKFX_SIGFOX_RC1_EPSILON_SNW_HZ                      1410
+#define TKFX_SIGFOX_RC1_EPSILON_EP_HZ                       4340
 
 /*** MAIN structures ***/
 
@@ -333,12 +339,48 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
     SIGFOX_EP_API_config_t lib_config;
     uint8_t status = 0;
+    SIGFOX_rc_t sigfox_rc1_custom;
+#ifdef HW2_0
+    uint32_t tx_power_dbm_delta = (TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX - TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN);
+    uint32_t storage_voltage_mv_delta = (TKFX_STORAGE_VOLTAGE_MV_MAX - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV);
+#endif
     // Directly exit of the radio is disabled due to low storage element voltage.
     if (tkfx_ctx.mode == TKFX_MODE_OFF) goto errors;
+    // Build custom RC structure.
+    sigfox_rc1_custom.f_ul_hz = SIGFOX_RC1.f_ul_hz;
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    sigfox_rc1_custom.f_dl_hz = SIGFOX_RC1.f_dl_hz;
+#endif
+    sigfox_rc1_custom.epsilon_hz = (TKFX_SIGFOX_RC1_EPSILON_SNW_HZ + TKFX_SIGFOX_RC1_EPSILON_EP_HZ);
+    sigfox_rc1_custom.spectrum_access = SIGFOX_RC1.spectrum_access;
+#ifdef SIGFOX_EP_PARAMETERS_CHECK
+    sigfox_rc1_custom.uplink_bit_rate_capability = SIGFOX_RC1.uplink_bit_rate_capability;
+#ifdef HW2_0
+    sigfox_rc1_custom.tx_power_dbm_eirp_max = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX;
+#else
+    sigfox_rc1_custom.tx_power_dbm_eirp_max = SIGFOX_RC1.tx_power_dbm_eirp_max;
+#endif
+#endif
+#ifdef HW2_0
+    // Update storage voltage.
+    _TKFX_update_source_storage_voltages();
+    // Default RF output power.
+    application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN;
+    // Check error value.
+    if (tkfx_ctx.storage_voltage_mv != SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
+        // Apply clamped linear curve according to storage element voltage.
+        if (tkfx_ctx.storage_voltage_mv >= TKFX_STORAGE_VOLTAGE_MV_MAX) {
+            application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX;
+        }
+        else if (tkfx_ctx.storage_voltage_mv >= TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
+            application_message->common_parameters.tx_power_dbm_eirp += ((tx_power_dbm_delta * (tkfx_ctx.storage_voltage_mv - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) / (storage_voltage_mv_delta));
+        }
+    }
+#endif
     // Disable motion interrupts.
     SENSORS_HW_disable_accelerometer_interrupt();
     // Library configuration.
-    lib_config.rc = &SIGFOX_RC1;
+    lib_config.rc = &sigfox_rc1_custom;
     // Open library.
     sigfox_ep_api_status = SIGFOX_EP_API_open(&lib_config);
     SIGFOX_EP_API_check_status(0);
@@ -543,17 +585,19 @@ int main(void) {
             _TKFX_update_source_storage_voltages();
             // Change error value for mode update.
             if (tkfx_ctx.storage_voltage_mv == SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
-                tkfx_ctx.storage_voltage_mv = 0;
-            }
-            // Check storage voltage.
-            if (tkfx_ctx.storage_voltage_mv > (TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) {
-                tkfx_ctx.mode = TKFX_MODE_ACTIVE;
-            }
-            if ((tkfx_ctx.storage_voltage_mv > (TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) && (tkfx_ctx.storage_voltage_mv < TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) {
                 tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
             }
-            if (tkfx_ctx.storage_voltage_mv < TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV) {
-                tkfx_ctx.mode = TKFX_MODE_OFF;
+            else {
+                // Check storage voltage.
+                if (tkfx_ctx.storage_voltage_mv > (TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) {
+                    tkfx_ctx.mode = TKFX_MODE_ACTIVE;
+                }
+                if ((tkfx_ctx.storage_voltage_mv > (TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) && (tkfx_ctx.storage_voltage_mv < TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) {
+                    tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
+                }
+                if (tkfx_ctx.storage_voltage_mv < TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV) {
+                    tkfx_ctx.mode = TKFX_MODE_OFF;
+                }
             }
             // Configure accelerometer according to mode.
             if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_state == 0) || (tkfx_ctx.flags.por != 0))) {
