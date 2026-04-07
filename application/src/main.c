@@ -469,7 +469,7 @@ int main(void) {
             GPS_stack_error(ERROR_BASE_GPS);
             tkfx_ctx.status.gps_backup_state = (generic_u8 == 0) ? 0b0 : 0b1;
             // Update state.
-            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) ? 0b0 : 0b1;
+            tkfx_ctx.status.tracker_state = (tkfx_ctx.mode == TKFX_MODE_ACTIVE) ? 0b1 : 0b0;
             // Build Sigfox frame.
             sigfox_ep_ul_payload_monitoring.temperature_tenth_degrees = tkfx_ctx.temperature_tenth_degrees;
             sigfox_ep_ul_payload_monitoring.humidity_percent = tkfx_ctx.humidity_percent;
