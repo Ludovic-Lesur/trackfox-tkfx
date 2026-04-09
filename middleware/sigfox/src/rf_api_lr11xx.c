@@ -635,7 +635,6 @@ void RF_API_error(void) {
     // Force all front-end off.
     RF_API_de_init();
     RF_API_sleep();
-
 }
 #endif
 

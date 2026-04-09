@@ -23,7 +23,7 @@
 
 /*** SX126X HW local macros ***/
 
-#define LR11XX_HW_BUSY_TIMEOUT_COUNT    1000000
+#define LR11XX_HW_BUSY_TIMEOUT_COUNT    5000000
 
 /*** LR11XX HW functions ***/
 
@@ -58,9 +58,6 @@ LR11XX_status_t LR11XX_HW_de_init(void) {
     SPI_status_t spi_status = SPI_SUCCESS;
     // Keep reset pin as output low.
     GPIO_write(&GPIO_LR1110_NRESET, 0);
-    // Switch busy pin to output low.
-    GPIO_configure(&GPIO_LR1110_BUSY, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
-    GPIO_write(&GPIO_LR1110_BUSY, 0);
     // Keep chip select pin as output low.
     GPIO_write(&GPIO_LR1110_CS, 0);
     // Release SPI.

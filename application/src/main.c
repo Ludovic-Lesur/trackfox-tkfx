@@ -65,7 +65,7 @@
 
 /*******************************************************************/
 typedef enum {
-    TKFX_STATE_STARTUP,
+    TKFX_STATE_STARTUP = 0,
     TKFX_STATE_MODE_UPDATE,
     TKFX_STATE_MONITORING,
     TKFX_STATE_GEOLOC,
@@ -77,7 +77,7 @@ typedef enum {
 
 /*******************************************************************/
 typedef enum {
-    TKFX_MODE_ACTIVE,       // All features enabled.
+    TKFX_MODE_ACTIVE = 0,   // All features enabled.
     TKFX_MODE_LOW_POWER,    // Tracking disabled and only periodic Sigfox messages.
     TKFX_MODE_OFF,          // No tracking and no radio.
     TKFX_MODE_LAST
@@ -698,7 +698,6 @@ int main(void) {
                 RCC_stack_error(ERROR_BASE_RCC);
                 // Reset GPS status for mode update.
                 gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
-
             }
 #ifdef HW2_0
             // Enable charge by default.
