@@ -31,10 +31,12 @@
 #include "cli.h"
 #include "gps.h"
 #include "power.h"
+#include "sigfox_ep_addon_aw_api.h"
 #include "sigfox_ep_api.h"
 #include "sigfox_ep_frames.h"
 #include "sigfox_types.h"
 #include "sigfox_rc.h"
+#include "wifi.h"
 // Applicative.
 #include "at.h"
 #include "error_base.h"
@@ -61,6 +63,9 @@
 #define TKFX_SIGFOX_RC1_EPSILON_SNW_HZ                      1410
 #define TKFX_SIGFOX_RC1_EPSILON_EP_HZ                       4340
 
+// WiFi scan list size.
+#define TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE               10
+
 /*** MAIN structures ***/
 
 /*******************************************************************/
@@ -68,7 +73,10 @@ typedef enum {
     TKFX_STATE_STARTUP = 0,
     TKFX_STATE_MODE_UPDATE,
     TKFX_STATE_MONITORING,
-    TKFX_STATE_GEOLOC,
+    TKFX_STATE_GEOLOC_GPS,
+#ifdef HW2_0
+    TKFX_STATE_GEOLOC_WIFI,
+#endif
     TKFX_STATE_ERROR_STACK,
     TKFX_STATE_TASK_CHECK,
     TKFX_STATE_SLEEP,
@@ -379,6 +387,8 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 #endif
     // Disable motion interrupts.
     SENSORS_HW_disable_accelerometer_interrupt();
+    // Reload watchdog.
+    IWDG_reload();
     // Library configuration.
     lib_config.rc = &sigfox_rc1_custom;
     // Open library.
@@ -420,6 +430,17 @@ int main(void) {
     SIGFOX_EP_ul_payload_monitoring_t sigfox_ep_ul_payload_monitoring;
     SIGFOX_EP_ul_payload_geoloc_t sigfox_ep_ul_payload_geoloc;
     SIGFOX_EP_ul_payload_geoloc_timeout_t sigfox_ep_ul_payload_geoloc_timeout;
+#ifdef HW2_0
+    WIFI_status_t wifi_status = WIFI_SUCCESS;
+    WIFI_access_point_t wifi_scan_access_point_list[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
+    WIFI_scan_results_t wifi_scan_results;
+    SIGFOX_EP_ADDON_AW_API_status_t sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_SUCCESS;
+    SIGFOX_EP_ADDON_AW_API_access_point_t addon_aw_access_point_list[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
+    SIGFOX_EP_ADDON_AW_API_access_point_t* addon_aw_access_point_list_ptr[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
+    SIGFOX_EP_ADDON_AW_API_input_data_t addon_aw_input_data;
+    uint8_t sigfox_ep_ul_payload_wifi[SIGFOX_EP_ADDON_AW_API_UL_PAYLOAD_SIZE_BYTES];
+    uint8_t jdx = 0;
+#endif
     ERROR_code_t error_code = 0;
     uint8_t sigfox_ep_ul_payload_error_stack[SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK];
     uint32_t generic_u32_1 = 0;
@@ -486,7 +507,7 @@ int main(void) {
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
-        case TKFX_STATE_GEOLOC:
+        case TKFX_STATE_GEOLOC_GPS:
             IWDG_reload();
             // Enable backup in active mode and moving condition.
             if ((tkfx_ctx.status.moving_flag != 0) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
@@ -537,6 +558,10 @@ int main(void) {
                 // Update message parameters.
                 sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc.frame);
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC;
+#ifdef HW2_0
+                // Compute next state.
+                tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
+#endif
             }
             else {
                 sigfox_ep_ul_payload_geoloc_timeout.gps_acquisition_status = gps_acquisition_status;
@@ -544,14 +569,75 @@ int main(void) {
                 // Update message parameters.
                 sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc_timeout.frame);
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT;
+#ifdef HW2_0
+                // Compute next state.
+                tkfx_ctx.state = TKFX_STATE_GEOLOC_WIFI;
+#endif
             }
             // Send uplink geolocation frame.
             _TKFX_send_sigfox_message(&sigfox_ep_application_message);
             // Reset flag and timer.
             tkfx_ctx.flags.geoloc_request = 0;
+#ifndef HW2_0
+            // Compute next state.
+            tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
+#endif
+            break;
+#ifdef HW2_0
+        case TKFX_STATE_GEOLOC_WIFI:
+            IWDG_reload();
+            // Build result structure.
+            wifi_scan_results.access_point_list = (WIFI_access_point_t*) wifi_scan_access_point_list;
+            wifi_scan_results.access_point_list_size = TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE;
+            // Perform passive WiFi scan.
+            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
+            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
+            // Get position from GPS.
+            wifi_status = WIFI_scan(&wifi_scan_results);
+            WIFI_stack_error(ERROR_BASE_WIFI);
+            // Turn analog front-end and GPS off.
+            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI);
+            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO);
+            // Check if scan results are not empty.
+            if (wifi_scan_results.number_of_access_points_written > 0) {
+                // Copy results.
+                for (idx = 0; idx < wifi_scan_results.number_of_access_points_written; idx++) {
+                    // MAC address.
+                    for (jdx = 0; jdx < WIFI_MAC_ADDRESS_SIZE_BYTES; jdx++) {
+                        addon_aw_access_point_list[idx].mac_address[jdx] = wifi_scan_results.access_point_list[idx].mac_address[jdx];
+                    }
+                    addon_aw_access_point_list[idx].rssi_dbm = (sfx_s16) wifi_scan_results.access_point_list[idx].rssi_dbm;
+                    addon_aw_access_point_list[idx].status = SIGFOX_EP_ADDON_AW_API_ACCESS_POINT_STATUS_NEW;
+                    // Update pointer.
+                    addon_aw_access_point_list_ptr[idx] = &(addon_aw_access_point_list[idx]);
+                }
+                // Build input data.
+                addon_aw_input_data.access_point_list = (SIGFOX_EP_ADDON_AW_API_access_point_t**) addon_aw_access_point_list_ptr;
+                addon_aw_input_data.access_point_list_size = wifi_scan_results.number_of_access_points_written;
+                // Set Atlas WiFi filters.
+                sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_set_filter((0b1 << SIGFOX_EP_ADDON_AW_API_FILTER_LOCALLY_ADMINISTERED), SIGFOX_EP_ADDON_AW_API_SORTING_RSSI);
+                if (sigfox_ep_addon_aw_status != SIGFOX_EP_ADDON_AW_API_SUCCESS) {
+                    ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
+                }
+                // Build payload.
+                sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_build_ul_payload(&addon_aw_input_data, sigfox_ep_ul_payload_wifi, &generic_u8);
+                if (sigfox_ep_addon_aw_status != SIGFOX_EP_ADDON_AW_API_SUCCESS) {
+                    ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
+                }
+                // Check if there is at lease one valid MAC address to send.
+                if ((sigfox_ep_addon_aw_status == SIGFOX_EP_ADDON_AW_API_SUCCESS) && (generic_u8 > 0)) {
+                    // Update payload.
+                    // Note: the same bit rate is kept from the GPS step.
+                    sigfox_ep_application_message.ul_payload = (sfx_u8*) sigfox_ep_ul_payload_wifi;
+                    sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_ADDON_AW_API_UL_PAYLOAD_SIZE_BYTES;
+                    // Send uplink Atlas WiFi frame.
+                    _TKFX_send_sigfox_message(&sigfox_ep_application_message);
+                }
+            }
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
+#endif
         case TKFX_STATE_ERROR_STACK:
             IWDG_reload();
             // Check if blanking time elapsed.
@@ -687,7 +773,7 @@ int main(void) {
             tkfx_ctx.state = TKFX_STATE_SLEEP;
             // Check wake-up flags.
             if (tkfx_ctx.flags.geoloc_request != 0) {
-                tkfx_ctx.state = TKFX_STATE_GEOLOC;
+                tkfx_ctx.state = TKFX_STATE_GEOLOC_GPS;
             }
             if (tkfx_ctx.flags.monitoring_request != 0) {
                 tkfx_ctx.state = TKFX_STATE_MONITORING;

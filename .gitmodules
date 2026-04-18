@@ -7,6 +7,9 @@
 [submodule "sigfox-ep-addon-rfp"]
     path = middleware/sigfox/sigfox-ep-addon-rfp
     url = https://github.com/sigfox-tech-radio/sigfox-ep-addon-rfp.git
+[submodule "sigfox-ep-addon-aw"]
+    path = middleware/sigfox/sigfox-ep-addon-aw
+    url = https://github.com/sigfox-tech-radio/sigfox-ep-addon-aw.git
 [submodule "stm32l0xx-registers"]
     path = drivers/registers/stm32l0xx-registers
     url = https://github.com/Ludovic-Lesur/stm32l0xx-registers.git

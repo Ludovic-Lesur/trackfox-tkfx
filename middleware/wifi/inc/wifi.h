@@ -12,6 +12,11 @@
 #include "lr11xx.h"
 #include "types.h"
 
+/*** WIFI macros ***/
+
+#define WIFI_MAC_ADDRESS_SIZE_BYTES     LR11XX_WIFI_MAC_ADDRESS_SIZE_BYTES
+#define WIFI_MAC_ADDRESS_LIST_SIZE_MAX  LR11XX_WIFI_MAC_ADDRESS_LIST_SIZE_MAX
+
 /*** WIFI structures ***/
 
 /*!******************************************************************
@@ -83,6 +88,15 @@ WIFI_status_t WIFI_de_init(void);
  * \retval      Function execution status.
  *******************************************************************/
 WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results);
+
+/*******************************************************************/
+#define WIFI_exit_error(base) { ERROR_check_exit(wifi_status, WIFI_SUCCESS, base) }
+
+/*******************************************************************/
+#define WIFI_stack_error(base) { ERROR_check_stack(wifi_status, WIFI_SUCCESS, base) }
+
+/*******************************************************************/
+#define WIFI_stack_exit_error(base, code) { ERROR_check_stack_exit(wifi_status, WIFI_SUCCESS, base, code) }
 
 #endif /* HW2_0 */
 

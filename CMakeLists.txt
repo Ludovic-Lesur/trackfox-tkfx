@@ -126,6 +126,7 @@ include_directories(${PROJECT_NAME}
         middleware/sigfox/inc
         middleware/sigfox/sigfox-ep-lib/inc
         middleware/sigfox/sigfox-ep-addon-rfp/inc
+        middleware/sigfox/sigfox-ep-addon-aw/inc
         middleware/wifi/inc
         application/inc
 )
@@ -143,6 +144,7 @@ add_subdirectory(drivers/components/s2lp-driver EXCLUDE_FROM_ALL)
 add_subdirectory(drivers/components/sht3x-driver EXCLUDE_FROM_ALL)
 add_subdirectory(middleware/sigfox/sigfox-ep-lib EXCLUDE_FROM_ALL)
 add_subdirectory(middleware/sigfox/sigfox-ep-addon-rfp EXCLUDE_FROM_ALL)
+add_subdirectory(middleware/sigfox/sigfox-ep-addon-aw EXCLUDE_FROM_ALL)
 
 # Link libraries.
 target_link_libraries(${PROJECT_NAME}
@@ -159,6 +161,7 @@ target_link_libraries(${PROJECT_NAME}
         sht3x-driver
         sigfox_ep_lib_obj
         sigfox_ep_addon_rfp_obj
+        sigfox_ep_addon_aw_obj
         c_nano
         nosys
         gcc

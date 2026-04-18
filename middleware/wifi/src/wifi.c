@@ -22,7 +22,7 @@
 /*** WIFI local macros ***/
 
 #define WIFI_TCXO_TIMEOUT_MS    10
-#define WIFI_TIMEOUT_SECONDS    20
+#define WIFI_TIMEOUT_SECONDS    30
 
 /*** WIFI local structures ***/
 
