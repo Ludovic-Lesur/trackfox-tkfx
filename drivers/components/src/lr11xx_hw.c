@@ -37,7 +37,7 @@ LR11XX_status_t LR11XX_HW_init(void) {
     GPIO_configure(&GPIO_LR1110_NRESET, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
     GPIO_write(&GPIO_LR1110_NRESET, 0);
     // Configure busy pin.
-    GPIO_configure(&GPIO_LR1110_BUSY, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
+    GPIO_configure(&GPIO_LR1110_BUSY, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
     // Init SPI.
     spi_config.baud_rate_prescaler = SPI_BAUD_RATE_PRESCALER_4;
     spi_config.data_format = SPI_DATA_FORMAT_8_BITS;
@@ -58,6 +58,8 @@ LR11XX_status_t LR11XX_HW_de_init(void) {
     SPI_status_t spi_status = SPI_SUCCESS;
     // Keep reset pin as output low.
     GPIO_write(&GPIO_LR1110_NRESET, 0);
+    // Add pull-down resistor to busy pin.
+    GPIO_configure(&GPIO_LR1110_BUSY, GPIO_MODE_INPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_DOWN);
     // Keep chip select pin as output low.
     GPIO_write(&GPIO_LR1110_CS, 0);
     // Release SPI.
