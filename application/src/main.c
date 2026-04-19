@@ -387,10 +387,10 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
 #endif
     // Disable motion interrupts.
     SENSORS_HW_disable_accelerometer_interrupt();
-    // Reload watchdog.
-    IWDG_reload();
     // Library configuration.
     lib_config.rc = &sigfox_rc1_custom;
+    // Reload watchdog.
+    IWDG_reload();
     // Open library.
     sigfox_ep_api_status = SIGFOX_EP_API_open(&lib_config);
     SIGFOX_EP_API_check_status(0);
