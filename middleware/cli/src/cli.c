@@ -730,6 +730,9 @@ static AT_status_t _CLI_tm_callback(void) {
     // Test mode parameters.
     test_mode.test_mode_reference = (SIGFOX_EP_ADDON_RFP_API_test_mode_reference_t) test_mode_reference;
     test_mode.ul_bit_rate = (SIGFOX_ul_bit_rate_t) bit_rate_index;
+#ifndef SIGFOX_EP_TX_POWER_DBM_EIRP
+    test_mode.tx_power_dbm_eirp = 14;
+#endif
 #ifdef SIGFOX_EP_BIDIRECTIONAL
     test_mode.downlink_cplt_cb = &_CLI_print_dl_payload;
 #endif
