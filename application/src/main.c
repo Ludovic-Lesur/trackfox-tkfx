@@ -347,29 +347,26 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
     SIGFOX_EP_API_config_t lib_config;
     uint8_t status = 0;
-    SIGFOX_rc_t sigfox_rc1_custom;
 #ifdef HW2_0
+    SIGFOX_rc_t sigfox_rc1_custom;
     uint32_t tx_power_dbm_delta = (TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX - TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN);
     uint32_t storage_voltage_mv_delta = (TKFX_STORAGE_VOLTAGE_MV_MAX - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV);
 #endif
     // Directly exit of the radio is disabled due to low storage element voltage.
     if (tkfx_ctx.mode == TKFX_MODE_OFF) goto errors;
+#ifdef HW2_0
     // Build custom RC structure.
     sigfox_rc1_custom.f_ul_hz = SIGFOX_RC1.f_ul_hz;
 #ifdef SIGFOX_EP_BIDIRECTIONAL
     sigfox_rc1_custom.f_dl_hz = SIGFOX_RC1.f_dl_hz;
 #endif
-    sigfox_rc1_custom.epsilon_hz = (TKFX_SIGFOX_RC1_EPSILON_SNW_HZ + TKFX_SIGFOX_RC1_EPSILON_EP_HZ);
     sigfox_rc1_custom.spectrum_access = SIGFOX_RC1.spectrum_access;
 #ifdef SIGFOX_EP_PARAMETERS_CHECK
     sigfox_rc1_custom.uplink_bit_rate_capability = SIGFOX_RC1.uplink_bit_rate_capability;
-#ifdef HW2_0
     sigfox_rc1_custom.tx_power_dbm_eirp_max = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX;
-#else
-    sigfox_rc1_custom.tx_power_dbm_eirp_max = SIGFOX_RC1.tx_power_dbm_eirp_max;
 #endif
-#endif
-#ifdef HW2_0
+    // Library configuration.
+    lib_config.rc = &sigfox_rc1_custom;
     // Update storage voltage.
     _TKFX_update_source_storage_voltages();
     // Default RF output power.
@@ -384,11 +381,12 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
             application_message->common_parameters.tx_power_dbm_eirp += ((tx_power_dbm_delta * (tkfx_ctx.storage_voltage_mv - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) / (storage_voltage_mv_delta));
         }
     }
+#else
+    // Library configuration.
+    lib_config.rc = &SIGFOX_RC1;
 #endif
     // Disable motion interrupts.
     SENSORS_HW_disable_accelerometer_interrupt();
-    // Library configuration.
-    lib_config.rc = &sigfox_rc1_custom;
     // Reload watchdog.
     IWDG_reload();
     // Open library.
