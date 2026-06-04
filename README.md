@@ -75,6 +75,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE="script/cmake-arm-none-eabi/toolchain.cmake" \
       -DTKFX_MODE_CAR=ON \
       -DTKFX_MODE_BIKE=OFF \
       -DTKFX_MODE_HIKING=OFF \
+      -DTKFX_MODE_MOTO=OFF \
       -DTKFX_MODE_BATTERY=ON \
       -DTKFX_MODE_SUPERCAPACITOR=OFF \
       -G "Unix Makefiles" ..

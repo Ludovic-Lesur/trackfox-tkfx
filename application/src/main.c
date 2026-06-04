@@ -167,6 +167,9 @@ static const TKFX_configuration_t TKFX_CONFIG = { 5, 150, 300, 86400 };
 #ifdef TKFX_MODE_HIKING
 static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400 };
 #endif
+#ifdef TKFX_MODE_MOTO
+static const TKFX_configuration_t TKFX_CONFIG = { 5, 150, 300, 86400 };
+#endif
 #endif
 
 /*** MAIN functions ***/
@@ -206,6 +209,8 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.status.tracker_mode = 0b01;
 #elif (defined TKFX_MODE_HIKING)
     tkfx_ctx.status.tracker_mode = 0b10;
+#elif (defined TKFX_MODE_MOTO)
+    tkfx_ctx.status.tracker_mode = 0b11;
 #else
 #error "None mode selected"
 #endif

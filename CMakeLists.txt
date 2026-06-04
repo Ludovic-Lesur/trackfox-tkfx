@@ -27,9 +27,10 @@ set(TKFX_HW_VERSION "NONE" CACHE STRING "Hardware version")
 
 # Software compilation flags.
 add_compilation_flag(TKFX_MODE_CLI "Enable command line mode." OFF)
-add_compilation_flag(TKFX_MODE_CAR "Use car algorithm." ON)
-add_compilation_flag(TKFX_MODE_BIKE "Use bike algorithm." OFF)
-add_compilation_flag(TKFX_MODE_HIKING "Use hiking algorithm." OFF)
+add_compilation_flag(TKFX_MODE_CAR "Use car settings." ON)
+add_compilation_flag(TKFX_MODE_BIKE "Use bike settings." OFF)
+add_compilation_flag(TKFX_MODE_HIKING "Use hiking settings." OFF)
+add_compilation_flag(TKFX_MODE_MOTO "Use motorcycle settings." OFF)
 add_compilation_flag(TKFX_MODE_BATTERY "To be defined if device is powered by a battery." ON)
 add_compilation_flag(TKFX_MODE_SUPERCAPACITOR "To be defined if device is powered by a supercapacitor" OFF)
 
