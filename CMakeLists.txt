@@ -88,6 +88,7 @@ target_sources(${PROJECT_NAME}
         drivers/components/src/neom8x_hw.c
         drivers/components/src/s2lp_hw.c
         drivers/components/src/sensors_hw.c
+        drivers/components/src/sht3x_hw.c
         drivers/utils/src/terminal_hw.c
         middleware/analog/src/analog.c
         middleware/cli/src/cli.c
