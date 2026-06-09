@@ -21,7 +21,7 @@
 
 /*** GPS local macros ***/
 
-#define GPS_TIMEOUT_SECONDS                     10
+#define GPS_CALLBACK_TIMEOUT_SECONDS            10
 
 #ifdef HW2_0
 
@@ -82,17 +82,35 @@ typedef NEOM8X_acquisition_status_t GPS_MODULE_acquisition_status_t;
 /*******************************************************************/
 typedef struct {
     volatile uint8_t process_flag;
-    GPS_MODULE_acquisition_status_t acquisition_status;
+    GPS_MODULE_acquisition_status_t module_acquisition_status;
 } GPS_context_t;
 
 /*** GPS local global variables ***/
 
 static GPS_context_t gps_ctx = {
     .process_flag = 0,
-    .acquisition_status = GPS_MODULE_ACQUISITION_STATUS_FAIL
+    .module_acquisition_status = GPS_MODULE_ACQUISITION_STATUS_FAIL
 };
 
 /*** GPS local functions ***/
+
+/*******************************************************************/
+#define GPS_MODULE_exit_error_acquisition(void) { \
+    /* Update acquisition status */ \
+    if (gps_module_status != GPS_MODULE_SUCCESS) { \
+        (*acquisition_status) = GPS_ACQUISITION_ERROR_DRIVER_GPS_MODULE; \
+    } \
+    GPS_MODULE_exit_error(); \
+}
+
+/*******************************************************************/
+#define ANALOG_exit_error_acquisition(void) { \
+    /* Update acquisition status */ \
+    if (analog_status != ANALOG_SUCCESS) { \
+        (*acquisition_status) = GPS_ACQUISITION_ERROR_DRIVER_ANALOG; \
+    } \
+    ANALOG_exit_error(GPS_ERROR_BASE_ANALOG); \
+}
 
 /*******************************************************************/
 static void _GPS_process_callback(void) {
@@ -101,9 +119,9 @@ static void _GPS_process_callback(void) {
 }
 
 /*******************************************************************/
-static void _GPS_completion_callback(GPS_MODULE_acquisition_status_t acquisition_status) {
+static void _GPS_completion_callback(GPS_MODULE_acquisition_status_t module_acquisition_status) {
     // Update global variable.
-    gps_ctx.acquisition_status = acquisition_status;
+    gps_ctx.module_acquisition_status = module_acquisition_status;
 }
 
 /*** GPS functions ***/
@@ -151,7 +169,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     // Reset output data.
     (*acquisition_duration_seconds) = 0;
     (*acquisition_status) = GPS_ACQUISITION_ERROR_TIMEOUT;
-    gps_ctx.acquisition_status = GPS_MODULE_ACQUISITION_STATUS_FAIL;
+    gps_ctx.module_acquisition_status = GPS_MODULE_ACQUISITION_STATUS_FAIL;
     // Configure GPS acquisition.
     gps_acquisition.gps_data = GPS_MODULE_GPS_DATA_POSITION;
     gps_acquisition.completion_callback = &_GPS_completion_callback;
@@ -159,7 +177,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     gps_acquisition.altitude_stability_threshold = altitude_stability_threshold;
     // Start acquisition.
     gps_module_status = GPS_MODULE_start_acquisition(&gps_acquisition);
-    GPS_MODULE_exit_error();
+    GPS_MODULE_exit_error_acquisition();
     // Processing loop.
     while (uptime < (start_time + timeout_seconds)) {
         // Ensure RTC is running.
@@ -179,10 +197,10 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
             callback_flag = 1;
             // Process driver.
             gps_module_status = GPS_MODULE_process();
-            GPS_MODULE_exit_error();
+            GPS_MODULE_exit_error_acquisition();
             // Check STORAGE_VOLTAGE voltage.
             analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_STORAGE_VOLTAGE_MV, &storage_voltage_voltage_mv);
-            ANALOG_exit_error(GPS_ERROR_BASE_ANALOG);
+            ANALOG_exit_error_acquisition();
             // Check threshold.
             if (storage_voltage_voltage_mv < TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
                 (*acquisition_status) = GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE;
@@ -190,20 +208,21 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
             }
         }
         // Check acquisition status.
-        if (gps_ctx.acquisition_status == expected_status) break;
+        if (gps_ctx.module_acquisition_status == expected_status) break;
         // Exit if process callback has never been called.
-        if ((callback_flag == 0) && (uptime > (start_time + GPS_TIMEOUT_SECONDS))) {
+        if ((callback_flag == 0) && (uptime > (start_time + GPS_CALLBACK_TIMEOUT_SECONDS))) {
+            (*acquisition_status) = GPS_ACQUISITION_ERROR_DRIVER_GPS_CALLBACK;
             status = GPS_ERROR_PROCESS_CALLBACK;
             goto errors;
         }
     }
     gps_module_status = GPS_MODULE_stop_acquisition();
-    GPS_MODULE_exit_error();
+    GPS_MODULE_exit_error_acquisition();
     // Check status.
-    if (gps_ctx.acquisition_status != GPS_MODULE_ACQUISITION_STATUS_FAIL) {
+    if (gps_ctx.module_acquisition_status != GPS_MODULE_ACQUISITION_STATUS_FAIL) {
         // Read data.
         gps_module_status = GPS_MODULE_get_position(gps_position);
-        GPS_MODULE_exit_error();
+        GPS_MODULE_exit_error_acquisition();
         // Update status.
         (*acquisition_status) = GPS_ACQUISITION_SUCCESS;
     }

@@ -49,6 +49,9 @@ typedef enum {
     GPS_ACQUISITION_SUCCESS = 0,
     GPS_ACQUISITION_ERROR_TIMEOUT,
     GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE,
+    GPS_ACQUISITION_ERROR_DRIVER_GPS_MODULE,
+    GPS_ACQUISITION_ERROR_DRIVER_GPS_CALLBACK,
+    GPS_ACQUISITION_ERROR_DRIVER_ANALOG,
     GPS_ACQUISITION_ERROR_LAST
 } GPS_acquisition_status_t;
 
@@ -89,7 +92,7 @@ GPS_status_t GPS_de_init(void);
  * \param[in]   altitude_stability_threshold: Threshold of the altitude stability filter.
  * \param[out]  gps_position: Pointer to the GPS position if found.
  * \param[out]  acquisition_duration_seconds; Pointer to integer that will contain the GPS acquisition duration in seconds.
- * \param[out]  acquisition_success: Pointer to the acquisition success flag.
+ * \param[out]  acquisition_status: Pointer to the acquisition status.
  * \retval      Function execution status.
  *******************************************************************/
 GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_stability_threshold, uint32_t timeout_seconds, uint32_t* acquisition_duration_seconds, GPS_acquisition_status_t* acquisition_status);
