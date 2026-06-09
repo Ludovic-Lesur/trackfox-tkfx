@@ -22,7 +22,6 @@
 /*** WIFI local macros ***/
 
 #define WIFI_TCXO_TIMEOUT_MS    10
-#define WIFI_TIMEOUT_SECONDS    30
 
 /*** WIFI local structures ***/
 
@@ -39,19 +38,28 @@ static WIFI_context_t wifi_ctx;
 /*** WIFI local functions ***/
 
 /*******************************************************************/
+#define LR11XX_exit_error_acquisition(void) { \
+    /* Update acquisition status */ \
+    if (lr11xx_status != LR11XX_SUCCESS) { \
+        (*acquisition_status) = WIFI_ACQUISITION_ERROR_DRIVER_RADIO; \
+    } \
+    LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX); \
+}
+
+/*******************************************************************/
 static void _WIFI_lr11xx_dio_irq_callback(void) {
     // Set flag if IRQ is enabled.
     wifi_ctx.dio_irq_flag = wifi_ctx.dio_irq_enable;
 }
 
 /*******************************************************************/
-static WIFI_status_t _WIFI_enable_lr11xx_dio_irq(uint32_t irq_mask) {
+static WIFI_status_t _WIFI_enable_lr11xx_dio_irq(uint32_t irq_mask, WIFI_acquisition_status_t* acquisition_status) {
     // Local variables.
     WIFI_status_t status = WIFI_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
     // Configure interrupt on LR11XX side.
     lr11xx_status = LR11XX_set_dio_irq_mask(irq_mask, 0);
-    LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
+    LR11XX_exit_error_acquisition();
     // Configure interrupt on MCU side.
     EXTI_configure_gpio(&GPIO_LR1110_DIO9, GPIO_PULL_NONE, EXTI_TRIGGER_RISING_EDGE, &_WIFI_lr11xx_dio_irq_callback, NVIC_PRIORITY_WIFI_IRQ_GPIO);
     EXTI_clear_gpio_flag(&GPIO_LR1110_DIO9);
@@ -123,7 +131,7 @@ WIFI_status_t WIFI_de_init(void) {
 }
 
 /*******************************************************************/
-WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results) {
+WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout_seconds, uint32_t* acquisition_duration_seconds, WIFI_acquisition_status_t* acquisition_status) {
     // Local variables.
     WIFI_status_t status = WIFI_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
@@ -131,10 +139,13 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results) {
     uint32_t uptime = RTC_get_uptime_seconds();
     uint32_t start_time = uptime;
     // Check parameter.
-    if (wifi_scan_results == NULL) {
+    if ((wifi_scan_results == NULL) || (acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
         status = WIFI_ERROR_NULL_PARAMETER;
         goto errors;
     }
+    // Reset output data.
+    (*acquisition_duration_seconds) = 0;
+    (*acquisition_status) = WIFI_ACQUISITION_ERROR_TIMEOUT;
     // Reset results.
     wifi_scan_results->number_of_access_points_detected = 0;
     wifi_scan_results->number_of_access_points_written = 0;
@@ -146,15 +157,15 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results) {
     scan_params.number_of_scans_per_channel = 5;
     scan_params.single_scan_timeout_ms = 150;
     // Enable GPIO interrupt.
-    status = _WIFI_enable_lr11xx_dio_irq(0b1 << LR11XX_IRQ_INDEX_WIFI_DONE);
+    status = _WIFI_enable_lr11xx_dio_irq((0b1 << LR11XX_IRQ_INDEX_WIFI_DONE), acquisition_status);
     if (status != WIFI_SUCCESS) goto errors;
     // Clear flag.
     wifi_ctx.dio_irq_flag = 0;
     // Perform scan.
     lr11xx_status = LR11XX_wifi_scan(&scan_params);
-    LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
+    LR11XX_exit_error_acquisition();
     // Wait for scan completion.
-    while (uptime < (start_time + WIFI_TIMEOUT_SECONDS)) {
+    while (uptime < (start_time + timeout_seconds)) {
         // Ensure RTC is running.
         if (RTC_get_uptime_seconds() > uptime) {
             // Update time and reload watchdog.
@@ -163,11 +174,13 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results) {
         }
         // Enter sleep mode.
         PWR_enter_deepsleep_mode(PWR_DEEPSLEEP_MODE_STOP);
+        // Update acquisition duration.
+        (*acquisition_duration_seconds) = (uptime - start_time);
         // Check interrupt.
         if (wifi_ctx.dio_irq_flag != 0) {
             // Read results.
             lr11xx_status = LR11XX_wifi_read(wifi_scan_results);
-            LR11XX_exit_error(WIFI_ERROR_BASE_LR11XX);
+            LR11XX_exit_error_acquisition();
             // Exit loop.
             break;
         }

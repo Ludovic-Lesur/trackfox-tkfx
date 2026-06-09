@@ -63,8 +63,9 @@
 #define TKFX_SIGFOX_RC1_EPSILON_SNW_HZ                      1410
 #define TKFX_SIGFOX_RC1_EPSILON_EP_HZ                       4340
 
-// WiFi scan list size.
+// WiFi scan.
 #define TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE               10
+#define TKFX_WIFI_SCAN_TIMEOUT_SECONDS                      30
 
 /*** MAIN structures ***/
 
@@ -437,6 +438,7 @@ int main(void) {
     WIFI_status_t wifi_status = WIFI_SUCCESS;
     WIFI_access_point_t wifi_scan_access_point_list[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
     WIFI_scan_results_t wifi_scan_results;
+    WIFI_acquisition_status_t wifi_acquisition_status = WIFI_ACQUISITION_SUCCESS;
     SIGFOX_EP_ADDON_AW_API_status_t sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_SUCCESS;
     SIGFOX_EP_ADDON_AW_API_access_point_t addon_aw_access_point_list[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
     SIGFOX_EP_ADDON_AW_API_access_point_t* addon_aw_access_point_list_ptr[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
@@ -596,7 +598,7 @@ int main(void) {
             POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
             POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
             // Get position from GPS.
-            wifi_status = WIFI_scan(&wifi_scan_results);
+            wifi_status = WIFI_scan(&wifi_scan_results, TKFX_WIFI_SCAN_TIMEOUT_SECONDS, &generic_u32_1, &wifi_acquisition_status);
             WIFI_stack_error(ERROR_BASE_WIFI);
             // Turn analog front-end and GPS off.
             POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI);

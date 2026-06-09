@@ -162,7 +162,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     int32_t storage_voltage_voltage_mv = 0;
     uint8_t callback_flag = 0;
     // Check parameters.
-    if ((acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
+    if ((gps_position == NULL) || (acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
         status = GPS_ERROR_NULL_PARAMETER;
         goto errors;
     }
