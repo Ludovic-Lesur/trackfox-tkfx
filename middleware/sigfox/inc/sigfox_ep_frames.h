@@ -20,6 +20,7 @@
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_MONITORING        7
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC            11
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT    2
+#define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_ERROR      4
 // Error values.
 #define SIGFOX_EP_ERROR_VALUE_TEMPERATURE           0x7FF
 #define SIGFOX_EP_ERROR_VALUE_HUMIDITY              0xFF
@@ -90,5 +91,19 @@ typedef union {
         unsigned gps_acquisition_duration_seconds :8;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } SIGFOX_EP_ul_payload_geoloc_timeout_t;
+
+/*!******************************************************************
+ * \struct SIGFOX_EP_ul_payload_geoloc_error_t
+ * \brief Sigfox uplink geolocation error frame format.
+ *******************************************************************/
+typedef union {
+    uint8_t frame[SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_ERROR];
+    struct {
+        unsigned gps_acquisition_status :8;
+        unsigned gps_acquisition_duration_seconds :8;
+        unsigned wifi_scan_status :8;
+        unsigned wifi_scan_duration_seconds :8;
+    } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
+} SIGFOX_EP_ul_payload_geoloc_error_t;
 
 #endif /* __SIGFOX_EP_FRAMES_H__ */

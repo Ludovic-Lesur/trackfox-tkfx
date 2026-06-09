@@ -37,18 +37,18 @@ typedef enum {
 #ifdef HW2_0
 
 /*!******************************************************************
- * \enum WIFI_acquisition_status_t
+ * \enum WIFI_scan_status_t
  * \brief WIFI acquisition status.
  *******************************************************************/
 typedef enum {
-    WIFI_ACQUISITION_SUCCESS = 0,
-    WIFI_ACQUISITION_ERROR_TIMEOUT,
-    WIFI_ACQUISITION_ERROR_NONE_ACCESS_POINT_DETECTED,
-    WIFI_ACQUISITION_ERROR_NONE_ACCESS_POINT_VALID,
-    WIFI_ACQUISITION_ERROR_DRIVER_RADIO,
-    WIFI_ACQUISITION_ERROR_DRIVER_ADDON_AW,
-    WIFI_ACQUISITION_ERROR_LAST
-} WIFI_acquisition_status_t;
+    WIFI_SCAN_SUCCESS = 0,
+    WIFI_SCAN_ERROR_TIMEOUT,
+    WIFI_SCAN_ERROR_NONE_ACCESS_POINT_DETECTED,
+    WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID,
+    WIFI_SCAN_ERROR_DRIVER_RADIO,
+    WIFI_SCAN_ERROR_DRIVER_ADDON_AW,
+    WIFI_SCAN_ERROR_LAST
+} WIFI_scan_status_t;
 
 /*!******************************************************************
  * \struct WIFI_channel_info_t
@@ -99,11 +99,11 @@ WIFI_status_t WIFI_de_init(void);
  * \brief Perform a passive WiFi scan.
  * \param[in]   timeout_seconds: Scan timeout in seconds.
  * \param[out]  wifi_scan_results: Pointer to the scan results.
- * \param[out]  acquisition_duration_seconds; Pointer to integer that will contain the GPS acquisition duration in seconds.
- * \param[out]  acquisition_status: Pointer to the acquisition status.
+ * \param[out]  scan_duration_seconds; Pointer to integer that will contain the scanning duration in seconds.
+ * \param[out]  scan_status: Pointer to the scanning status.
  * \retval      Function execution status.
  *******************************************************************/
-WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout_seconds, uint32_t* acquisition_duration_seconds, WIFI_acquisition_status_t* acquisition_status);
+WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout_seconds, uint32_t* scan_duration_seconds, WIFI_scan_status_t* scan_status);
 
 /*******************************************************************/
 #define WIFI_exit_error(base) { ERROR_check_exit(wifi_status, WIFI_SUCCESS, base) }

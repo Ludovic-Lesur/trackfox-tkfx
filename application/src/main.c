@@ -433,18 +433,20 @@ int main(void) {
     SIGFOX_EP_ul_payload_startup_t sigfox_ep_ul_payload_startup;
     SIGFOX_EP_ul_payload_monitoring_t sigfox_ep_ul_payload_monitoring;
     SIGFOX_EP_ul_payload_geoloc_t sigfox_ep_ul_payload_geoloc;
-    SIGFOX_EP_ul_payload_geoloc_timeout_t sigfox_ep_ul_payload_geoloc_timeout;
 #ifdef HW2_0
     WIFI_status_t wifi_status = WIFI_SUCCESS;
     WIFI_access_point_t wifi_scan_access_point_list[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
     WIFI_scan_results_t wifi_scan_results;
-    WIFI_acquisition_status_t wifi_acquisition_status = WIFI_ACQUISITION_SUCCESS;
+    WIFI_scan_status_t wifi_scan_status = WIFI_SCAN_SUCCESS;
     SIGFOX_EP_ADDON_AW_API_status_t sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_SUCCESS;
     SIGFOX_EP_ADDON_AW_API_access_point_t addon_aw_access_point_list[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
     SIGFOX_EP_ADDON_AW_API_access_point_t* addon_aw_access_point_list_ptr[TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
     SIGFOX_EP_ADDON_AW_API_input_data_t addon_aw_input_data;
     uint8_t sigfox_ep_ul_payload_wifi[SIGFOX_EP_ADDON_AW_API_UL_PAYLOAD_SIZE_BYTES];
     uint8_t jdx = 0;
+    SIGFOX_EP_ul_payload_geoloc_error_t sigfox_ep_ul_payload_geoloc_error;
+#else
+    SIGFOX_EP_ul_payload_geoloc_timeout_t sigfox_ep_ul_payload_geoloc_timeout;
 #endif
     ERROR_code_t error_code = 0;
     uint8_t sigfox_ep_ul_payload_error_stack[SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK];
@@ -564,26 +566,29 @@ int main(void) {
                 sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc.frame);
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC;
 #ifdef HW2_0
+                // Send uplink geolocation frame.
+                _TKFX_send_sigfox_message(&sigfox_ep_application_message);
                 // Compute next state.
                 tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
 #endif
             }
             else {
-                sigfox_ep_ul_payload_geoloc_timeout.gps_acquisition_status = gps_acquisition_status;
-                sigfox_ep_ul_payload_geoloc_timeout.gps_acquisition_duration_seconds = generic_u32_1;
+#ifdef HW2_0
+                sigfox_ep_ul_payload_geoloc_error.gps_acquisition_status = gps_acquisition_status;
+                sigfox_ep_ul_payload_geoloc_error.gps_acquisition_duration_seconds = generic_u32_1;
+                // Compute next state.
+                tkfx_ctx.state = TKFX_STATE_GEOLOC_WIFI;
+#else
                 // Update message parameters.
                 sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc_timeout.frame);
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT;
-#ifdef HW2_0
-                // Compute next state.
-                tkfx_ctx.state = TKFX_STATE_GEOLOC_WIFI;
 #endif
             }
-            // Send uplink geolocation frame.
-            _TKFX_send_sigfox_message(&sigfox_ep_application_message);
             // Reset flag and timer.
             tkfx_ctx.flags.geoloc_request = 0;
 #ifndef HW2_0
+            // Send uplink geolocation frame.
+            _TKFX_send_sigfox_message(&sigfox_ep_application_message);
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
 #endif
@@ -598,47 +603,76 @@ int main(void) {
             POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
             POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
             // Get position from GPS.
-            wifi_status = WIFI_scan(&wifi_scan_results, TKFX_WIFI_SCAN_TIMEOUT_SECONDS, &generic_u32_1, &wifi_acquisition_status);
+            wifi_status = WIFI_scan(&wifi_scan_results, TKFX_WIFI_SCAN_TIMEOUT_SECONDS, &generic_u32_1, &wifi_scan_status);
             WIFI_stack_error(ERROR_BASE_WIFI);
             // Turn analog front-end and GPS off.
             POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI);
             POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO);
-            // Check if scan results are not empty.
-            if (wifi_scan_results.number_of_access_points_written > 0) {
-                // Copy results.
-                for (idx = 0; idx < wifi_scan_results.number_of_access_points_written; idx++) {
-                    // MAC address.
-                    for (jdx = 0; jdx < WIFI_MAC_ADDRESS_SIZE_BYTES; jdx++) {
-                        addon_aw_access_point_list[idx].mac_address[jdx] = wifi_scan_results.access_point_list[idx].mac_address[jdx];
+            // Check acquisition status.
+            if (wifi_scan_status == WIFI_SCAN_SUCCESS) {
+                // Check if scan results are not empty.
+                if (wifi_scan_results.number_of_access_points_written > 0) {
+                    // Copy results.
+                    for (idx = 0; idx < wifi_scan_results.number_of_access_points_written; idx++) {
+                        // MAC address.
+                        for (jdx = 0; jdx < WIFI_MAC_ADDRESS_SIZE_BYTES; jdx++) {
+                            addon_aw_access_point_list[idx].mac_address[jdx] = wifi_scan_results.access_point_list[idx].mac_address[jdx];
+                        }
+                        addon_aw_access_point_list[idx].rssi_dbm = (sfx_s16) wifi_scan_results.access_point_list[idx].rssi_dbm;
+                        addon_aw_access_point_list[idx].status = SIGFOX_EP_ADDON_AW_API_ACCESS_POINT_STATUS_NEW;
+                        // Update pointer.
+                        addon_aw_access_point_list_ptr[idx] = &(addon_aw_access_point_list[idx]);
                     }
-                    addon_aw_access_point_list[idx].rssi_dbm = (sfx_s16) wifi_scan_results.access_point_list[idx].rssi_dbm;
-                    addon_aw_access_point_list[idx].status = SIGFOX_EP_ADDON_AW_API_ACCESS_POINT_STATUS_NEW;
-                    // Update pointer.
-                    addon_aw_access_point_list_ptr[idx] = &(addon_aw_access_point_list[idx]);
+                    // Build input data.
+                    addon_aw_input_data.access_point_list = (SIGFOX_EP_ADDON_AW_API_access_point_t**) addon_aw_access_point_list_ptr;
+                    addon_aw_input_data.access_point_list_size = wifi_scan_results.number_of_access_points_written;
+                    // Set Atlas WiFi filters.
+                    sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_set_filter((0b1 << SIGFOX_EP_ADDON_AW_API_FILTER_LOCALLY_ADMINISTERED), SIGFOX_EP_ADDON_AW_API_SORTING_RSSI);
+                    if (sigfox_ep_addon_aw_status == SIGFOX_EP_ADDON_AW_API_SUCCESS) {
+                        // Build payload.
+                        sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_build_ul_payload(&addon_aw_input_data, sigfox_ep_ul_payload_wifi, &generic_u8);
+                        switch (sigfox_ep_addon_aw_status) {
+                        case SIGFOX_EP_ADDON_AW_API_SUCCESS:
+                            // Check if there is at lease one valid MAC address to send.
+                            if (generic_u8 == 0) {
+                                wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID;
+                            }
+                            break;
+                        case SIGFOX_EP_ADDON_AW_API_ERROR_NONE_VALID_ACCESS_POINT:
+                            wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID;
+                            break;
+                        default:
+                            ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
+                            wifi_scan_status = WIFI_SCAN_ERROR_DRIVER_ADDON_AW;
+                            break;
+                        }
+                    }
+                    else {
+                        ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
+                        wifi_scan_status = WIFI_SCAN_ERROR_DRIVER_ADDON_AW;
+                    }
                 }
-                // Build input data.
-                addon_aw_input_data.access_point_list = (SIGFOX_EP_ADDON_AW_API_access_point_t**) addon_aw_access_point_list_ptr;
-                addon_aw_input_data.access_point_list_size = wifi_scan_results.number_of_access_points_written;
-                // Set Atlas WiFi filters.
-                sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_set_filter((0b1 << SIGFOX_EP_ADDON_AW_API_FILTER_LOCALLY_ADMINISTERED), SIGFOX_EP_ADDON_AW_API_SORTING_RSSI);
-                if (sigfox_ep_addon_aw_status != SIGFOX_EP_ADDON_AW_API_SUCCESS) {
-                    ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
-                }
-                // Build payload.
-                sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_build_ul_payload(&addon_aw_input_data, sigfox_ep_ul_payload_wifi, &generic_u8);
-                if (sigfox_ep_addon_aw_status != SIGFOX_EP_ADDON_AW_API_SUCCESS) {
-                    ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
-                }
-                // Check if there is at lease one valid MAC address to send.
-                if ((sigfox_ep_addon_aw_status == SIGFOX_EP_ADDON_AW_API_SUCCESS) && (generic_u8 > 0)) {
-                    // Update payload.
-                    // Note: the same bit rate is kept from the GPS step.
-                    sigfox_ep_application_message.ul_payload = (sfx_u8*) sigfox_ep_ul_payload_wifi;
-                    sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_ADDON_AW_API_UL_PAYLOAD_SIZE_BYTES;
-                    // Send uplink Atlas WiFi frame.
-                    _TKFX_send_sigfox_message(&sigfox_ep_application_message);
+                else {
+                    wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_DETECTED;
                 }
             }
+            // Check geolocation acquisition status.
+            if (wifi_scan_status == WIFI_SCAN_SUCCESS) {
+                // Send uplink Atlas WiFi frame.
+                // Note: the same bit rate is kept from the GPS step.
+                sigfox_ep_application_message.ul_payload = (sfx_u8*) sigfox_ep_ul_payload_wifi;
+                sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_ADDON_AW_API_UL_PAYLOAD_SIZE_BYTES;
+            }
+            else {
+                // Update payload.
+                sigfox_ep_ul_payload_geoloc_error.wifi_scan_status = wifi_scan_status;
+                sigfox_ep_ul_payload_geoloc_error.wifi_scan_duration_seconds = generic_u32_1;
+                // Send geolocation error frame.
+                sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_geoloc_error.frame);
+                sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_ERROR;
+            }
+            // Send geolocation frame.
+            _TKFX_send_sigfox_message(&sigfox_ep_application_message);
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
