@@ -181,6 +181,8 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout
             // Read results.
             lr11xx_status = LR11XX_wifi_read(wifi_scan_results);
             LR11XX_exit_error_acquisition();
+            // Update status.
+            (*acquisition_status) = WIFI_ACQUISITION_SUCCESS;
             // Exit loop.
             break;
         }
