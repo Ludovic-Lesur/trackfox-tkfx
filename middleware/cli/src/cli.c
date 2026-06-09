@@ -53,7 +53,9 @@
 #define CLI_CHAR_SEPARATOR                      STRING_CHAR_COMMA
 #define CLI_RSSI_REPORT_PERIOD_MS               500
 #define CLI_TEMPERATURE_STRING_SIZE             5
+
 #define CLI_WIFI_SCAN_ACCESS_POINT_LIST_SIZE    8
+#define CLI_WIFI_SCAN_TIMEOUT_SECONDS           30
 
 /*** CLI local structures ***/
 
@@ -950,6 +952,8 @@ static AT_status_t _CLI_wifi_callback(void) {
     WIFI_status_t wifi_status = WIFI_SUCCESS;
     WIFI_scan_results_t scan_results;
     WIFI_access_point_t access_point_list[CLI_WIFI_SCAN_ACCESS_POINT_LIST_SIZE];
+    uint32_t scan_duration_seconds = 0;
+    WIFI_scan_status_t scan_status = WIFI_SCAN_SUCCESS;
     uint8_t access_point_idx = 0;
     uint8_t idx = 0;
     // Scan results.
@@ -959,9 +963,15 @@ static AT_status_t _CLI_wifi_callback(void) {
     POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
     POWER_enable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
     // Perform scan.
-    wifi_status = WIFI_scan(&scan_results);
+    wifi_status = WIFI_scan(&scan_results, CLI_WIFI_SCAN_TIMEOUT_SECONDS, &scan_duration_seconds, &scan_status);
     _CLI_check_driver_status(wifi_status, WIFI_SUCCESS, ERROR_BASE_WIFI);
     // Print results.
+    AT_reply_add_string("Scan status = ");
+    AT_reply_add_integer(scan_status, STRING_FORMAT_HEXADECIMAL, 1);
+    AT_reply_add_string(", duration = ");
+    AT_reply_add_integer(scan_duration_seconds, STRING_FORMAT_DECIMAL, 0);
+    AT_reply_add_string("s");
+    AT_send_reply();
     AT_reply_add_string("Access points: ");
     AT_reply_add_integer(scan_results.number_of_access_points_detected, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string(" detected, ");
