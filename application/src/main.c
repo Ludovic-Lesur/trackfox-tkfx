@@ -160,16 +160,16 @@ typedef struct {
 #ifndef TKFX_MODE_CLI
 static TKFX_context_t tkfx_ctx;
 #ifdef TKFX_MODE_CAR
-static const TKFX_configuration_t TKFX_CONFIG = { 0, 150, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 0, 600, 300, 86400 };
 #endif
 #ifdef TKFX_MODE_BIKE
-static const TKFX_configuration_t TKFX_CONFIG = { 5, 150, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 10, 150, 300, 86400 };
 #endif
 #ifdef TKFX_MODE_HIKING
-static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 10, 300, 600, 86400 };
 #endif
 #ifdef TKFX_MODE_MOTO
-static const TKFX_configuration_t TKFX_CONFIG = { 2, 600, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 10, 600, 300, 86400 };
 #endif
 #endif
 
