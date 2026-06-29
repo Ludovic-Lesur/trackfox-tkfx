@@ -11,17 +11,18 @@
 #include "error.h"
 #include "error_base.h"
 #include "iwdg.h"
+#include "lptim.h"
 #include "maxm10x.h"
 #include "neom8x.h"
 #include "pwr.h"
-#include "rtc.h"
 #include "tkfx_flags.h"
 #include "tkfx_flags_slave.h"
 #include "types.h"
 
 /*** GPS local macros ***/
 
-#define GPS_CALLBACK_TIMEOUT_SECONDS            10
+#define GPS_ACQUISITION_SUB_DELAY_MS                100
+#define GPS_ACQUISITION_CALLBACK_TIMEOUT_SECONDS    10
 
 #ifdef HW2_0
 
@@ -157,8 +158,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     ANALOG_status_t analog_status = ANALOG_SUCCESS;
     GPS_MODULE_acquisition_t gps_acquisition;
     GPS_MODULE_acquisition_status_t expected_status = (altitude_stability_threshold == 0) ? GPS_MODULE_ACQUISITION_STATUS_FOUND : GPS_MODULE_ACQUISITION_STATUS_STABLE;
-    uint32_t uptime = RTC_get_uptime_seconds();
-    uint32_t start_time = uptime;
+    uint32_t acquisition_duration_ms = 0;
     int32_t storage_voltage_voltage_mv = 0;
     uint8_t callback_flag = 0;
     // Check parameters.
@@ -179,17 +179,13 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     gps_module_status = GPS_MODULE_start_acquisition(&gps_acquisition);
     GPS_MODULE_exit_error_acquisition();
     // Processing loop.
-    while (uptime < (start_time + timeout_seconds)) {
-        // Ensure RTC is running.
-        if (RTC_get_uptime_seconds() > uptime) {
-            // Update time and reload watchdog.
-            uptime = RTC_get_uptime_seconds();
-            IWDG_reload();
-        }
-        // Enter sleep mode.
-        PWR_enter_sleep_mode(PWR_SLEEP_MODE_NORMAL);
+    while ((*acquisition_duration_seconds) < timeout_seconds) {
+        // Sub-delay.
+        LPTIM_delay_milliseconds(GPS_ACQUISITION_SUB_DELAY_MS, LPTIM_DELAY_MODE_SLEEP);
+        IWDG_reload();
         // Update acquisition duration.
-        (*acquisition_duration_seconds) = (uptime - start_time);
+        acquisition_duration_ms += GPS_ACQUISITION_SUB_DELAY_MS;
+        (*acquisition_duration_seconds) = ((acquisition_duration_ms + 500) / 1000);
         // Check flag.
         if (gps_ctx.process_flag != 0) {
             // Update flags.
@@ -210,7 +206,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
         // Check acquisition status.
         if (gps_ctx.module_acquisition_status == expected_status) break;
         // Exit if process callback has never been called.
-        if ((callback_flag == 0) && (uptime > (start_time + GPS_CALLBACK_TIMEOUT_SECONDS))) {
+        if ((callback_flag == 0) && ((*acquisition_duration_seconds) > GPS_ACQUISITION_CALLBACK_TIMEOUT_SECONDS)) {
             (*acquisition_status) = GPS_ACQUISITION_ERROR_DRIVER_GPS_CALLBACK;
             status = GPS_ERROR_PROCESS_CALLBACK;
             goto errors;

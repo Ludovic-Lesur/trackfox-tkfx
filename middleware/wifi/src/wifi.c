@@ -10,11 +10,11 @@
 #include "error_base.h"
 #include "exti.h"
 #include "gpio.h"
+#include "lptim.h"
 #include "lr11xx.h"
 #include "mcu_mapping.h"
 #include "nvic_priority.h"
 #include "pwr.h"
-#include "rtc.h"
 #include "types.h"
 
 #ifdef HW2_0
@@ -22,6 +22,7 @@
 /*** WIFI local macros ***/
 
 #define WIFI_TCXO_TIMEOUT_MS    10
+#define WIFI_SCAN_SUB_DELAY_MS  100
 
 /*** WIFI local structures ***/
 
@@ -136,8 +137,7 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout
     WIFI_status_t status = WIFI_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
     LR11XX_wifi_scan_parameters_t scan_params;
-    uint32_t uptime = RTC_get_uptime_seconds();
-    uint32_t start_time = uptime;
+    uint32_t scan_duration_ms = 0;
     // Check parameter.
     if ((wifi_scan_results == NULL) || (scan_duration_seconds == NULL) || (scan_status == NULL)) {
         status = WIFI_ERROR_NULL_PARAMETER;
@@ -165,17 +165,13 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout
     lr11xx_status = LR11XX_wifi_scan(&scan_params);
     LR11XX_exit_error_acquisition();
     // Wait for scan completion.
-    while (uptime < (start_time + timeout_seconds)) {
-        // Ensure RTC is running.
-        if (RTC_get_uptime_seconds() > uptime) {
-            // Update time and reload watchdog.
-            uptime = RTC_get_uptime_seconds();
-            IWDG_reload();
-        }
-        // Enter sleep mode.
-        PWR_enter_deepsleep_mode(PWR_DEEPSLEEP_MODE_STOP);
+    while ((*scan_duration_seconds) < timeout_seconds) {
+        // Sub-delay.
+        LPTIM_delay_milliseconds(WIFI_SCAN_SUB_DELAY_MS, LPTIM_DELAY_MODE_STOP);
+        IWDG_reload();
         // Update acquisition duration.
-        (*scan_duration_seconds) = (uptime - start_time);
+        scan_duration_ms += WIFI_SCAN_SUB_DELAY_MS;
+        (*scan_duration_seconds) = ((scan_duration_ms + 500) / 1000);
         // Check interrupt.
         if (wifi_ctx.dio_irq_flag != 0) {
             // Read results.
