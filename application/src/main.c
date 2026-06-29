@@ -63,7 +63,7 @@
 #define TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE               10
 #define TKFX_WIFI_SCAN_TIMEOUT_SECONDS                      30
 // Start detection.
-#define TKFX_MOTION_IRQ_WINDOWS_COUNT                       3
+#define TKFX_MOTION_IRQ_WINDOWS_COUNT                       4
 
 /*** MAIN structures ***/
 
