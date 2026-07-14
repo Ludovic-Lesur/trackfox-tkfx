@@ -41,7 +41,6 @@
 #include "at.h"
 #include "error_base.h"
 #include "tkfx_flags.h"
-#include "tkfx_flags_slave.h"
 #include "version.h"
 
 /*** MAIN macros ***/
@@ -64,13 +63,24 @@
 #define TKFX_WIFI_SCAN_TIMEOUT_SECONDS                      30
 // Start detection.
 #define TKFX_MOTION_IRQ_WINDOWS_COUNT                       4
+// Voltage hysteresis for power management.
+#ifdef TKFX_MODE_SUPERCAPACITOR
+#define TKFX_STORAGE_VOLTAGE_MV_MAX                         2700
+#define TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV       1500
+#define TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV    1000
+#endif
+#ifdef TKFX_MODE_BATTERY
+#define TKFX_STORAGE_VOLTAGE_MV_MAX                         4200
+#define TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV       3700
+#define TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV    3500
+#endif
+#define TKFX_MODE_SWITCH_HYSTERESIS_MV                      100
 
 /*** MAIN structures ***/
 
 /*******************************************************************/
 typedef enum {
     TKFX_STATE_STARTUP = 0,
-    TKFX_STATE_MODE_UPDATE,
     TKFX_STATE_MONITORING,
     TKFX_STATE_GEOLOC_GPS,
 #ifdef HW2_0
@@ -377,6 +387,70 @@ static void _TKFX_update_temperature_humidity(void) {
 
 #ifndef TKFX_MODE_CLI
 /*******************************************************************/
+static void _TKFX_update_mode(void) {
+    // Local variables.
+    ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
+    // Measure related data.
+    _TKFX_update_source_storage_voltages();
+    // Change error value for mode update.
+    if (tkfx_ctx.storage_voltage_mv == SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
+        tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
+    }
+    else {
+        // Check storage voltage.
+        if (tkfx_ctx.storage_voltage_mv > (TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) {
+            // Active.
+            tkfx_ctx.mode = TKFX_MODE_ACTIVE;
+        }
+        else if (tkfx_ctx.storage_voltage_mv > TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
+            // Active or low power.
+            if ((tkfx_ctx.mode != TKFX_MODE_ACTIVE) && (tkfx_ctx.mode != TKFX_MODE_LOW_POWER)) {
+                tkfx_ctx.mode = TKFX_MODE_ACTIVE;
+            }
+        }
+        else if (tkfx_ctx.storage_voltage_mv > (TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) {
+            // Low power.
+            tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
+        }
+        else if (tkfx_ctx.storage_voltage_mv > TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV) {
+            // Low power or off.
+            if ((tkfx_ctx.mode != TKFX_MODE_LOW_POWER) && (tkfx_ctx.mode != TKFX_MODE_OFF)) {
+                tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
+            }
+        }
+        else {
+            // Off.
+            tkfx_ctx.mode = TKFX_MODE_OFF;
+        }
+    }
+    // Configure accelerometer according to mode.
+    if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_state == 0) || (tkfx_ctx.flags.por != 0))) {
+        // Active mode.
+        POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
+        accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_ACTIVE[0]), ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE);
+        ACCELEROMETER_stack_error();
+        POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
+        // Enable interrupt.
+        SENSORS_HW_enable_accelerometer_interrupt();
+        // Update status.
+        tkfx_ctx.status.accelerometer_state = 1;
+    }
+    if (((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (tkfx_ctx.mode == TKFX_MODE_OFF)) && ((tkfx_ctx.status.accelerometer_state != 0) || (tkfx_ctx.flags.por != 0))) {
+        // Sleep mode.
+        POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
+        accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_SLEEP[0]), ACCELEROMETER_CONFIGURATION_SIZE_SLEEP);
+        ACCELEROMETER_stack_error();
+        POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
+        // Disable interrupt.
+        SENSORS_HW_disable_accelerometer_interrupt();
+        // Update status.
+        tkfx_ctx.status.accelerometer_state = 0;
+    }
+}
+#endif
+
+#ifndef TKFX_MODE_CLI
+/*******************************************************************/
 static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* application_message) {
     // Local variables.
     SIGFOX_EP_API_status_t sigfox_ep_api_status = SIGFOX_EP_API_SUCCESS;
@@ -455,7 +529,6 @@ int main(void) {
     _TKFX_init_hw();
     // Local variables.
     RCC_status_t rcc_status = RCC_SUCCESS;
-    ACCELEROMETER_status_t accelerometer_status = ACCELEROMETER_SUCCESS;
     GPS_status_t gps_status = GPS_SUCCESS;
     GPS_acquisition_status_t gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
     SIGFOX_EP_API_application_message_t sigfox_ep_application_message;
@@ -509,6 +582,8 @@ int main(void) {
             sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_startup.frame);
             sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_STARTUP;
             _TKFX_send_sigfox_message(&sigfox_ep_application_message);
+            // Update mode.
+            _TKFX_update_mode();
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
@@ -538,38 +613,40 @@ int main(void) {
             sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_monitoring.frame);
             sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_MONITORING;
             _TKFX_send_sigfox_message(&sigfox_ep_application_message);
-            // Reset request.
+            // Clear request.
             tkfx_ctx.flags.monitoring_request = 0;
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
         case TKFX_STATE_GEOLOC_GPS:
             IWDG_reload();
-            // Enable backup in active mode and moving condition.
-            if ((tkfx_ctx.status.moving_flag != 0) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
-                gps_status = GPS_set_backup_voltage(1);
-                GPS_stack_error(ERROR_BASE_GPS);
-            }
-            // Configure altitude stability filter and reset fix duration.
-            generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING;
+            // Reset fix duration.
             generic_u32_1 = 0;
-            // Pre-check storage voltage.
-            if (tkfx_ctx.storage_voltage_mv > TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
-                // Turn GPS and analog front-end on to monitor storage element voltage.
-                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG, LPTIM_DELAY_MODE_SLEEP);
+            // Check mode.
+            if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
+                // Turn backup on in moving condition.
+                if (tkfx_ctx.status.moving_flag != 0) {
+                    gps_status = GPS_set_backup_voltage(1);
+                    GPS_stack_error(ERROR_BASE_GPS);
+                }
+                // Configure altitude stability filter.
+                generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING;
+                // Turn GPS on.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
                 // Get position from GPS.
                 gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &generic_u32_1, &gps_acquisition_status);
                 GPS_stack_error(ERROR_BASE_GPS);
-                // Turn analog front-end and GPS off.
+                // Turn GPS off.
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS);
-                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_ANALOG);
+                // Turn backup off in stopped condition.
+                if (tkfx_ctx.status.moving_flag == 0) {
+                    gps_status = GPS_set_backup_voltage(0);
+                    GPS_stack_error(ERROR_BASE_GPS);
+                }
             }
             else {
                 gps_acquisition_status = GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE;
-            }
-            // Disable GPS backup in low power mode or stopped condition.
-            if ((tkfx_ctx.status.moving_flag == 0) || (tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (gps_acquisition_status == GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE)) {
+                // Turn backup off.
                 gps_status = GPS_set_backup_voltage(0);
                 GPS_stack_error(ERROR_BASE_GPS);
             }
@@ -613,7 +690,7 @@ int main(void) {
                 sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT;
 #endif
             }
-            // Reset flag and timer.
+            // Clear request.
             tkfx_ctx.flags.geoloc_request = 0;
 #ifndef HW2_0
             // Send uplink geolocation frame.
@@ -625,65 +702,73 @@ int main(void) {
 #ifdef HW2_0
         case TKFX_STATE_GEOLOC_WIFI:
             IWDG_reload();
-            // Build result structure.
-            wifi_scan_results.access_point_list = (WIFI_access_point_t*) wifi_scan_access_point_list;
-            wifi_scan_results.access_point_list_size = TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE;
-            // Perform passive WiFi scan.
-            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
-            POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
-            // Get position from GPS.
-            wifi_status = WIFI_scan(&wifi_scan_results, TKFX_WIFI_SCAN_TIMEOUT_SECONDS, &generic_u32_1, &wifi_scan_status);
-            WIFI_stack_error(ERROR_BASE_WIFI);
-            // Turn analog front-end and GPS off.
-            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI);
-            POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO);
-            // Check acquisition status.
-            if (wifi_scan_status == WIFI_SCAN_SUCCESS) {
-                // Check if scan results are not empty.
-                if (wifi_scan_results.number_of_access_points_written > 0) {
-                    // Copy results.
-                    for (idx = 0; idx < wifi_scan_results.number_of_access_points_written; idx++) {
-                        // MAC address.
-                        for (jdx = 0; jdx < WIFI_MAC_ADDRESS_SIZE_BYTES; jdx++) {
-                            addon_aw_access_point_list[idx].mac_address[jdx] = wifi_scan_results.access_point_list[idx].mac_address[jdx];
-                        }
-                        addon_aw_access_point_list[idx].rssi_dbm = (sfx_s16) wifi_scan_results.access_point_list[idx].rssi_dbm;
-                        addon_aw_access_point_list[idx].status = SIGFOX_EP_ADDON_AW_API_ACCESS_POINT_STATUS_NEW;
-                        // Update pointer.
-                        addon_aw_access_point_list_ptr[idx] = &(addon_aw_access_point_list[idx]);
-                    }
-                    // Build input data.
-                    addon_aw_input_data.access_point_list = (SIGFOX_EP_ADDON_AW_API_access_point_t**) addon_aw_access_point_list_ptr;
-                    addon_aw_input_data.access_point_list_size = wifi_scan_results.number_of_access_points_written;
-                    // Set Atlas WiFi filters.
-                    sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_set_filter((0b1 << SIGFOX_EP_ADDON_AW_API_FILTER_LOCALLY_ADMINISTERED), SIGFOX_EP_ADDON_AW_API_SORTING_RSSI);
-                    if (sigfox_ep_addon_aw_status == SIGFOX_EP_ADDON_AW_API_SUCCESS) {
-                        // Build payload.
-                        sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_build_ul_payload(&addon_aw_input_data, sigfox_ep_ul_payload_wifi, &generic_u8);
-                        switch (sigfox_ep_addon_aw_status) {
-                        case SIGFOX_EP_ADDON_AW_API_SUCCESS:
-                            // Check if there is at lease one valid MAC address to send.
-                            if (generic_u8 == 0) {
-                                wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID;
+            // Reset scan duration.
+            generic_u32_1 = 0;
+            // Check mode.
+            if (tkfx_ctx.mode == TKFX_MODE_ACTIVE) {
+                // Build result structure.
+                wifi_scan_results.access_point_list = (WIFI_access_point_t*) wifi_scan_access_point_list;
+                wifi_scan_results.access_point_list_size = TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE;
+                // Turn WiFi receiver on.
+                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO, LPTIM_DELAY_MODE_SLEEP);
+                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI, LPTIM_DELAY_MODE_SLEEP);
+                // Perform passive WiFi scan.
+                wifi_status = WIFI_scan(&wifi_scan_results, TKFX_WIFI_SCAN_TIMEOUT_SECONDS, &generic_u32_1, &wifi_scan_status);
+                WIFI_stack_error(ERROR_BASE_WIFI);
+                // Turn WiFi receiver off.
+                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_WIFI);
+                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_TCXO);
+                // Check acquisition status.
+                if (wifi_scan_status == WIFI_SCAN_SUCCESS) {
+                    // Check if scan results are not empty.
+                    if (wifi_scan_results.number_of_access_points_written > 0) {
+                        // Copy results.
+                        for (idx = 0; idx < wifi_scan_results.number_of_access_points_written; idx++) {
+                            // MAC address.
+                            for (jdx = 0; jdx < WIFI_MAC_ADDRESS_SIZE_BYTES; jdx++) {
+                                addon_aw_access_point_list[idx].mac_address[jdx] = wifi_scan_results.access_point_list[idx].mac_address[jdx];
                             }
-                            break;
-                        case SIGFOX_EP_ADDON_AW_API_ERROR_NONE_VALID_ACCESS_POINT:
-                            wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID;
-                            break;
-                        default:
+                            addon_aw_access_point_list[idx].rssi_dbm = (sfx_s16) wifi_scan_results.access_point_list[idx].rssi_dbm;
+                            addon_aw_access_point_list[idx].status = SIGFOX_EP_ADDON_AW_API_ACCESS_POINT_STATUS_NEW;
+                            // Update pointer.
+                            addon_aw_access_point_list_ptr[idx] = &(addon_aw_access_point_list[idx]);
+                        }
+                        // Build input data.
+                        addon_aw_input_data.access_point_list = (SIGFOX_EP_ADDON_AW_API_access_point_t**) addon_aw_access_point_list_ptr;
+                        addon_aw_input_data.access_point_list_size = wifi_scan_results.number_of_access_points_written;
+                        // Set Atlas WiFi filters.
+                        sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_set_filter((0b1 << SIGFOX_EP_ADDON_AW_API_FILTER_LOCALLY_ADMINISTERED), SIGFOX_EP_ADDON_AW_API_SORTING_RSSI);
+                        if (sigfox_ep_addon_aw_status == SIGFOX_EP_ADDON_AW_API_SUCCESS) {
+                            // Build payload.
+                            sigfox_ep_addon_aw_status = SIGFOX_EP_ADDON_AW_API_build_ul_payload(&addon_aw_input_data, sigfox_ep_ul_payload_wifi, &generic_u8);
+                            switch (sigfox_ep_addon_aw_status) {
+                            case SIGFOX_EP_ADDON_AW_API_SUCCESS:
+                                // Check if there is at lease one valid MAC address to send.
+                                if (generic_u8 == 0) {
+                                    wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID;
+                                }
+                                break;
+                            case SIGFOX_EP_ADDON_AW_API_ERROR_NONE_VALID_ACCESS_POINT:
+                                wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_VALID;
+                                break;
+                            default:
+                                ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
+                                wifi_scan_status = WIFI_SCAN_ERROR_DRIVER_ADDON_AW;
+                                break;
+                            }
+                        }
+                        else {
                             ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
                             wifi_scan_status = WIFI_SCAN_ERROR_DRIVER_ADDON_AW;
-                            break;
                         }
                     }
                     else {
-                        ERROR_stack_add((ERROR_code_t) (ERROR_BASE_SIGFOX_EP_ADDON_WIFI + sigfox_ep_addon_aw_status));
-                        wifi_scan_status = WIFI_SCAN_ERROR_DRIVER_ADDON_AW;
+                        wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_DETECTED;
                     }
                 }
-                else {
-                    wifi_scan_status = WIFI_SCAN_ERROR_NONE_ACCESS_POINT_DETECTED;
-                }
+            }
+            else {
+                wifi_scan_status = WIFI_SCAN_ERROR_LOW_STORAGE_VOLTAGE;
             }
             // Check geolocation acquisition status.
             if (wifi_scan_status == WIFI_SCAN_SUCCESS) {
@@ -731,52 +816,6 @@ int main(void) {
                 }
             }
             // Compute next state.
-            tkfx_ctx.state = TKFX_STATE_MODE_UPDATE;
-            break;
-        case TKFX_STATE_MODE_UPDATE:
-            IWDG_reload();
-            // Measure related data.
-            _TKFX_update_source_storage_voltages();
-            // Change error value for mode update.
-            if (tkfx_ctx.storage_voltage_mv == SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
-                tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
-            }
-            else {
-                // Check storage voltage.
-                if (tkfx_ctx.storage_voltage_mv > (TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) {
-                    tkfx_ctx.mode = TKFX_MODE_ACTIVE;
-                }
-                if ((tkfx_ctx.storage_voltage_mv > (TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV + TKFX_MODE_SWITCH_HYSTERESIS_MV)) && (tkfx_ctx.storage_voltage_mv < TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) {
-                    tkfx_ctx.mode = TKFX_MODE_LOW_POWER;
-                }
-                if (tkfx_ctx.storage_voltage_mv < TKFX_MODE_LOW_POWER_STORAGE_VOLTAGE_THRESHOLD_MV) {
-                    tkfx_ctx.mode = TKFX_MODE_OFF;
-                }
-            }
-            // Configure accelerometer according to mode.
-            if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && ((tkfx_ctx.status.accelerometer_state == 0) || (tkfx_ctx.flags.por != 0))) {
-                // Active mode.
-                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-                accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_ACTIVE[0]), ACCELEROMETER_CONFIGURATION_SIZE_ACTIVE);
-                ACCELEROMETER_stack_error();
-                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
-                // Enable interrupt.
-                SENSORS_HW_enable_accelerometer_interrupt();
-                // Update status.
-                tkfx_ctx.status.accelerometer_state = 1;
-            }
-            if (((tkfx_ctx.mode == TKFX_MODE_LOW_POWER) || (tkfx_ctx.mode == TKFX_MODE_OFF)) && ((tkfx_ctx.status.accelerometer_state != 0) || (tkfx_ctx.flags.por != 0))) {
-                // Sleep mode.
-                POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS, LPTIM_DELAY_MODE_STOP);
-                accelerometer_status = ACCELEROMETER_write_configuration(ACCELEROMETER_I2C_ADDRESS, &(ACCELEROMETER_CONFIGURATION_SLEEP[0]), ACCELEROMETER_CONFIGURATION_SIZE_SLEEP);
-                ACCELEROMETER_stack_error();
-                POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_SENSORS);
-                // Disable interrupt.
-                SENSORS_HW_disable_accelerometer_interrupt();
-                // Update status.
-                tkfx_ctx.status.accelerometer_state = 0;
-            }
-            // Compute next state.
             tkfx_ctx.state = TKFX_STATE_TASK_CHECK;
             break;
         case TKFX_STATE_TASK_CHECK:
@@ -822,7 +861,7 @@ int main(void) {
             }
             else {
                 // Stop detection.
-                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds)) && (tkfx_ctx.mode == TKFX_MODE_ACTIVE)) {
+                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds))) {
                     // Set request and update last time.
                     tkfx_ctx.flags.monitoring_request = 1;
                     tkfx_ctx.flags.geoloc_request = 1;
@@ -850,8 +889,8 @@ int main(void) {
                 // Calibrate clocks.
                 rcc_status = RCC_calibrate_internal_clocks(NVIC_PRIORITY_CLOCK_CALIBRATION);
                 RCC_stack_error(ERROR_BASE_RCC);
-                // Reset GPS status for mode update.
-                gps_acquisition_status = GPS_ACQUISITION_SUCCESS;
+                // Update mode.
+                _TKFX_update_mode();
             }
 #ifdef HW2_0
             // Enable charge by default.

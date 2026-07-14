@@ -7,7 +7,6 @@
 
 #include "gps.h"
 
-#include "analog.h"
 #include "error.h"
 #include "error_base.h"
 #include "iwdg.h"
@@ -16,7 +15,6 @@
 #include "neom8x.h"
 #include "pwr.h"
 #include "tkfx_flags.h"
-#include "tkfx_flags_slave.h"
 #include "types.h"
 
 /*** GPS local macros ***/
@@ -105,15 +103,6 @@ static GPS_context_t gps_ctx = {
 }
 
 /*******************************************************************/
-#define ANALOG_exit_error_acquisition(void) { \
-    /* Update acquisition status */ \
-    if (analog_status != ANALOG_SUCCESS) { \
-        (*acquisition_status) = GPS_ACQUISITION_ERROR_DRIVER_ANALOG; \
-    } \
-    ANALOG_exit_error(GPS_ERROR_BASE_ANALOG); \
-}
-
-/*******************************************************************/
 static void _GPS_process_callback(void) {
     // Set local flag.
     gps_ctx.process_flag = 1;
@@ -155,11 +144,9 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     // Local variables.
     GPS_status_t status = GPS_SUCCESS;
     GPS_MODULE_status_t gps_module_status = GPS_MODULE_SUCCESS;
-    ANALOG_status_t analog_status = ANALOG_SUCCESS;
     GPS_MODULE_acquisition_t gps_acquisition;
     GPS_MODULE_acquisition_status_t expected_status = (altitude_stability_threshold == 0) ? GPS_MODULE_ACQUISITION_STATUS_FOUND : GPS_MODULE_ACQUISITION_STATUS_STABLE;
     uint32_t acquisition_duration_ms = 0;
-    int32_t storage_voltage_voltage_mv = 0;
     uint8_t callback_flag = 0;
     // Check parameters.
     if ((gps_position == NULL) || (acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
@@ -194,14 +181,6 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
             // Process driver.
             gps_module_status = GPS_MODULE_process();
             GPS_MODULE_exit_error_acquisition();
-            // Check STORAGE_VOLTAGE voltage.
-            analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_STORAGE_VOLTAGE_MV, &storage_voltage_voltage_mv);
-            ANALOG_exit_error_acquisition();
-            // Check threshold.
-            if (storage_voltage_voltage_mv < TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
-                (*acquisition_status) = GPS_ACQUISITION_ERROR_LOW_STORAGE_VOLTAGE;
-                break;
-            }
         }
         // Check acquisition status.
         if (gps_ctx.module_acquisition_status == expected_status) break;

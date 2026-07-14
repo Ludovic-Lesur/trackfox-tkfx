@@ -22,10 +22,7 @@ The boards were designed on **Circuit Maker V1.3**. Below is the list of hardwar
 
 ## Environment
 
-As of version `sw0.0.9` the embedded software is developed under **Eclipse IDE** version 2024-09 (4.33.0) and **GNU MCU** plugin. The `script` folder contains Eclipse run/debug configuration files and **JLink** scripts to flash the MCU.
-
-> [!WARNING]
-> To compile any version under `sw4.0`, the `git_version.sh` script must be patched when `sscanf` function is called: the `SW` prefix must be replaced by `sw` since Git tags have been renamed in this way.
+The firmware is developed under **Eclipse IDE** and **GNU MCU** plugin. The `script` folder contains Eclipse run/debug configuration files and **JLink** scripts to flash the MCU.
 
 ## Target
 
