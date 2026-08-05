@@ -178,7 +178,7 @@ static const TKFX_configuration_t TKFX_CONFIG = { 10, 150, 300, 86400 };
 static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400 };
 #endif
 #ifdef TKFX_MODE_MOTO
-static const TKFX_configuration_t TKFX_CONFIG = { 5, 600, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 2, 600, 300, 86400 };
 #endif
 #endif
 
