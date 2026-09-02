@@ -190,6 +190,10 @@ static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
     // Switch and clear next window.
     tkfx_ctx.motion_irq_window_index = ((tkfx_ctx.motion_irq_window_index + 1) % TKFX_MOTION_IRQ_WINDOWS_COUNT);
     tkfx_ctx.motion_irq_count[tkfx_ctx.motion_irq_window_index] = 0;
+    // Periodically enable the accelerometer interrupt to check if the device is still moving.
+    if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && (tkfx_ctx.status.moving_flag != 0)) {
+        SENSORS_HW_enable_accelerometer_interrupt();
+    }
 }
 #endif
 
@@ -199,6 +203,10 @@ static void _TKFX_motion_irq_callback(void) {
     // Update variables.
     tkfx_ctx.motion_irq_count[tkfx_ctx.motion_irq_window_index]++;
     tkfx_ctx.motion_irq_last_time_seconds = RTC_get_uptime_seconds();
+    // Temporarily disable interrupt while the device is moving to limit MCU wake-up events and save power consumption.
+    if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && (tkfx_ctx.status.moving_flag != 0)) {
+        SENSORS_HW_disable_accelerometer_interrupt();
+    }
 }
 #endif
 
