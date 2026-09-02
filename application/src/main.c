@@ -62,7 +62,7 @@
 #define TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE               10
 #define TKFX_WIFI_SCAN_TIMEOUT_SECONDS                      30
 // Start detection.
-#define TKFX_MOTION_IRQ_WINDOWS_COUNT                       4
+#define TKFX_MOTION_IRQ_WINDOWS_COUNT_MAX                   30
 // Voltage hysteresis for power management.
 #ifdef TKFX_MODE_SUPERCAPACITOR
 #define TKFX_STORAGE_VOLTAGE_MV_MAX                         2700
@@ -130,6 +130,7 @@ typedef union {
  * \brief Tracker configuration structure.
  *******************************************************************/
 typedef struct {
+    uint32_t motion_irq_windows_count;
     uint32_t start_detection_threshold_irq;
     uint32_t stop_detection_threshold_seconds;
     uint32_t moving_geoloc_period_seconds;
@@ -154,7 +155,7 @@ typedef struct {
     uint32_t error_stack_last_time_seconds;
     // Tracker algorithm.
     volatile uint32_t motion_irq_window_index;
-    volatile uint32_t motion_irq_count[TKFX_MOTION_IRQ_WINDOWS_COUNT];
+    volatile uint32_t motion_irq_count[TKFX_MOTION_IRQ_WINDOWS_COUNT_MAX];
     volatile uint32_t motion_irq_last_time_seconds;
     uint32_t geoloc_last_time_seconds;
     GPS_position_t geoloc_position;
@@ -169,16 +170,16 @@ typedef struct {
 #ifndef TKFX_MODE_CLI
 static TKFX_context_t tkfx_ctx;
 #ifdef TKFX_MODE_CAR
-static const TKFX_configuration_t TKFX_CONFIG = { 1, 150, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 4, 1, 150, 300, 86400 };
 #endif
 #ifdef TKFX_MODE_BIKE
-static const TKFX_configuration_t TKFX_CONFIG = { 10, 150, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 4, 10, 150, 300, 86400 };
 #endif
 #ifdef TKFX_MODE_HIKING
-static const TKFX_configuration_t TKFX_CONFIG = { 5, 300, 600, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 4, 5, 300, 600, 86400 };
 #endif
 #ifdef TKFX_MODE_MOTO
-static const TKFX_configuration_t TKFX_CONFIG = { 2, 600, 300, 86400 };
+static const TKFX_configuration_t TKFX_CONFIG = { 4, 2, 600, 300, 86400 };
 #endif
 #endif
 
@@ -188,7 +189,7 @@ static const TKFX_configuration_t TKFX_CONFIG = { 2, 600, 300, 86400 };
 /*******************************************************************/
 static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
     // Switch and clear next window.
-    tkfx_ctx.motion_irq_window_index = ((tkfx_ctx.motion_irq_window_index + 1) % TKFX_MOTION_IRQ_WINDOWS_COUNT);
+    tkfx_ctx.motion_irq_window_index = ((tkfx_ctx.motion_irq_window_index + 1) % TKFX_CONFIG.motion_irq_windows_count);
     tkfx_ctx.motion_irq_count[tkfx_ctx.motion_irq_window_index] = 0;
     // Periodically enable the accelerometer interrupt to check if the device is still moving.
     if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && (tkfx_ctx.status.moving_flag != 0)) {
@@ -216,7 +217,7 @@ static void _TKFX_reset_motion_irq_windows(void) {
     // Local variables.
     uint8_t idx = 0;
     // Reset windows.
-    for (idx = 0; idx < TKFX_MOTION_IRQ_WINDOWS_COUNT; idx++) {
+    for (idx = 0; idx < TKFX_MOTION_IRQ_WINDOWS_COUNT_MAX; idx++) {
         tkfx_ctx.motion_irq_count[idx] = 0;
     }
     tkfx_ctx.motion_irq_window_index = 0;
@@ -230,7 +231,7 @@ static uint8_t _TKFX_check_motion_irq_windows(void) {
     uint8_t motion_confirmed = 1;
     uint8_t idx = 0;
     // Check if IRQ threshold has been reached on all windows.
-    for (idx = 0; idx < TKFX_MOTION_IRQ_WINDOWS_COUNT; idx++) {
+    for (idx = 0; idx < TKFX_CONFIG.motion_irq_windows_count; idx++) {
         if (tkfx_ctx.motion_irq_count[idx] < TKFX_CONFIG.start_detection_threshold_irq) {
             motion_confirmed = 0;
             break;
