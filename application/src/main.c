@@ -836,16 +836,23 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     _TKFX_update_source_storage_voltages();
     // Default RF output power.
     application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN;
-    // Check error value and adaptative TX power flag.
-    if ((tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag != 0) && (tkfx_ctx.storage_voltage_mv != SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE)) {
-        // Apply clamped linear curve according to storage element voltage.
-        if (tkfx_ctx.storage_voltage_mv >= TKFX_STORAGE_VOLTAGE_MV_MAX) {
-            application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX;
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    // Keep balanced radio link budget in downlink.
+    if ((application_message->bidirectional_flag) == SIGFOX_FALSE) {
+#endif
+        // Check error value and adaptative TX power flag.
+        if ((tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag != 0) && (tkfx_ctx.storage_voltage_mv != SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE)) {
+            // Apply clamped linear curve according to storage element voltage.
+            if (tkfx_ctx.storage_voltage_mv >= TKFX_STORAGE_VOLTAGE_MV_MAX) {
+                application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX;
+            }
+            else if (tkfx_ctx.storage_voltage_mv >= TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
+                application_message->common_parameters.tx_power_dbm_eirp += ((tx_power_dbm_delta * (tkfx_ctx.storage_voltage_mv - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) / (storage_voltage_mv_delta));
+            }
         }
-        else if (tkfx_ctx.storage_voltage_mv >= TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV) {
-            application_message->common_parameters.tx_power_dbm_eirp += ((tx_power_dbm_delta * (tkfx_ctx.storage_voltage_mv - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV)) / (storage_voltage_mv_delta));
-        }
+#ifdef SIGFOX_EP_BIDIRECTIONAL
     }
+#endif
 #else
     // Library configuration.
     lib_config.rc = &SIGFOX_RC1;
