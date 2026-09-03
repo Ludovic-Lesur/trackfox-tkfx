@@ -21,6 +21,7 @@
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC            11
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_TIMEOUT    2
 #define SIGFOX_EP_UL_PAYLOAD_SIZE_GEOLOC_ERROR      4
+#define SIGFOX_EP_UL_PAYLOAD_SIZE_CONFIGURATION     9
 // Error values.
 #define SIGFOX_EP_ERROR_VALUE_TEMPERATURE           0x7FF
 #define SIGFOX_EP_ERROR_VALUE_HUMIDITY              0xFF
@@ -105,5 +106,82 @@ typedef union {
         unsigned wifi_scan_duration_seconds :8;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } SIGFOX_EP_ul_payload_geoloc_error_t;
+
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+/*!******************************************************************
+ * \struct SIGFOX_EP_ul_payload_configuration_t
+ * \brief Sigfox uplink configuration frame format.
+ *******************************************************************/
+typedef union {
+    uint8_t frame[SIGFOX_EP_UL_PAYLOAD_SIZE_CONFIGURATION];
+    struct {
+        unsigned monitoring_period_minutes :8;
+        unsigned start_detection_windows :8;
+        unsigned start_detection_threshold_irq :8;
+        unsigned stop_detection_threshold_minutes :8;
+        unsigned geoloc_period_moving_minutes :8;
+        unsigned geoloc_period_stopped_hours :8;
+        unsigned unused :6;
+        unsigned adaptative_tx_power_flag :1;
+        unsigned adaptative_ul_bit_rate_flag :1;
+        unsigned gps_timeout_seconds :8;
+        unsigned gps_altitude_stability_filter_moving :4;
+        unsigned gps_altitude_stability_filter_stopped :4;
+    } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
+} SIGFOX_EP_ul_payload_configuration_t;
+#endif
+
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+/*!******************************************************************
+ * \enum SIGFOX_EP_dl_op_code_t
+ * \brief Sigfox downlink operation codes.
+ *******************************************************************/
+typedef enum {
+    SIGFOX_EP_DL_OP_CODE_NOP = 0,
+    SIGFOX_EP_DL_OP_CODE_RESET,
+    SIGOFX_EP_DL_OP_CODE_SET_MONITORING_PERIOD,
+    SIGFOX_EP_DL_OP_CODE_SET_TRACKING_PARAMETERS,
+    SIGFOX_EP_DL_OP_CODE_SET_GPS_SETTINGS,
+    SIGFOX_EP_DL_OP_CODE_LAST
+} SIGFOX_EP_dl_op_code_t;
+#endif
+
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+/*!******************************************************************
+ * \enum SIGFOX_EP_dl_payload_t
+ * \brief Sigfox downlink frames format.
+ *******************************************************************/
+typedef union {
+    uint8_t frame[SIGFOX_DL_PAYLOAD_SIZE_BYTES];
+    struct {
+        unsigned op_code :8;
+        union {
+            struct {
+                unsigned monitoring_period_minutes :8;
+                unsigned unused0 :24;
+                unsigned unused1 :24;
+            } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) set_monitoring_period;
+            struct {
+                unsigned start_detection_windows :8;
+                unsigned start_detection_threshold_irq :8;
+                unsigned stop_detection_threshold_minutes :8;
+                unsigned geoloc_period_moving_minutes :8;
+                unsigned geoloc_period_stopped_hours :8;
+                unsigned unused0 :6;
+                unsigned adaptative_tx_power_flag :1;
+                unsigned adaptative_ul_bit_rate_flag :1;
+                unsigned unused1 :8;
+            } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) set_tracking_parameters;
+            struct {
+                unsigned gps_timeout_seconds :8;
+                unsigned gps_altitude_stability_filter_moving :4;
+                unsigned gps_altitude_stability_filter_stopped :4;
+                unsigned unused0 :8;
+                unsigned unused1 :32;
+            } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed)) set_gps_settings;
+        };
+    } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
+} SIGFOX_EP_dl_payload_t;
+#endif
 
 #endif /* __SIGFOX_EP_FRAMES_H__ */

@@ -48,6 +48,26 @@ The project is organized as follow:
     * `wifi` : High level **WiFi scan** driver.
 * `application` : Main **application**.
 
+## Tracking algorithm
+
+<p align="center">
+<img src="https://github.com/Ludovic-Lesur/trackfox-tkfx/wiki/images/trackfox-algorithm-timeline.drawio.png"/>
+</p>
+
+| Parameter | Decription | Min | Max | Default | Unit |
+|---|---|---|---|---|---|
+| `monitoring_period` | Period of the monitoring messages (synchronized on the start and stop events). | `30` | `240` | `60` | `minutes` |
+| `start_detection_windows` | Number of analysis windows used in the start event detection (each window is 10 seconds long). | `1` | `30` | `4` | `windows` |
+| `start_detection_threshold` | Minimum number of accelerometer interrupts within each analysis window needed to validate the start event. | `1` | `50` | `5` | `IRQs` |
+| `stop_detection_threshold` | Time without any accelerometer interrupt required to validate a stop event. | `1` | `240` | `5` | `minutes` |
+| `geoloc_period_moving` | Geolocation period while the device is moving. | `5` | `240` | `5` | `minutes` |
+| `geoloc_period_stopped` | Geolocation period while the device is motionless. | `1 ` | `168` | `24` | `hours` |
+| `adaptative_tx_power` | Enable or disable the radio TX power adjustment according to the storage element voltage. | `0` | `1` | `1` | `boolean` |
+| `adaptative_ul_bit_rate` | Enable or disable the radio uplink bit rate according to the device motion state. | `0` | `1` | `1` | `boolean` |
+| `gps_timeout` | GPS timeout. | `30` | `180` | `180` | `seconds` |
+| `altitude_stability_filter`<br>`moving` | Number of same consecutive altitudes required to validate a GPS position while the device is moving. | `0` | `15` | `2` | `altitudes` |
+| `altitude_stability_filter`<br>`stopped` | Number of same consecutive altitudes required to validate a GPS position while the device is motionless. | `0 ` | `15` | `5` | `altitudes` |
+
 ## Sigfox library
 
 **Sigfox technology** is very well suited for this application for 3 main reasons:
@@ -69,10 +89,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE="script/cmake-arm-none-eabi/toolchain.cmake" \
       -DTOOLCHAIN_PATH="<arm_none_eabi_gcc_path>" \
       -DTKFX_HW_VERSION="<cmake_hw_version>" \
       -DTKFX_MODE_CLI=OFF \
-      -DTKFX_MODE_CAR=ON \
-      -DTKFX_MODE_BIKE=OFF \
-      -DTKFX_MODE_HIKING=OFF \
-      -DTKFX_MODE_MOTO=OFF \
       -DTKFX_MODE_BATTERY=ON \
       -DTKFX_MODE_SUPERCAPACITOR=OFF \
       -G "Unix Makefiles" ..

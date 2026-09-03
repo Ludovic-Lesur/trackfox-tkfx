@@ -14,6 +14,8 @@
 #include "mcu_mapping.h"
 #include "nvic.h"
 #include "nvic_priority.h"
+#include "nvm.h"
+#include "nvm_address.h"
 #include "pwr.h"
 #include "rcc.h"
 #include "rtc.h"
@@ -46,13 +48,13 @@
 /*** MAIN macros ***/
 
 // Monitoring period.
-#define TKFX_MONITORING_PERIOD_SECONDS                      3600
+#define TKFX_MONITORING_PERIOD_MINUTES_MIN                  30
+#define TKFX_MONITORING_PERIOD_MINUTES_DEFAULT              60
+#define TKFX_MONITORING_PERIOD_MINUTES_MAX                  240
+// Downlink period.
+#define TKFX_CONFIGURATION_PERIOD_SECONDS                   86400
 // Error stack.
 #define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              86400
-// Geolocation.
-#define TKFX_GEOLOC_TIMEOUT_SECONDS                         180
-#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING        2
-#define TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED       5
 // Charge latching.
 #define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   600
 // Sigfox TX output power range.
@@ -62,7 +64,30 @@
 #define TKFX_WIFI_SCAN_ACCESS_POINT_LIST_SIZE               10
 #define TKFX_WIFI_SCAN_TIMEOUT_SECONDS                      30
 // Start detection.
-#define TKFX_MOTION_IRQ_WINDOWS_COUNT_MAX                   30
+#define TKFX_START_DETECTION_WINDOWS_MIN                    1
+#define TKFX_START_DETECTION_WINDOWS_DEFAULT                4
+#define TKFX_START_DETECTION_WINDOWS_MAX                    30
+#define TKFX_START_DETECTION_THRESHOLD_IRQ_MIN              1
+#define TKFX_START_DETECTION_THRESHOLD_IRQ_DEFAULT          5
+#define TKFX_START_DETECTION_THRESHOLD_IRQ_MAX              50
+// Stop detection.
+#define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MIN           1
+#define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_DEFAULT       5
+#define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MAX           240
+// Geolocation periods.
+#define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MIN               5
+#define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_DEFAULT           5
+#define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX               240
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN                1
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT            24
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX                168
+// GPS settings.
+#define TKFX_GPS_TIMEOUT_SECONDS_MIN                        30
+#define TKFX_GPS_TIMEOUT_SECONDS_DEFAULT                    180
+#define TKFX_GPS_TIMEOUT_SECONDS_MAX                        180
+#define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT   2
+#define TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT  5
+#define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX              15
 // Voltage hysteresis for power management.
 #ifdef TKFX_MODE_SUPERCAPACITOR
 #define TKFX_STORAGE_VOLTAGE_MV_MAX                         2700
@@ -82,6 +107,9 @@
 typedef enum {
     TKFX_STATE_STARTUP = 0,
     TKFX_STATE_MONITORING,
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    TKFX_STATE_CONFIGURATION,
+#endif
     TKFX_STATE_GEOLOC_GPS,
 #ifdef HW2_0
     TKFX_STATE_GEOLOC_WIFI,
@@ -104,13 +132,14 @@ typedef enum {
 typedef union {
     uint8_t all;
     struct {
+        unsigned configuration_updated :1;
+        unsigned daily_downlink :1;
         unsigned gps_backup_state :1;
         unsigned accelerometer_state :1;
         unsigned tracker_state :1;
         unsigned lse_status :1;
         unsigned moving_flag :1;
         unsigned alarm_flag :1;
-        unsigned tracker_mode :2;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_status_t;
 
@@ -120,21 +149,45 @@ typedef union {
     struct {
         unsigned error_stack_enable :1;
         unsigned geoloc_request :1;
+        unsigned configuration_request :1;
         unsigned monitoring_request :1;
+        unsigned reset_request :1;
         unsigned por :1;
     } __attribute__((scalar_storage_order("big-endian"))) __attribute__((packed));
 } TKFX_flags_t;
+
+/*!******************************************************************
+ * \struct TKFX_tracking_parameters_t
+ * \brief Tracking parameters structure.
+ *******************************************************************/
+typedef struct {
+    uint8_t start_detection_windows;
+    uint8_t start_detection_threshold_irq;
+    uint8_t stop_detection_threshold_minutes;
+    uint8_t geoloc_period_moving_minutes;
+    uint8_t geoloc_period_stopped_hours;
+    uint8_t adaptative_tx_power_flag;
+    uint8_t adaptative_ul_bit_rate_flag;
+} TKFX_tracking_parameters_t;
+
+/*!******************************************************************
+ * \struct TKFX_gps_settings_t
+ * \brief GPS settings structure.
+ *******************************************************************/
+typedef struct {
+    uint8_t gps_timeout_seconds;
+    uint8_t gps_altitude_stability_filter_moving;
+    uint8_t gps_altitude_stability_filter_stopped;
+} TKFX_gps_settings_t;
 
 /*!******************************************************************
  * \struct TKFX_configuration_t
  * \brief Tracker configuration structure.
  *******************************************************************/
 typedef struct {
-    uint32_t motion_irq_windows_count;
-    uint32_t start_detection_threshold_irq;
-    uint32_t stop_detection_threshold_seconds;
-    uint32_t moving_geoloc_period_seconds;
-    uint32_t stopped_geoloc_period_seconds;
+    uint8_t monitoring_period_minutes;
+    TKFX_tracking_parameters_t tracking_parameters;
+    TKFX_gps_settings_t gps_settings;
 } TKFX_configuration_t;
 
 #ifndef TKFX_MODE_CLI
@@ -151,11 +204,15 @@ typedef struct {
     uint8_t humidity_percent;
     uint16_t source_voltage_ten_mv;
     uint16_t storage_voltage_mv;
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    uint32_t configuration_last_time_seconds;
+#endif
     // Error stack.
     uint32_t error_stack_last_time_seconds;
     // Tracker algorithm.
-    volatile uint32_t motion_irq_window_index;
-    volatile uint32_t motion_irq_count[TKFX_MOTION_IRQ_WINDOWS_COUNT_MAX];
+    TKFX_configuration_t configuration;
+    volatile uint8_t motion_irq_window_index;
+    volatile uint8_t motion_irq_count[TKFX_START_DETECTION_WINDOWS_MAX];
     volatile uint32_t motion_irq_last_time_seconds;
     uint32_t geoloc_last_time_seconds;
     GPS_position_t geoloc_position;
@@ -169,18 +226,6 @@ typedef struct {
 
 #ifndef TKFX_MODE_CLI
 static TKFX_context_t tkfx_ctx;
-#ifdef TKFX_MODE_CAR
-static const TKFX_configuration_t TKFX_CONFIG = { 4, 1, 150, 300, 86400 };
-#endif
-#ifdef TKFX_MODE_BIKE
-static const TKFX_configuration_t TKFX_CONFIG = { 4, 10, 150, 300, 86400 };
-#endif
-#ifdef TKFX_MODE_HIKING
-static const TKFX_configuration_t TKFX_CONFIG = { 4, 5, 300, 600, 86400 };
-#endif
-#ifdef TKFX_MODE_MOTO
-static const TKFX_configuration_t TKFX_CONFIG = { 4, 2, 600, 300, 86400 };
-#endif
 #endif
 
 /*** MAIN functions ***/
@@ -189,7 +234,7 @@ static const TKFX_configuration_t TKFX_CONFIG = { 4, 2, 600, 300, 86400 };
 /*******************************************************************/
 static void _TKFX_rtc_wakeup_timer_irq_callback(void) {
     // Switch and clear next window.
-    tkfx_ctx.motion_irq_window_index = ((tkfx_ctx.motion_irq_window_index + 1) % TKFX_CONFIG.motion_irq_windows_count);
+    tkfx_ctx.motion_irq_window_index = ((tkfx_ctx.motion_irq_window_index + 1) % tkfx_ctx.configuration.tracking_parameters.start_detection_windows);
     tkfx_ctx.motion_irq_count[tkfx_ctx.motion_irq_window_index] = 0;
     // Periodically enable the accelerometer interrupt to check if the device is still moving.
     if ((tkfx_ctx.mode == TKFX_MODE_ACTIVE) && (tkfx_ctx.status.moving_flag != 0)) {
@@ -217,7 +262,7 @@ static void _TKFX_reset_motion_irq_windows(void) {
     // Local variables.
     uint8_t idx = 0;
     // Reset windows.
-    for (idx = 0; idx < TKFX_MOTION_IRQ_WINDOWS_COUNT_MAX; idx++) {
+    for (idx = 0; idx < TKFX_START_DETECTION_WINDOWS_MAX; idx++) {
         tkfx_ctx.motion_irq_count[idx] = 0;
     }
     tkfx_ctx.motion_irq_window_index = 0;
@@ -231,8 +276,8 @@ static uint8_t _TKFX_check_motion_irq_windows(void) {
     uint8_t motion_confirmed = 1;
     uint8_t idx = 0;
     // Check if IRQ threshold has been reached on all windows.
-    for (idx = 0; idx < TKFX_CONFIG.motion_irq_windows_count; idx++) {
-        if (tkfx_ctx.motion_irq_count[idx] < TKFX_CONFIG.start_detection_threshold_irq) {
+    for (idx = 0; idx < tkfx_ctx.configuration.tracking_parameters.start_detection_windows; idx++) {
+        if (tkfx_ctx.motion_irq_count[idx] < tkfx_ctx.configuration.tracking_parameters.start_detection_threshold_irq) {
             motion_confirmed = 0;
             break;
         }
@@ -241,10 +286,293 @@ static uint8_t _TKFX_check_motion_irq_windows(void) {
 }
 #endif
 
+#if (!(defined TKFX_MODE_CLI) && (defined SIGFOX_EP_BIDIRECTIONAL))
+/*******************************************************************/
+static void _TKFX_load_monitoring_period(void) {
+    // Local variables.
+    NVM_status_t nvm_status = NVM_SUCCESS;
+    uint8_t nvm_byte = 0;
+    // Start detection windows.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_MONITORING_PERIOD_MINUTES, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_MONITORING_PERIOD_MINUTES_MIN) || (nvm_byte > TKFX_MONITORING_PERIOD_MINUTES_MAX)) {
+        // Reset to default value.
+        nvm_byte = TKFX_MONITORING_PERIOD_MINUTES_DEFAULT;
+    }
+    tkfx_ctx.configuration.monitoring_period_minutes = nvm_byte;
+}
+#endif
+
+#if (!(defined TKFX_MODE_CLI) && (defined SIGFOX_EP_BIDIRECTIONAL))
+/*******************************************************************/
+static void _TKFX_store_monitoring_period(uint8_t new_monitoring_period, uint8_t* configuration_status) {
+    // Local variables.
+    NVM_status_t nvm_status = NVM_SUCCESS;
+    // Set status to success by default.
+    (*configuration_status) = 1;
+    // Start detection windows.
+    if ((new_monitoring_period >= TKFX_MONITORING_PERIOD_MINUTES_MIN) && (new_monitoring_period <= TKFX_MONITORING_PERIOD_MINUTES_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.monitoring_period_minutes = new_monitoring_period;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_MONITORING_PERIOD_MINUTES, new_monitoring_period);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_MONITORING_PERIOD);
+        (*configuration_status) = 0;
+    }
+}
+#endif
+
+#if (!(defined TKFX_MODE_CLI) && (defined SIGFOX_EP_BIDIRECTIONAL))
+/*******************************************************************/
+static void _TKFX_load_tracking_parameters(void) {
+    // Local variables.
+    NVM_status_t nvm_status = NVM_SUCCESS;
+    uint8_t nvm_byte = 0;
+    // Start detection windows.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_START_DETECTION_WINDOWS, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_START_DETECTION_WINDOWS_MIN) || (nvm_byte > TKFX_START_DETECTION_WINDOWS_MAX)) {
+        // Reset to default value.
+        nvm_byte = TKFX_START_DETECTION_WINDOWS_DEFAULT;
+    }
+    tkfx_ctx.configuration.tracking_parameters.start_detection_windows = nvm_byte;
+    // Start detection threshold.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_START_DETECTION_THRESHOLD_IRQ, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_START_DETECTION_THRESHOLD_IRQ_MIN) || (nvm_byte > TKFX_START_DETECTION_THRESHOLD_IRQ_MAX)) {
+        // Reset to default value.
+        nvm_byte = TKFX_START_DETECTION_THRESHOLD_IRQ_DEFAULT;
+    }
+    tkfx_ctx.configuration.tracking_parameters.start_detection_threshold_irq = nvm_byte;
+    // Stop detection threshold.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_STOP_DETECTION_THRESHOLD_MINUTES, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MIN) || (nvm_byte > TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MAX)) {
+        // Reset to default value.
+        nvm_byte = TKFX_STOP_DETECTION_THRESHOLD_MINUTES_DEFAULT;
+    }
+    tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes = nvm_byte;
+    // Moving geolocation period.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_GEOLOC_PERIOD_MOVING_MINUTES, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MIN) || (nvm_byte > TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX)) {
+        // Reset to default value.
+        nvm_byte = TKFX_GEOLOC_PERIOD_MOVING_MINUTES_DEFAULT;
+    }
+    tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes = nvm_byte;
+    // Stopped geolocation period.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_GEOLOC_PERIOD_STOPPED_HOURS, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN) || (nvm_byte > TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX)) {
+       // Reset to default value.
+       nvm_byte = TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT;
+    }
+    tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours = nvm_byte;
+    // Adaptative TX power flag.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_ADAPTATIVE_TX_POWER_FLAG, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag = (nvm_byte == 0) ? 0 : 1;
+    // Adaptative UL bit rate flag.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_ADAPTATIVE_UL_BIT_RATE_FLAG, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag = (nvm_byte == 0) ? 0 : 1;
+}
+#endif
+
+#if (!(defined TKFX_MODE_CLI) && (defined SIGFOX_EP_BIDIRECTIONAL))
+/*******************************************************************/
+static void _TKFX_store_tracking_parameters(TKFX_tracking_parameters_t* new_tracking_parameters, uint8_t* configuration_status) {
+    // Local variables.
+    NVM_status_t nvm_status = NVM_SUCCESS;
+    uint8_t generic_u8 = 0;
+    // Set status to success by default.
+    (*configuration_status) = 1;
+    // Start detection windows.
+    generic_u8 = (new_tracking_parameters->start_detection_windows);
+    if ((generic_u8 >= TKFX_START_DETECTION_WINDOWS_MIN) && (generic_u8 <= TKFX_START_DETECTION_WINDOWS_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.tracking_parameters.start_detection_windows = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_START_DETECTION_WINDOWS, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_START_DETECTION_WINDOWS);
+        (*configuration_status) = 0;
+    }
+    // Start detection threshold.
+    generic_u8 = (new_tracking_parameters->start_detection_threshold_irq);
+    if ((generic_u8 >= TKFX_START_DETECTION_THRESHOLD_IRQ_MIN) && (generic_u8 <= TKFX_START_DETECTION_THRESHOLD_IRQ_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.tracking_parameters.start_detection_threshold_irq  = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_START_DETECTION_THRESHOLD_IRQ, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_START_DETECTION_THRESHOLD);
+        (*configuration_status) = 0;
+    }
+    // Stop detection threshold.
+    generic_u8 = (new_tracking_parameters->stop_detection_threshold_minutes);
+    if ((generic_u8 >= TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MIN) && (generic_u8 <= TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_STOP_DETECTION_THRESHOLD_MINUTES, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_STOP_DETECTION_THRESHOLD);
+        (*configuration_status) = 0;
+    }
+    // Moving geolocation period.
+    generic_u8 = (new_tracking_parameters->geoloc_period_moving_minutes);
+    if ((generic_u8 >= TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MIN) && (generic_u8 <= TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes  = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GEOLOC_PERIOD_MOVING_MINUTES, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_GEOLOC_PERIOD_MOVING);
+        (*configuration_status) = 0;
+    }
+    // Stopped geolocation period.
+    generic_u8 = (new_tracking_parameters->geoloc_period_stopped_hours);
+    if ((generic_u8 >= TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN) && (generic_u8 <= TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours  = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GEOLOC_PERIOD_STOPPED_HOURS, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_GEOLOC_PERIOD_STOPPED);
+        (*configuration_status) = 0;
+    }
+    // Adaptative TX power flag.
+    generic_u8 = ((new_tracking_parameters->adaptative_tx_power_flag) == 0) ? 0 : 1;
+    // Update context.
+    tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag  = generic_u8;
+    // Write new value in NVM.
+    nvm_status = NVM_write_byte(NVM_ADDRESS_ADAPTATIVE_TX_POWER_FLAG, generic_u8);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Adaptative UL bit rate flag.
+    generic_u8 = ((new_tracking_parameters->adaptative_ul_bit_rate_flag) == 0) ? 0 : 1;
+    // Update context.
+    tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag  = generic_u8;
+    // Write new value in NVM.
+    nvm_status = NVM_write_byte(NVM_ADDRESS_ADAPTATIVE_UL_BIT_RATE_FLAG, generic_u8);
+    NVM_stack_error(ERROR_BASE_NVM);
+}
+#endif
+
+#if (!(defined TKFX_MODE_CLI) && (defined SIGFOX_EP_BIDIRECTIONAL))
+/*******************************************************************/
+static void _TKFX_load_gps_settings(void) {
+    // Local variables.
+    NVM_status_t nvm_status = NVM_SUCCESS;
+    uint8_t nvm_byte = 0;
+    // GPS timeout.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_GPS_TIMEOUT_SECONDS, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if ((nvm_byte < TKFX_GPS_TIMEOUT_SECONDS_MIN) || (nvm_byte > TKFX_GPS_TIMEOUT_SECONDS_MAX)) {
+        // Reset to default value.
+        nvm_byte = TKFX_GPS_TIMEOUT_SECONDS_DEFAULT;
+    }
+    tkfx_ctx.configuration.gps_settings.gps_timeout_seconds = nvm_byte;
+    // Moving altitude stability filter.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_MOVING, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if (nvm_byte > TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX) {
+        // Reset to default value.
+        nvm_byte = TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT;
+    }
+    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving = nvm_byte;
+    // Stopped altitude stability filter.
+    nvm_status = NVM_read_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_STOPPED, &nvm_byte);
+    NVM_stack_error(ERROR_BASE_NVM);
+    // Check value.
+    if (nvm_byte > TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX) {
+        // Reset to default value.
+        nvm_byte = TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT;
+    }
+    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped = nvm_byte;
+}
+#endif
+
+#if (!(defined TKFX_MODE_CLI) && (defined SIGFOX_EP_BIDIRECTIONAL))
+/*******************************************************************/
+static void _TKFX_store_gps_settings(TKFX_gps_settings_t* new_gps_settings, uint8_t* configuration_status) {
+    // Local variables.
+    NVM_status_t nvm_status = NVM_SUCCESS;
+    uint8_t generic_u8 = 0;
+    // Set status to success by default.
+    (*configuration_status) = 1;
+    // GPS timeout.
+    generic_u8 = (new_gps_settings->gps_timeout_seconds);
+    if ((generic_u8 >= TKFX_GPS_TIMEOUT_SECONDS_MIN) && (generic_u8 <= TKFX_GPS_TIMEOUT_SECONDS_MAX)) {
+        // Update context.
+        tkfx_ctx.configuration.gps_settings.gps_timeout_seconds  = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_TIMEOUT_SECONDS, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_GPS_TIMEOUT);
+        (*configuration_status) = 0;
+    }
+    // Moving altitude stability filter.
+    generic_u8 = (new_gps_settings->gps_altitude_stability_filter_moving);
+    if (generic_u8 <= TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX) {
+        // Update context.
+        tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving  = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_MOVING, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_GPS_ALTITUDE_STABILITY_FILTER_MOVING);
+        (*configuration_status) = 0;
+    }
+    // Stopped altitude stability filter.
+    generic_u8 = (new_gps_settings->gps_altitude_stability_filter_stopped);
+    if (generic_u8 <= TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX) {
+        // Update context.
+        tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped  = generic_u8;
+        // Write new value in NVM.
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_STOPPED, generic_u8);
+        NVM_stack_error(ERROR_BASE_NVM);
+    }
+    else {
+        ERROR_stack_add(ERROR_SIGFOX_EP_DL_GPS_ALTITUDE_STABILITY_FILTER_STOPPED);
+        (*configuration_status) = 0;
+    }
+}
+#endif
+
 #ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_init_context(void) {
-
+    // Local variables.
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    uint8_t unused_status = 0;
+#endif
     // Init context.
     tkfx_ctx.state = TKFX_STATE_STARTUP;
     tkfx_ctx.mode = TKFX_MODE_ACTIVE;
@@ -252,17 +580,6 @@ static void _TKFX_init_context(void) {
     tkfx_ctx.flags.por = 1;
     tkfx_ctx.flags.error_stack_enable = 1;
     tkfx_ctx.status.all = 0;
-#if (defined TKFX_MODE_CAR)
-    tkfx_ctx.status.tracker_mode = 0b00;
-#elif (defined TKFX_MODE_BIKE)
-    tkfx_ctx.status.tracker_mode = 0b01;
-#elif (defined TKFX_MODE_HIKING)
-    tkfx_ctx.status.tracker_mode = 0b10;
-#elif (defined TKFX_MODE_MOTO)
-    tkfx_ctx.status.tracker_mode = 0b11;
-#else
-#error "None mode selected"
-#endif
     tkfx_ctx.error_stack_last_time_seconds = 0;
     tkfx_ctx.monitoring_last_time_seconds = 0;
     tkfx_ctx.geoloc_last_time_seconds = 0;
@@ -273,6 +590,28 @@ static void _TKFX_init_context(void) {
 #endif
     // Set motion interrupt callback address.
     SENSORS_HW_set_accelerometer_irq_callback(&_TKFX_motion_irq_callback);
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    tkfx_ctx.configuration_last_time_seconds = 0;
+    // Load configuration from NVM.
+    _TKFX_load_monitoring_period();
+    _TKFX_store_monitoring_period(tkfx_ctx.configuration.monitoring_period_minutes, &unused_status);
+    _TKFX_load_tracking_parameters();
+    _TKFX_store_tracking_parameters(&(tkfx_ctx.configuration.tracking_parameters), &unused_status);
+    _TKFX_load_gps_settings();
+    _TKFX_store_gps_settings(&(tkfx_ctx.configuration.gps_settings), &unused_status);
+#else
+    tkfx_ctx.configuration.monitoring_period_minutes = TKFX_MONITORING_PERIOD_MINUTES_DEFAULT;
+    tkfx_ctx.configuration.tracking_parameters.start_detection_windows = TKFX_START_DETECTION_WINDOWS_DEFAULT;
+    tkfx_ctx.configuration.tracking_parameters.start_detection_threshold_irq = TKFX_START_DETECTION_THRESHOLD_IRQ_DEFAULT;
+    tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes = TKFX_STOP_DETECTION_THRESHOLD_MINUTES_DEFAULT;
+    tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes = TKFX_GEOLOC_PERIOD_MOVING_MINUTES_DEFAULT;
+    tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours = TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT;
+    tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag = 1;
+    tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag = 1;
+    tkfx_ctx.configuration.gps_settings.gps_timeout_seconds = TKFX_GPS_TIMEOUT_SECONDS_DEFAULT;
+    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving = TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT;
+    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped = TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT;
+#endif
 }
 #endif
 
@@ -470,6 +809,14 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     uint32_t tx_power_dbm_delta = (TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX - TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN);
     uint32_t storage_voltage_mv_delta = (TKFX_STORAGE_VOLTAGE_MV_MAX - TKFX_MODE_ACTIVE_STORAGE_VOLTAGE_THRESHOLD_MV);
 #endif
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    SIGFOX_EP_API_message_status_t message_status;
+    SIGFOX_EP_dl_payload_t dl_payload;
+    int16_t dl_rssi = 0;
+    TKFX_tracking_parameters_t new_tracking_parameters;
+    TKFX_gps_settings_t new_gps_settings;
+    uint8_t configuration_status = 0;
+#endif
     // Directly exit of the radio is disabled due to low storage element voltage.
     if (tkfx_ctx.mode == TKFX_MODE_OFF) goto errors;
 #ifdef HW2_0
@@ -489,8 +836,8 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     _TKFX_update_source_storage_voltages();
     // Default RF output power.
     application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN;
-    // Check error value.
-    if (tkfx_ctx.storage_voltage_mv != SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE) {
+    // Check error value and adaptative TX power flag.
+    if ((tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag != 0) && (tkfx_ctx.storage_voltage_mv != SIGFOX_EP_ERROR_VALUE_STORAGE_VOLTAGE)) {
         // Apply clamped linear curve according to storage element voltage.
         if (tkfx_ctx.storage_voltage_mv >= TKFX_STORAGE_VOLTAGE_MV_MAX) {
             application_message->common_parameters.tx_power_dbm_eirp = TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX;
@@ -513,6 +860,69 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     // Send message.
     sigfox_ep_api_status = SIGFOX_EP_API_send_application_message(application_message);
     SIGFOX_EP_API_check_status(0);
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    // Check bidirectional flag.
+    if ((application_message->bidirectional_flag) == SIGFOX_TRUE) {
+        // Reset status.
+        tkfx_ctx.status.daily_downlink = 0;
+        tkfx_ctx.status.configuration_updated = 0;
+        // Read message status.
+        message_status = SIGFOX_EP_API_get_message_status();
+        // Check if downlink data is available.
+        if (message_status.field.dl_frame != 0) {
+            // Update status.
+            tkfx_ctx.status.daily_downlink = 1;
+            // Read downlink payload.
+            sigfox_ep_api_status = SIGFOX_EP_API_get_dl_payload(dl_payload.frame, SIGFOX_DL_PAYLOAD_SIZE_BYTES, &dl_rssi);
+            SIGFOX_EP_API_check_status(0);
+            if (sigfox_ep_api_status == SIGFOX_EP_API_SUCCESS) {
+                // Parse payload.
+                switch (dl_payload.op_code) {
+                case SIGFOX_EP_DL_OP_CODE_NOP:
+                    // Nothing to do.
+                    break;
+                case SIGFOX_EP_DL_OP_CODE_RESET:
+                    // Set reset request.
+                    tkfx_ctx.flags.reset_request = 1;
+                    break;
+                case SIGOFX_EP_DL_OP_CODE_SET_MONITORING_PERIOD:
+                    // Check and store new configuration.
+                    _TKFX_store_monitoring_period(dl_payload.set_monitoring_period.monitoring_period_minutes, &configuration_status);
+                    // Update status.
+                    tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
+                    break;
+                case SIGFOX_EP_DL_OP_CODE_SET_TRACKING_PARAMETERS:
+                    // Build new structure.
+                    new_tracking_parameters.start_detection_windows = dl_payload.set_tracking_parameters.start_detection_windows;
+                    new_tracking_parameters.start_detection_threshold_irq = dl_payload.set_tracking_parameters.start_detection_threshold_irq;
+                    new_tracking_parameters.stop_detection_threshold_minutes = dl_payload.set_tracking_parameters.stop_detection_threshold_minutes;
+                    new_tracking_parameters.geoloc_period_moving_minutes = dl_payload.set_tracking_parameters.geoloc_period_moving_minutes;
+                    new_tracking_parameters.geoloc_period_stopped_hours = dl_payload.set_tracking_parameters.geoloc_period_stopped_hours;
+                    new_tracking_parameters.adaptative_tx_power_flag = dl_payload.set_tracking_parameters.adaptative_tx_power_flag;
+                    new_tracking_parameters.adaptative_ul_bit_rate_flag = dl_payload.set_tracking_parameters.adaptative_ul_bit_rate_flag;
+                    // Check and store new configuration.
+                    _TKFX_store_tracking_parameters(&new_tracking_parameters, &configuration_status);
+                    // Update status.
+                    tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
+                    break;
+                case SIGFOX_EP_DL_OP_CODE_SET_GPS_SETTINGS:
+                    // Build new structure.
+                    new_gps_settings.gps_timeout_seconds = dl_payload.set_gps_settings.gps_timeout_seconds;
+                    new_gps_settings.gps_altitude_stability_filter_moving = dl_payload.set_gps_settings.gps_altitude_stability_filter_moving;
+                    new_gps_settings.gps_altitude_stability_filter_stopped = dl_payload.set_gps_settings.gps_altitude_stability_filter_stopped;
+                    // Check and store new configuration.
+                    _TKFX_store_gps_settings(&new_gps_settings, &configuration_status);
+                    // Update status.
+                    tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
+                    break;
+                default:
+                    ERROR_stack_add(ERROR_SIGFOX_EP_DL_OP_CODE);
+                    break;
+                }
+            }
+        }
+    }
+#endif
     // Close library.
     sigfox_ep_api_status = SIGFOX_EP_API_close();
     SIGFOX_EP_API_check_status(0);
@@ -559,6 +969,9 @@ int main(void) {
 #else
     SIGFOX_EP_ul_payload_geoloc_timeout_t sigfox_ep_ul_payload_geoloc_timeout;
 #endif
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    SIGFOX_EP_ul_payload_configuration_t sigfox_ul_payload_configuration;
+#endif
     ERROR_code_t error_code = 0;
     uint8_t sigfox_ep_ul_payload_error_stack[SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK];
     uint32_t generic_u32_1 = 0;
@@ -571,6 +984,9 @@ int main(void) {
     sigfox_ep_application_message.type = SIGFOX_APPLICATION_MESSAGE_TYPE_BYTE_ARRAY;
     sigfox_ep_application_message.ul_payload = SIGFOX_NULL;
     sigfox_ep_application_message.ul_payload_size_bytes = 0;
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    sigfox_ep_application_message.bidirectional_flag = SIGFOX_FALSE;
+#endif
     // Main loop.
     while (1) {
         // Perform state machine.
@@ -591,10 +1007,15 @@ int main(void) {
             sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_startup.frame);
             sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_STARTUP;
             _TKFX_send_sigfox_message(&sigfox_ep_application_message);
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+            // Compute next state.
+            tkfx_ctx.state = TKFX_STATE_CONFIGURATION;
+#else
             // Update mode.
             _TKFX_update_mode();
             // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
+#endif
             break;
         case TKFX_STATE_MONITORING:
             IWDG_reload();
@@ -625,8 +1046,45 @@ int main(void) {
             // Clear request.
             tkfx_ctx.flags.monitoring_request = 0;
             // Compute next state.
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+            tkfx_ctx.state = ((tkfx_ctx.flags.configuration_request != 0) && (tkfx_ctx.status.moving_flag == 0)) ? TKFX_STATE_CONFIGURATION : TKFX_STATE_ERROR_STACK;
+#else
+            tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
+#endif
+            break;
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+        case TKFX_STATE_CONFIGURATION:
+            IWDG_reload();
+            // Clear request and update last time and state.
+            tkfx_ctx.flags.configuration_request = 0;
+            tkfx_ctx.configuration_last_time_seconds = RTC_get_uptime_seconds();
+            // Build Sigfox frame.
+            sigfox_ul_payload_configuration.monitoring_period_minutes = tkfx_ctx.configuration.monitoring_period_minutes;
+            sigfox_ul_payload_configuration.start_detection_windows = tkfx_ctx.configuration.tracking_parameters.start_detection_windows;
+            sigfox_ul_payload_configuration.start_detection_threshold_irq = tkfx_ctx.configuration.tracking_parameters.start_detection_threshold_irq;
+            sigfox_ul_payload_configuration.stop_detection_threshold_minutes = tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes;
+            sigfox_ul_payload_configuration.geoloc_period_moving_minutes = tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes;
+            sigfox_ul_payload_configuration.geoloc_period_stopped_hours = tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours;
+            sigfox_ul_payload_configuration.unused = 0;
+            sigfox_ul_payload_configuration.adaptative_tx_power_flag = tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag;
+            sigfox_ul_payload_configuration.adaptative_ul_bit_rate_flag = tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag;
+            sigfox_ul_payload_configuration.gps_timeout_seconds = tkfx_ctx.configuration.gps_settings.gps_timeout_seconds;
+            sigfox_ul_payload_configuration.gps_altitude_stability_filter_moving = tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving;
+            sigfox_ul_payload_configuration.gps_altitude_stability_filter_stopped = tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped;
+            // Send uplink configuration frame.
+            sigfox_ep_application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
+            sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ul_payload_configuration.frame);
+            sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_CONFIGURATION;
+            sigfox_ep_application_message.bidirectional_flag = SIGFOX_TRUE;
+            _TKFX_send_sigfox_message(&sigfox_ep_application_message);
+            // Reset bidirectional flag.
+            sigfox_ep_application_message.bidirectional_flag = SIGFOX_FALSE;
+            // Update mode.
+            _TKFX_update_mode();
+            // Compute next state.
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
             break;
+#endif
         case TKFX_STATE_GEOLOC_GPS:
             IWDG_reload();
             // Reset fix duration.
@@ -639,11 +1097,11 @@ int main(void) {
                     GPS_stack_error(ERROR_BASE_GPS);
                 }
                 // Configure altitude stability filter.
-                generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_STOPPED : TKFX_GEOLOC_ALTITUDE_STABILITY_FILTER_MOVING;
+                generic_u8 = (tkfx_ctx.status.moving_flag == 0) ? tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped : tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving;
                 // Turn GPS on.
                 POWER_enable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS, LPTIM_DELAY_MODE_SLEEP);
                 // Get position from GPS.
-                gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, TKFX_GEOLOC_TIMEOUT_SECONDS, &generic_u32_1, &gps_acquisition_status);
+                gps_status = GPS_get_position(&tkfx_ctx.geoloc_position, generic_u8, tkfx_ctx.configuration.gps_settings.gps_timeout_seconds, &generic_u32_1, &gps_acquisition_status);
                 GPS_stack_error(ERROR_BASE_GPS);
                 // Turn GPS off.
                 POWER_disable(POWER_REQUESTER_ID_MAIN, POWER_DOMAIN_GPS);
@@ -660,11 +1118,12 @@ int main(void) {
                 GPS_stack_error(ERROR_BASE_GPS);
             }
             // Compute bit rate according to tracker motion state.
-#ifdef TKFX_MODE_HIKING
-            sigfox_ep_application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
-#else
-            sigfox_ep_application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.moving_flag == 0) ? SIGFOX_UL_BIT_RATE_100BPS : SIGFOX_UL_BIT_RATE_600BPS;
-#endif
+            if (tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag == 0) {
+                sigfox_ep_application_message.common_parameters.ul_bit_rate = SIGFOX_UL_BIT_RATE_100BPS;
+            }
+            else {
+                sigfox_ep_application_message.common_parameters.ul_bit_rate = (tkfx_ctx.status.moving_flag == 0) ? SIGFOX_UL_BIT_RATE_100BPS : SIGFOX_UL_BIT_RATE_600BPS;
+            }
             // Build Sigfox frame.
             if (gps_acquisition_status == GPS_ACQUISITION_SUCCESS) {
                 sigfox_ep_ul_payload_geoloc.latitude_degrees = tkfx_ctx.geoloc_position.lat_degrees;
@@ -832,14 +1291,20 @@ int main(void) {
             // Read uptime.
             generic_u32_1 = RTC_get_uptime_seconds();
             // Periodic monitoring.
-            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + TKFX_MONITORING_PERIOD_SECONDS)) {
+            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + (tkfx_ctx.configuration.monitoring_period_minutes * 60))) {
                 // Set request and update last time.
                 tkfx_ctx.flags.monitoring_request = 1;
                 tkfx_ctx.status.alarm_flag = 0;
                 tkfx_ctx.monitoring_last_time_seconds = generic_u32_1;
             }
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+            if (generic_u32_1 >= (tkfx_ctx.configuration_last_time_seconds + TKFX_CONFIGURATION_PERIOD_SECONDS)) {
+                // Set request.
+                tkfx_ctx.flags.configuration_request = 1;
+            }
+#endif
             // Get current geolocation period.
-            generic_u32_2 = ((tkfx_ctx.status.moving_flag == 0) ? TKFX_CONFIG.stopped_geoloc_period_seconds : TKFX_CONFIG.moving_geoloc_period_seconds);
+            generic_u32_2 = ((tkfx_ctx.status.moving_flag == 0) ? (tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours * 3600) : (tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes * 60));
             // Periodic geolocation.
             if (generic_u32_1 >= (tkfx_ctx.geoloc_last_time_seconds + generic_u32_2)) {
                 // Check mode.
@@ -870,7 +1335,7 @@ int main(void) {
             }
             else {
                 // Stop detection.
-                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + TKFX_CONFIG.stop_detection_threshold_seconds))) {
+                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + (tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes * 60)))) {
                     // Set request and update last time.
                     tkfx_ctx.flags.monitoring_request = 1;
                     tkfx_ctx.flags.geoloc_request = 1;
@@ -914,6 +1379,12 @@ int main(void) {
 #endif
             break;
         case TKFX_STATE_SLEEP:
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+            // Check reset request.
+            if (tkfx_ctx.flags.reset_request != 0) {
+                PWR_software_reset();
+            }
+#endif
             // Enter stop mode.
             IWDG_reload();
             PWR_enter_deepsleep_mode(PWR_DEEPSLEEP_MODE_STOP);

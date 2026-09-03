@@ -9,10 +9,6 @@
                     "name": "cli",
                     "sw_flags": {
                         "TKFX_MODE_CLI": "ON",
-                        "TKFX_MODE_CAR": "ON",
-                        "TKFX_MODE_BIKE": "OFF",
-                        "TKFX_MODE_HIKING": "OFF",
-                        "TKFX_MODE_MOTO": "OFF",
                         "TKFX_MODE_BATTERY": "ON",
                         "TKFX_MODE_SUPERCAPACITOR": "OFF"
                     }
@@ -28,10 +24,6 @@
                     "name": "cli",
                     "sw_flags": {
                         "TKFX_MODE_CLI": "ON",
-                        "TKFX_MODE_CAR": "ON",
-                        "TKFX_MODE_BIKE": "OFF",
-                        "TKFX_MODE_HIKING": "OFF",
-                        "TKFX_MODE_MOTO": "OFF",
                         "TKFX_MODE_BATTERY": "ON",
                         "TKFX_MODE_SUPERCAPACITOR": "OFF"
                     }
@@ -47,60 +39,24 @@
                     "name": "cli",
                     "sw_flags": {
                         "TKFX_MODE_CLI": "ON",
-                        "TKFX_MODE_CAR": "ON",
-                        "TKFX_MODE_BIKE": "OFF",
-                        "TKFX_MODE_HIKING": "OFF",
-                        "TKFX_MODE_MOTO": "OFF",
                         "TKFX_MODE_BATTERY": "ON",
                         "TKFX_MODE_SUPERCAPACITOR": "OFF"
                     }
                 },
                 {
-                    "name": "car",
+                    "name": "battery",
                     "sw_flags": {
                         "TKFX_MODE_CLI": "OFF",
-                        "TKFX_MODE_CAR": "ON",
-                        "TKFX_MODE_BIKE": "OFF",
-                        "TKFX_MODE_HIKING": "OFF",
-                        "TKFX_MODE_MOTO": "OFF",
+                        "TKFX_MODE_BATTERY": "ON",
+                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
+                    }
+                },
+                {
+                    "name": "supercapacitor",
+                    "sw_flags": {
+                        "TKFX_MODE_CLI": "OFF",
                         "TKFX_MODE_BATTERY": "OFF",
                         "TKFX_MODE_SUPERCAPACITOR": "ON"
-                    }
-                },
-                {
-                    "name": "bike",
-                    "sw_flags": {
-                        "TKFX_MODE_CLI": "OFF",
-                        "TKFX_MODE_CAR": "OFF",
-                        "TKFX_MODE_BIKE": "ON",
-                        "TKFX_MODE_HIKING": "OFF",
-                        "TKFX_MODE_MOTO": "OFF",
-                        "TKFX_MODE_BATTERY": "ON",
-                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
-                    }
-                },
-                {
-                    "name": "hiking",
-                    "sw_flags": {
-                        "TKFX_MODE_CLI": "OFF",
-                        "TKFX_MODE_CAR": "OFF",
-                        "TKFX_MODE_BIKE": "OFF",
-                        "TKFX_MODE_HIKING": "ON",
-                        "TKFX_MODE_MOTO": "OFF",
-                        "TKFX_MODE_BATTERY": "ON",
-                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
-                    }
-                },
-                {
-                    "name": "moto",
-                    "sw_flags": {
-                        "TKFX_MODE_CLI": "OFF",
-                        "TKFX_MODE_CAR": "OFF",
-                        "TKFX_MODE_BIKE": "OFF",
-                        "TKFX_MODE_HIKING": "OFF",
-                        "TKFX_MODE_MOTO": "ON",
-                        "TKFX_MODE_BATTERY": "ON",
-                        "TKFX_MODE_SUPERCAPACITOR": "OFF"
                     }
                 }
             ]

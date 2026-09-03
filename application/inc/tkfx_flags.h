@@ -17,11 +17,6 @@
 
 /*** Board options ***/
 
-#define TKFX_MODE_CAR
-//#define TKFX_MODE_BIKE
-//#define TKFX_MODE_HIKING
-//#define TKFX_MODE_MOTO
-
 #define TKFX_MODE_BATTERY
 //#define TKFX_MODE_SUPERCAPACITOR
 
