@@ -50,6 +50,10 @@ The project is organized as follow:
 
 ## Tracking algorithm
 
+The TrackFox uses a start/stop algorithm based on the accelerometer data:
+* A **start event** is triggered after a **configurable filter**, which counts the number of accelerometer interrupts within one or multiple analysis windows.
+* A **stop event** is triggered when none accelerometer interrupt occurred during a **configurable period of time**.
+
 <p align="center">
 <img src="https://github.com/Ludovic-Lesur/trackfox-tkfx/wiki/images/trackfox-algorithm-timeline.drawio.png"/>
 </p>
@@ -63,10 +67,10 @@ The project is organized as follow:
 | `geoloc_period_moving` | Geolocation period while the device is moving. | `5` | `240` | `5` | `minutes` |
 | `geoloc_period_stopped` | Geolocation period while the device is motionless. | `1 ` | `168` | `24` | `hours` |
 | `adaptative_tx_power` | Enable or disable the radio TX power adjustment according to the storage element voltage. | `0` | `1` | `1` | `boolean` |
-| `adaptative_ul_bit_rate` | Enable or disable the radio uplink bit rate according to the device motion state. | `0` | `1` | `1` | `boolean` |
+| `adaptative_ul_bit_rate` | Enable or disable the radio uplink bit rate adjustment according to the device motion state. | `0` | `1` | `1` | `boolean` |
 | `gps_timeout` | GPS timeout. | `30` | `180` | `180` | `seconds` |
-| `altitude_stability_filter`<br>`moving` | Number of same consecutive altitudes required to validate a GPS position while the device is moving. | `0` | `15` | `2` | `altitudes` |
-| `altitude_stability_filter`<br>`stopped` | Number of same consecutive altitudes required to validate a GPS position while the device is motionless. | `0 ` | `15` | `5` | `altitudes` |
+| `gps_altitude_stability`<br>`filter_moving` | Number of same consecutive altitudes required to validate a GPS position while the device is moving. | `0` | `15` | `2` | `altitudes` |
+| `gps_altitude_stability`<br>`filter_stopped` | Number of same consecutive altitudes required to validate a GPS position while the device is motionless. | `0 ` | `15` | `5` | `altitudes` |
 
 ## Sigfox library
 
