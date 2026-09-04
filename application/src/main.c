@@ -1054,7 +1054,7 @@ int main(void) {
             tkfx_ctx.flags.monitoring_request = 0;
             // Compute next state.
 #ifdef SIGFOX_EP_BIDIRECTIONAL
-            tkfx_ctx.state = ((tkfx_ctx.flags.configuration_request != 0) && (tkfx_ctx.status.moving_flag == 0)) ? TKFX_STATE_CONFIGURATION : TKFX_STATE_ERROR_STACK;
+            tkfx_ctx.state = ((tkfx_ctx.flags.configuration_request != 0) && (tkfx_ctx.status.moving_flag == 0) && (tkfx_ctx.status.alarm_flag == 0)) ? TKFX_STATE_CONFIGURATION : TKFX_STATE_ERROR_STACK;
 #else
             tkfx_ctx.state = TKFX_STATE_ERROR_STACK;
 #endif
