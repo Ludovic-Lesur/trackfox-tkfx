@@ -12,6 +12,7 @@
 #include "gpio.h"
 #include "lptim.h"
 #include "lr11xx.h"
+#include "maths.h"
 #include "mcu_mapping.h"
 #include "nvic_priority.h"
 #include "pwr.h"
@@ -171,7 +172,7 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout
         IWDG_reload();
         // Update acquisition duration.
         scan_duration_ms += WIFI_SCAN_SUB_DELAY_MS;
-        (*scan_duration_seconds) = ((scan_duration_ms + 500) / 1000);
+        MATH_rounded_division((*scan_duration_seconds), uint32_t, scan_duration_ms, 1000);
         // Check interrupt.
         if (wifi_ctx.dio_irq_flag != 0) {
             // Read results.

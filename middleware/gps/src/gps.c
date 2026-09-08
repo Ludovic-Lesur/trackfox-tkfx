@@ -11,6 +11,7 @@
 #include "error_base.h"
 #include "iwdg.h"
 #include "lptim.h"
+#include "maths.h"
 #include "maxm10x.h"
 #include "neom8x.h"
 #include "pwr.h"
@@ -172,7 +173,7 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
         IWDG_reload();
         // Update acquisition duration.
         acquisition_duration_ms += GPS_ACQUISITION_SUB_DELAY_MS;
-        (*acquisition_duration_seconds) = ((acquisition_duration_ms + 500) / 1000);
+        MATH_rounded_division((*acquisition_duration_seconds), uint32_t, acquisition_duration_ms, 1000);
         // Check flag.
         if (gps_ctx.process_flag != 0) {
             // Update flags.
