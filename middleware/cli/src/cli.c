@@ -273,7 +273,7 @@ static AT_status_t _CLI_rcc_callback(void) {
         AT_reply_add_string((clock_status == 0) ? ":OFF:" : ":ON:");
         AT_reply_add_integer((int32_t) clock_frequency, STRING_FORMAT_DECIMAL, 0);
         AT_reply_add_string("Hz");
-        AT_send_reply();
+        AT_reply_send();
     }
 errors:
     return status;
@@ -292,7 +292,7 @@ static AT_status_t _CLI_get_ep_id_callback(void) {
         _CLI_check_driver_status(nvm_status, NVM_SUCCESS, ERROR_BASE_NVM);
         AT_reply_add_integer(id_byte, STRING_FORMAT_HEXADECIMAL, 0);
     }
-    AT_send_reply();
+    AT_reply_send();
 errors:
     return status;
 }
@@ -331,7 +331,7 @@ static AT_status_t _CLI_get_ep_key_callback(void) {
         _CLI_check_driver_status(nvm_status, NVM_SUCCESS, ERROR_BASE_NVM);
         AT_reply_add_integer(key_byte, STRING_FORMAT_HEXADECIMAL, 0);
     }
-    AT_send_reply();
+    AT_reply_send();
 errors:
     return status;
 }
@@ -371,28 +371,28 @@ static AT_status_t _CLI_adc_callback(void) {
     AT_reply_add_string("mcu_voltage=");
     AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("mV");
-    AT_send_reply();
+    AT_reply_send();
     // MCU temperature.
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_MCU_TEMPERATURE_DEGREES, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
     AT_reply_add_string("mcu_temperature=");
     AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("dC");
-    AT_send_reply();
+    AT_reply_send();
     // Source voltage.
     AT_reply_add_string("source_voltage=");
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_SOURCE_VOLTAGE_MV, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
     AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("mV");
-    AT_send_reply();
+    AT_reply_send();
     // Supercap voltage.
     AT_reply_add_string("storage_voltage=");
     analog_status = ANALOG_convert_channel(ANALOG_CHANNEL_STORAGE_VOLTAGE_MV, &generic_s32);
     _CLI_check_driver_status(analog_status, ANALOG_SUCCESS, ERROR_BASE_ANALOG);
     AT_reply_add_integer(generic_s32, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("mV");
-    AT_send_reply();
+    AT_reply_send();
 errors:
     POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_ANALOG);
     return status;
@@ -417,12 +417,12 @@ static AT_status_t _CLI_ths_callback(void) {
     AT_reply_add_string("T=");
     AT_reply_add_string(temperature_str);
     AT_reply_add_string("dC");
-    AT_send_reply();
+    AT_reply_send();
     // Humidity.
     AT_reply_add_string("H=");
     AT_reply_add_integer(humidity_percent, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("%");
-    AT_send_reply();
+    AT_reply_send();
 errors:
     POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS);
     return status;
@@ -446,7 +446,7 @@ static AT_status_t _CLI_acc_callback(void) {
     // Print data.
     AT_reply_add_string("Accelerometer chip ID=");
     AT_reply_add_integer(chip_id, STRING_FORMAT_HEXADECIMAL, 1);
-    AT_send_reply();
+    AT_reply_send();
 errors:
     POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_SENSORS);
     return status;
@@ -500,7 +500,7 @@ static AT_status_t _CLI_gps_callback(void) {
     }
     AT_reply_add_integer((int32_t) fix_duration_seconds, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("s");
-    AT_send_reply();
+    AT_reply_send();
 errors:
     POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_GPS);
     POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_ANALOG);
@@ -520,7 +520,7 @@ static void _CLI_print_dl_payload(sfx_u8* dl_payload, sfx_u8 dl_payload_size, sf
     AT_reply_add_string(":");
     AT_reply_add_integer(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("dBm");
-    AT_send_reply();
+    AT_reply_send();
 }
 #endif
 
@@ -538,7 +538,7 @@ static AT_status_t _CLI_read_print_dl_payload(void) {
     // Check downlink status.
     if (message_status.field.dl_frame == 0) {
         AT_reply_add_string("+RX=timeout");
-        AT_send_reply();
+        AT_reply_send();
     }
     else {
         // Read downlink payload.
@@ -886,7 +886,7 @@ static AT_status_t _CLI_rssi_callback(void) {
         // Print RSSI.
         AT_reply_add_integer(rssi_dbm, STRING_FORMAT_DECIMAL, 0);
         AT_reply_add_string("dBm");
-        AT_send_reply();
+        AT_reply_send();
         // Report delay.
         lptim_status = LPTIM_delay_milliseconds(CLI_RSSI_REPORT_PERIOD_MS, LPTIM_DELAY_MODE_ACTIVE);
         _CLI_check_driver_status(lptim_status, LPTIM_SUCCESS, ERROR_BASE_LPTIM);
@@ -935,7 +935,7 @@ static AT_status_t _CLI_lr11xx_callback(void) {
     AT_reply_add_integer((int32_t) fw_version_major, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string(".");
     AT_reply_add_integer((int32_t) fw_version_minor, STRING_FORMAT_DECIMAL, 0);
-    AT_send_reply();
+    AT_reply_send();
 errors:
     // Turn radio off.
     POWER_disable(POWER_REQUESTER_ID_CLI, POWER_DOMAIN_RADIO);
@@ -971,13 +971,13 @@ static AT_status_t _CLI_wifi_callback(void) {
     AT_reply_add_string(", duration = ");
     AT_reply_add_integer(scan_duration_seconds, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string("s");
-    AT_send_reply();
+    AT_reply_send();
     AT_reply_add_string("Access points: ");
     AT_reply_add_integer(scan_results.number_of_access_points_detected, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string(" detected, ");
     AT_reply_add_integer(scan_results.number_of_access_points_written, STRING_FORMAT_DECIMAL, 0);
     AT_reply_add_string(" written");
-    AT_send_reply();
+    AT_reply_send();
     for (access_point_idx = 0; access_point_idx < scan_results.number_of_access_points_written; access_point_idx++) {
         // MAC address.
         for (idx = 0; idx < LR11XX_WIFI_MAC_ADDRESS_SIZE_BYTES; idx++) {
@@ -1008,7 +1008,7 @@ static AT_status_t _CLI_wifi_callback(void) {
         AT_reply_add_string("(");
         AT_reply_add_integer(access_point_list[access_point_idx].wifi_type.datarate_id, STRING_FORMAT_DECIMAL, 0);
         AT_reply_add_string(")");
-        AT_send_reply();
+        AT_reply_send();
     }
 errors:
     // Turn radio off.
