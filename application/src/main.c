@@ -1062,7 +1062,7 @@ int main(void) {
 #ifdef SIGFOX_EP_BIDIRECTIONAL
         case TKFX_STATE_CONFIGURATION:
             IWDG_reload();
-            // Clear request and update last time and state.
+            // Clear request and update last time.
             tkfx_ctx.flags.configuration_request = 0;
             tkfx_ctx.configuration_last_time_seconds = RTC_get_uptime_seconds();
             // Build Sigfox frame.
@@ -1274,6 +1274,9 @@ int main(void) {
                 ERROR_import_sigfox_stack();
                 // Check stack.
                 if (ERROR_stack_is_empty() == 0) {
+                    // Disable error stack sending and update last time..
+                    tkfx_ctx.flags.error_stack_enable = 0;
+                    tkfx_ctx.error_stack_last_time_seconds = RTC_get_uptime_seconds();
                     // Read error stack.
                     for (idx = 0; idx < (SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK >> 1); idx++) {
                         error_code = ERROR_stack_read();
@@ -1285,9 +1288,6 @@ int main(void) {
                     sigfox_ep_application_message.ul_payload = (sfx_u8*) (sigfox_ep_ul_payload_error_stack);
                     sigfox_ep_application_message.ul_payload_size_bytes = SIGFOX_EP_UL_PAYLOAD_SIZE_ERROR_STACK;
                     _TKFX_send_sigfox_message(&sigfox_ep_application_message);
-                    // Disable error stack sending.
-                    tkfx_ctx.flags.error_stack_enable = 0;
-                    tkfx_ctx.error_stack_last_time_seconds = RTC_get_uptime_seconds();
                 }
             }
             // Compute next state.
