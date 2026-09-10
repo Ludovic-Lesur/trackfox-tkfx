@@ -872,7 +872,6 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     if ((application_message->bidirectional_flag) == SIGFOX_TRUE) {
         // Reset status.
         tkfx_ctx.status.daily_downlink = 0;
-        tkfx_ctx.status.configuration_updated = 0;
         // Read message status.
         message_status = SIGFOX_EP_API_get_message_status();
         // Check if downlink data is available.
@@ -895,8 +894,6 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
                 case SIGOFX_EP_DL_OP_CODE_SET_MONITORING_PERIOD:
                     // Check and store new configuration.
                     _TKFX_store_monitoring_period(dl_payload.set_monitoring_period.monitoring_period_minutes, &configuration_status);
-                    // Update status.
-                    tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
                     break;
                 case SIGFOX_EP_DL_OP_CODE_SET_TRACKING_PARAMETERS:
                     // Build new structure.
@@ -909,8 +906,6 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
                     new_tracking_parameters.adaptative_ul_bit_rate_flag = dl_payload.set_tracking_parameters.adaptative_ul_bit_rate_flag;
                     // Check and store new configuration.
                     _TKFX_store_tracking_parameters(&new_tracking_parameters, &configuration_status);
-                    // Update status.
-                    tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
                     break;
                 case SIGFOX_EP_DL_OP_CODE_SET_GPS_SETTINGS:
                     // Build new structure.
@@ -919,8 +914,6 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
                     new_gps_settings.gps_altitude_stability_filter_stopped = dl_payload.set_gps_settings.gps_altitude_stability_filter_stopped;
                     // Check and store new configuration.
                     _TKFX_store_gps_settings(&new_gps_settings, &configuration_status);
-                    // Update status.
-                    tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
                     break;
                 default:
                     ERROR_stack_add(ERROR_SIGFOX_EP_DL_OP_CODE);
@@ -928,6 +921,8 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
                 }
             }
         }
+        // Update status.
+        tkfx_ctx.status.configuration_updated = (configuration_status == 0) ? 0 : 1;
     }
 #endif
     // Close library.
