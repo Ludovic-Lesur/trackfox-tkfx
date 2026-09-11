@@ -52,7 +52,7 @@
 #define TKFX_MONITORING_PERIOD_MINUTES_DEFAULT              60
 #define TKFX_MONITORING_PERIOD_MINUTES_MAX                  240
 // Downlink period.
-#define TKFX_CONFIGURATION_PERIOD_SECONDS                   86400
+#define TKFX_CONFIGURATION_PERIOD_SECONDS                   90000
 // Error stack.
 #define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              86400
 // Charge latching.
