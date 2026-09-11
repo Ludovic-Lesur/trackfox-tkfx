@@ -81,13 +81,19 @@
 #define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN                1
 #define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT            24
 #define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX                168
+// Adaptative flags.
+#define TKFX_FLAG_MIN                                       0
+#define TKFX_FLAG_MAX                                       1
+#define TKFX_FLAG_NVM_OFFSET                                0x55
 // GPS settings.
 #define TKFX_GPS_TIMEOUT_SECONDS_MIN                        30
 #define TKFX_GPS_TIMEOUT_SECONDS_DEFAULT                    180
 #define TKFX_GPS_TIMEOUT_SECONDS_MAX                        180
+#define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MIN              0
 #define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT   2
 #define TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT  5
 #define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX              15
+#define TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET       0x55
 // Voltage hysteresis for power management.
 #ifdef TKFX_MODE_SUPERCAPACITOR
 #define TKFX_STORAGE_VOLTAGE_MV_MAX                         2700
@@ -299,6 +305,7 @@ static void _TKFX_load_monitoring_period(void) {
     if ((nvm_byte < TKFX_MONITORING_PERIOD_MINUTES_MIN) || (nvm_byte > TKFX_MONITORING_PERIOD_MINUTES_MAX)) {
         // Reset to default value.
         nvm_byte = TKFX_MONITORING_PERIOD_MINUTES_DEFAULT;
+        ERROR_stack_add(ERROR_NVM_MONITORING_PERIOD);
     }
     tkfx_ctx.configuration.monitoring_period_minutes = nvm_byte;
 }
@@ -339,6 +346,7 @@ static void _TKFX_load_tracking_parameters(void) {
     if ((nvm_byte < TKFX_START_DETECTION_WINDOWS_MIN) || (nvm_byte > TKFX_START_DETECTION_WINDOWS_MAX)) {
         // Reset to default value.
         nvm_byte = TKFX_START_DETECTION_WINDOWS_DEFAULT;
+        ERROR_stack_add(ERROR_NVM_START_DETECTION_WINDOWS);
     }
     tkfx_ctx.configuration.tracking_parameters.start_detection_windows = nvm_byte;
     // Start detection threshold.
@@ -348,6 +356,7 @@ static void _TKFX_load_tracking_parameters(void) {
     if ((nvm_byte < TKFX_START_DETECTION_THRESHOLD_IRQ_MIN) || (nvm_byte > TKFX_START_DETECTION_THRESHOLD_IRQ_MAX)) {
         // Reset to default value.
         nvm_byte = TKFX_START_DETECTION_THRESHOLD_IRQ_DEFAULT;
+        ERROR_stack_add(ERROR_NVM_START_DETECTION_THRESHOLD);
     }
     tkfx_ctx.configuration.tracking_parameters.start_detection_threshold_irq = nvm_byte;
     // Stop detection threshold.
@@ -357,6 +366,7 @@ static void _TKFX_load_tracking_parameters(void) {
     if ((nvm_byte < TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MIN) || (nvm_byte > TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MAX)) {
         // Reset to default value.
         nvm_byte = TKFX_STOP_DETECTION_THRESHOLD_MINUTES_DEFAULT;
+        ERROR_stack_add(ERROR_NVM_STOP_DETECTION_THRESHOLD);
     }
     tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes = nvm_byte;
     // Moving geolocation period.
@@ -366,6 +376,7 @@ static void _TKFX_load_tracking_parameters(void) {
     if ((nvm_byte < TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MIN) || (nvm_byte > TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX)) {
         // Reset to default value.
         nvm_byte = TKFX_GEOLOC_PERIOD_MOVING_MINUTES_DEFAULT;
+        ERROR_stack_add(ERROR_NVM_GEOLOC_PERIOD_MOVING);
     }
     tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes = nvm_byte;
     // Stopped geolocation period.
@@ -375,18 +386,30 @@ static void _TKFX_load_tracking_parameters(void) {
     if ((nvm_byte < TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN) || (nvm_byte > TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX)) {
        // Reset to default value.
        nvm_byte = TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT;
+       ERROR_stack_add(ERROR_NVM_GEOLOC_PERIOD_STOPPED);
     }
     tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours = nvm_byte;
     // Adaptative TX power flag.
     nvm_status = NVM_read_byte(NVM_ADDRESS_ADAPTATIVE_TX_POWER_FLAG, &nvm_byte);
     NVM_stack_error(ERROR_BASE_NVM);
     // Check value.
-    tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag = (nvm_byte == 0) ? 0 : 1;
+    if ((nvm_byte < (TKFX_FLAG_NVM_OFFSET + TKFX_FLAG_MIN)) || (nvm_byte > (TKFX_FLAG_NVM_OFFSET + TKFX_FLAG_MAX))) {
+       // Reset to default value.
+       nvm_byte = (TKFX_FLAG_NVM_OFFSET + TKFX_FLAG_MAX);
+       ERROR_stack_add(ERROR_NVM_ADAPTATIVE_TX_POWER_FLAG);
+    }
+    tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag = (nvm_byte - TKFX_FLAG_NVM_OFFSET);
     // Adaptative UL bit rate flag.
     nvm_status = NVM_read_byte(NVM_ADDRESS_ADAPTATIVE_UL_BIT_RATE_FLAG, &nvm_byte);
     NVM_stack_error(ERROR_BASE_NVM);
     // Check value.
-    tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag = (nvm_byte == 0) ? 0 : 1;
+    if ((nvm_byte < (TKFX_FLAG_NVM_OFFSET + TKFX_FLAG_MIN)) || (nvm_byte > (TKFX_FLAG_NVM_OFFSET + TKFX_FLAG_MAX))) {
+        // Reset to default value.
+        nvm_byte = (TKFX_FLAG_NVM_OFFSET + TKFX_FLAG_MAX);
+        ERROR_stack_add(ERROR_NVM_ADAPTATIVE_UL_BIT_RATE_FLAG);
+    }
+    // Check value.
+    tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag = (nvm_byte - TKFX_FLAG_NVM_OFFSET);
 }
 #endif
 
@@ -468,14 +491,14 @@ static void _TKFX_store_tracking_parameters(TKFX_tracking_parameters_t* new_trac
     // Update context.
     tkfx_ctx.configuration.tracking_parameters.adaptative_tx_power_flag  = generic_u8;
     // Write new value in NVM.
-    nvm_status = NVM_write_byte(NVM_ADDRESS_ADAPTATIVE_TX_POWER_FLAG, generic_u8);
+    nvm_status = NVM_write_byte(NVM_ADDRESS_ADAPTATIVE_TX_POWER_FLAG, (TKFX_FLAG_NVM_OFFSET + generic_u8));
     NVM_stack_error(ERROR_BASE_NVM);
     // Adaptative UL bit rate flag.
     generic_u8 = ((new_tracking_parameters->adaptative_ul_bit_rate_flag) == 0) ? 0 : 1;
     // Update context.
     tkfx_ctx.configuration.tracking_parameters.adaptative_ul_bit_rate_flag  = generic_u8;
     // Write new value in NVM.
-    nvm_status = NVM_write_byte(NVM_ADDRESS_ADAPTATIVE_UL_BIT_RATE_FLAG, generic_u8);
+    nvm_status = NVM_write_byte(NVM_ADDRESS_ADAPTATIVE_UL_BIT_RATE_FLAG, (TKFX_FLAG_NVM_OFFSET + generic_u8));
     NVM_stack_error(ERROR_BASE_NVM);
 }
 #endif
@@ -493,26 +516,29 @@ static void _TKFX_load_gps_settings(void) {
     if ((nvm_byte < TKFX_GPS_TIMEOUT_SECONDS_MIN) || (nvm_byte > TKFX_GPS_TIMEOUT_SECONDS_MAX)) {
         // Reset to default value.
         nvm_byte = TKFX_GPS_TIMEOUT_SECONDS_DEFAULT;
+        ERROR_stack_add(ERROR_NVM_GPS_TIMEOUT);
     }
     tkfx_ctx.configuration.gps_settings.gps_timeout_seconds = nvm_byte;
     // Moving altitude stability filter.
     nvm_status = NVM_read_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_MOVING, &nvm_byte);
     NVM_stack_error(ERROR_BASE_NVM);
     // Check value.
-    if (nvm_byte > TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX) {
+    if ((nvm_byte < (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + TKFX_GPS_ALTITUDE_STABILITY_FILTER_MIN)) || (nvm_byte > (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX))) {
         // Reset to default value.
-        nvm_byte = TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT;
+        nvm_byte = (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT);
+        ERROR_stack_add(ERROR_NVM_GPS_ALTITUDE_STABILITY_FILTER_MOVING);
     }
-    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving = nvm_byte;
+    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving = (nvm_byte - TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET);
     // Stopped altitude stability filter.
     nvm_status = NVM_read_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_STOPPED, &nvm_byte);
     NVM_stack_error(ERROR_BASE_NVM);
     // Check value.
-    if (nvm_byte > TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX) {
+    if ((nvm_byte < (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + TKFX_GPS_ALTITUDE_STABILITY_FILTER_MIN)) || (nvm_byte > (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + TKFX_GPS_ALTITUDE_STABILITY_FILTER_MAX))) {
         // Reset to default value.
-        nvm_byte = TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT;
+        nvm_byte = (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT);
+        ERROR_stack_add(ERROR_NVM_GPS_ALTITUDE_STABILITY_FILTER_STOPPED);
     }
-    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped = nvm_byte;
+    tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped = (nvm_byte - TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET);
 }
 #endif
 
@@ -543,7 +569,7 @@ static void _TKFX_store_gps_settings(TKFX_gps_settings_t* new_gps_settings, uint
         // Update context.
         tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_moving  = generic_u8;
         // Write new value in NVM.
-        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_MOVING, generic_u8);
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_MOVING, (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + generic_u8));
         NVM_stack_error(ERROR_BASE_NVM);
     }
     else {
@@ -556,7 +582,7 @@ static void _TKFX_store_gps_settings(TKFX_gps_settings_t* new_gps_settings, uint
         // Update context.
         tkfx_ctx.configuration.gps_settings.gps_altitude_stability_filter_stopped  = generic_u8;
         // Write new value in NVM.
-        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_STOPPED, generic_u8);
+        nvm_status = NVM_write_byte(NVM_ADDRESS_GPS_ALTITUDE_STABILITY_FILTER_STOPPED, (TKFX_GPS_ALTITUDE_STABILITY_FILTER_NVM_OFFSET + generic_u8));
         NVM_stack_error(ERROR_BASE_NVM);
     }
     else {
