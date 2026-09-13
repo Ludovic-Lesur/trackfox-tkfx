@@ -27,6 +27,7 @@
 #include "sht3x.h"
 // Utils.
 #include "error.h"
+#include "maths.h"
 #include "types.h"
 // Middleware.
 #include "analog.h"
@@ -49,12 +50,12 @@
 
 // Monitoring period.
 #define TKFX_MONITORING_PERIOD_MINUTES_MIN                  30
-#define TKFX_MONITORING_PERIOD_MINUTES_DEFAULT              60
+#define TKFX_MONITORING_PERIOD_MINUTES_DEFAULT              MATH_MINUTES_PER_HOUR
 #define TKFX_MONITORING_PERIOD_MINUTES_MAX                  240
 // Downlink period.
-#define TKFX_CONFIGURATION_PERIOD_SECONDS                   90000
+#define TKFX_CONFIGURATION_PERIOD_SECONDS                   (MATH_SECONDS_PER_DAY + MATH_SECONDS_PER_HOUR)
 // Error stack.
-#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              86400
+#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              MATH_SECONDS_PER_DAY
 // Charge latching.
 #define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   600
 // Sigfox TX output power range.
@@ -79,8 +80,8 @@
 #define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_DEFAULT           5
 #define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX               240
 #define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN                1
-#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT            24
-#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX                168
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT            MATH_HOURS_PER_DAY
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX                MATH_HOURS_PER_WEEK
 // Adaptative flags.
 #define TKFX_FLAG_MIN                                       0
 #define TKFX_FLAG_MAX                                       1
