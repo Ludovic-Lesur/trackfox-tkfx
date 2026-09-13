@@ -642,7 +642,7 @@ static void _TKFX_init_hw(void) {
 #ifdef HW2_0
     LED_status_t led_status = LED_SUCCESS;
 #endif
-#ifdef SIGFOX_EP_BIDIRECTIONAL
+#if ((defined SIGFOX_EP_BIDIRECTIONAL) && !(defined TKFX_MODE_CLI))
     uint8_t unused_status = 0;
 #endif
     // Init error stack
@@ -687,7 +687,7 @@ static void _TKFX_init_hw(void) {
     GPIO_configure(&GPIO_CHARGER_DISABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
     GPIO_write(&GPIO_CHARGER_DISABLE, 0);
 #endif
-#ifdef SIGFOX_EP_BIDIRECTIONAL
+#if ((defined SIGFOX_EP_BIDIRECTIONAL) && !(defined TKFX_MODE_CLI))
     // Load configuration from NVM.
     _TKFX_load_monitoring_period();
     _TKFX_store_monitoring_period(tkfx_ctx.configuration.monitoring_period_minutes, &unused_status);
