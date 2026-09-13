@@ -9,7 +9,9 @@
 #define __WIFI_H__
 
 #include "error.h"
+#include "lptim.h"
 #include "lr11xx.h"
+#include "maths.h"
 #include "types.h"
 
 /*** WIFI macros ***/
@@ -29,7 +31,9 @@ typedef enum {
     WIFI_ERROR_NULL_PARAMETER,
     WIFI_ERROR_RADIO_INITIALIZATION,
     // Low level drivers errors.
-    WIFI_ERROR_BASE_LR11XX = ERROR_BASE_STEP,
+    WIFI_ERROR_BASE_LPTIM = ERROR_BASE_STEP,
+    WIFI_ERROR_BASE_MATH = (WIFI_ERROR_BASE_LPTIM + LPTIM_ERROR_BASE_LAST),
+    WIFI_ERROR_BASE_LR11XX = (WIFI_ERROR_BASE_MATH + MATH_ERROR_BASE_LAST),
     // Last base value.
     WIFI_ERROR_BASE_LAST = (WIFI_ERROR_BASE_LR11XX + LR11XX_ERROR_BASE_LAST),
 } WIFI_status_t;

@@ -144,10 +144,13 @@ GPS_status_t GPS_de_init(void) {
 GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_stability_threshold, uint32_t timeout_seconds, uint32_t* acquisition_duration_seconds, GPS_acquisition_status_t* acquisition_status) {
     // Local variables.
     GPS_status_t status = GPS_SUCCESS;
+    LPTIM_status_t lptim_status = LPTIM_SUCCESS;
+    MATH_status_t math_status = MATH_SUCCESS;
     GPS_MODULE_status_t gps_module_status = GPS_MODULE_SUCCESS;
     GPS_MODULE_acquisition_t gps_acquisition;
     GPS_MODULE_acquisition_status_t expected_status = (altitude_stability_threshold == 0) ? GPS_MODULE_ACQUISITION_STATUS_FOUND : GPS_MODULE_ACQUISITION_STATUS_STABLE;
-    uint32_t acquisition_duration_ms = 0;
+    int32_t acquisition_duration_ms = 0;
+    int32_t acquisition_duration_round = 0;
     uint8_t callback_flag = 0;
     // Check parameters.
     if ((gps_position == NULL) || (acquisition_duration_seconds == NULL) || (acquisition_status == NULL)) {
@@ -168,12 +171,16 @@ GPS_status_t GPS_get_position(GPS_position_t* gps_position, uint8_t altitude_sta
     GPS_MODULE_exit_error_acquisition();
     // Processing loop.
     while ((*acquisition_duration_seconds) < timeout_seconds) {
-        // Sub-delay.
-        LPTIM_delay_milliseconds(GPS_ACQUISITION_SUB_DELAY_MS, LPTIM_DELAY_MODE_SLEEP);
+        // Reload watchdog.
         IWDG_reload();
+        // Sub-delay.
+        lptim_status = LPTIM_delay_milliseconds(GPS_ACQUISITION_SUB_DELAY_MS, LPTIM_DELAY_MODE_SLEEP);
+        LPTIM_exit_error(GPS_ERROR_BASE_LPTIM);
         // Update acquisition duration.
         acquisition_duration_ms += GPS_ACQUISITION_SUB_DELAY_MS;
-        MATH_rounded_division((*acquisition_duration_seconds), uint32_t, acquisition_duration_ms, 1000);
+        math_status = MATH_rounded_division(acquisition_duration_ms, 1000, &acquisition_duration_round);
+        MATH_exit_error(GPS_ERROR_BASE_MATH);
+        (*acquisition_duration_seconds) = (uint32_t) acquisition_duration_round;
         // Check flag.
         if (gps_ctx.process_flag != 0) {
             // Update flags.

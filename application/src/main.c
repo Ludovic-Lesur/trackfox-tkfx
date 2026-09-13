@@ -595,10 +595,6 @@ static void _TKFX_store_gps_settings(TKFX_gps_settings_t* new_gps_settings, uint
 #ifndef TKFX_MODE_CLI
 /*******************************************************************/
 static void _TKFX_init_context(void) {
-    // Local variables.
-#ifdef SIGFOX_EP_BIDIRECTIONAL
-    uint8_t unused_status = 0;
-#endif
     // Init context.
     tkfx_ctx.state = TKFX_STATE_STARTUP;
     tkfx_ctx.mode = TKFX_MODE_ACTIVE;
@@ -618,13 +614,6 @@ static void _TKFX_init_context(void) {
     SENSORS_HW_set_accelerometer_irq_callback(&_TKFX_motion_irq_callback);
 #ifdef SIGFOX_EP_BIDIRECTIONAL
     tkfx_ctx.configuration_last_time_seconds = 0;
-    // Load configuration from NVM.
-    _TKFX_load_monitoring_period();
-    _TKFX_store_monitoring_period(tkfx_ctx.configuration.monitoring_period_minutes, &unused_status);
-    _TKFX_load_tracking_parameters();
-    _TKFX_store_tracking_parameters(&(tkfx_ctx.configuration.tracking_parameters), &unused_status);
-    _TKFX_load_gps_settings();
-    _TKFX_store_gps_settings(&(tkfx_ctx.configuration.gps_settings), &unused_status);
 #else
     tkfx_ctx.configuration.monitoring_period_minutes = TKFX_MONITORING_PERIOD_MINUTES_DEFAULT;
     tkfx_ctx.configuration.tracking_parameters.start_detection_windows = TKFX_START_DETECTION_WINDOWS_DEFAULT;
@@ -652,6 +641,9 @@ static void _TKFX_init_hw(void) {
 #endif
 #ifdef HW2_0
     LED_status_t led_status = LED_SUCCESS;
+#endif
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    uint8_t unused_status = 0;
 #endif
     // Init error stack
     ERROR_stack_init();
@@ -694,6 +686,15 @@ static void _TKFX_init_hw(void) {
     // Init charge control pin.
     GPIO_configure(&GPIO_CHARGER_DISABLE, GPIO_MODE_OUTPUT, GPIO_TYPE_PUSH_PULL, GPIO_SPEED_LOW, GPIO_PULL_NONE);
     GPIO_write(&GPIO_CHARGER_DISABLE, 0);
+#endif
+#ifdef SIGFOX_EP_BIDIRECTIONAL
+    // Load configuration from NVM.
+    _TKFX_load_monitoring_period();
+    _TKFX_store_monitoring_period(tkfx_ctx.configuration.monitoring_period_minutes, &unused_status);
+    _TKFX_load_tracking_parameters();
+    _TKFX_store_tracking_parameters(&(tkfx_ctx.configuration.tracking_parameters), &unused_status);
+    _TKFX_load_gps_settings();
+    _TKFX_store_gps_settings(&(tkfx_ctx.configuration.gps_settings), &unused_status);
 #endif
 }
 
@@ -893,6 +894,8 @@ static void _TKFX_send_sigfox_message(SIGFOX_EP_API_application_message_t* appli
     // Send message.
     sigfox_ep_api_status = SIGFOX_EP_API_send_application_message(application_message);
     SIGFOX_EP_API_check_status(0);
+    // Reload watchdog.
+    IWDG_reload();
 #ifdef SIGFOX_EP_BIDIRECTIONAL
     // Check bidirectional flag.
     if ((application_message->bidirectional_flag) == SIGFOX_TRUE) {

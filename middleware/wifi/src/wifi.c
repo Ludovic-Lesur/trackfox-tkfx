@@ -136,9 +136,12 @@ WIFI_status_t WIFI_de_init(void) {
 WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout_seconds, uint32_t* scan_duration_seconds, WIFI_scan_status_t* scan_status) {
     // Local variables.
     WIFI_status_t status = WIFI_SUCCESS;
+    LPTIM_status_t lptim_status = LPTIM_SUCCESS;
+    MATH_status_t math_status = MATH_SUCCESS;
     LR11XX_status_t lr11xx_status = LR11XX_SUCCESS;
     LR11XX_wifi_scan_parameters_t scan_params;
-    uint32_t scan_duration_ms = 0;
+    int32_t scan_duration_ms = 0;
+    int32_t scan_duration_round = 0;
     // Check parameter.
     if ((wifi_scan_results == NULL) || (scan_duration_seconds == NULL) || (scan_status == NULL)) {
         status = WIFI_ERROR_NULL_PARAMETER;
@@ -167,12 +170,16 @@ WIFI_status_t WIFI_scan(WIFI_scan_results_t* wifi_scan_results, uint32_t timeout
     LR11XX_exit_error_acquisition();
     // Wait for scan completion.
     while ((*scan_duration_seconds) < timeout_seconds) {
-        // Sub-delay.
-        LPTIM_delay_milliseconds(WIFI_SCAN_SUB_DELAY_MS, LPTIM_DELAY_MODE_STOP);
+        // Reload watchdog.
         IWDG_reload();
+        // Sub-delay.
+        lptim_status = LPTIM_delay_milliseconds(WIFI_SCAN_SUB_DELAY_MS, LPTIM_DELAY_MODE_STOP);
+        LPTIM_exit_error(WIFI_ERROR_BASE_LPTIM);
         // Update acquisition duration.
         scan_duration_ms += WIFI_SCAN_SUB_DELAY_MS;
-        MATH_rounded_division((*scan_duration_seconds), uint32_t, scan_duration_ms, 1000);
+        math_status = MATH_rounded_division(scan_duration_ms, 1000, &scan_duration_round);
+        MATH_exit_error(WIFI_ERROR_BASE_MATH);
+        (*scan_duration_seconds) = (uint32_t) scan_duration_round;
         // Check interrupt.
         if (wifi_ctx.dio_irq_flag != 0) {
             // Read results.
