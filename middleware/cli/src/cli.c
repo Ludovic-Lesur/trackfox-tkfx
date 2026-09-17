@@ -340,7 +340,7 @@ static AT_status_t _CLI_set_ep_key_callback(void) {
     // Read key parameter.
     parser_status = PARSER_get_byte_array(cli_ctx.at_parser_ptr, STRING_CHAR_NULL, SIGFOX_EP_KEY_SIZE_BYTES, 1, sigfox_ep_key, &unused);
     PARSER_exit_error(AT_ERROR_BASE_PARSER);
-    // Write device ID in NVM.
+    // Write device key in NVM.
     nvm_status = NVM_write(NVM_ADDRESS_SIGFOX_EP_KEY, sigfox_ep_key, SIGFOX_EP_KEY_SIZE_BYTES, NVM_DATA_TYPE_BYTE);
     _CLI_check_driver_status(nvm_status, NVM_SUCCESS, ERROR_BASE_NVM);
 errors:
