@@ -50,14 +50,14 @@
 
 // Monitoring period.
 #define TKFX_MONITORING_PERIOD_MINUTES_MIN                  30
-#define TKFX_MONITORING_PERIOD_MINUTES_DEFAULT              MATH_MINUTES_PER_HOUR
-#define TKFX_MONITORING_PERIOD_MINUTES_MAX                  240
+#define TKFX_MONITORING_PERIOD_MINUTES_DEFAULT              (1 * MATH_MINUTES_PER_HOUR)
+#define TKFX_MONITORING_PERIOD_MINUTES_MAX                  (4 * MATH_MINUTES_PER_HOUR)
 // Downlink period.
-#define TKFX_CONFIGURATION_PERIOD_SECONDS                   (MATH_SECONDS_PER_DAY + MATH_SECONDS_PER_HOUR)
+#define TKFX_CONFIGURATION_PERIOD_SECONDS                   (25 * MATH_SECONDS_PER_HOUR)
 // Error stack.
-#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              MATH_SECONDS_PER_DAY
+#define TKFX_ERROR_STACK_BLANKING_TIME_SECONDS              (1 * MATH_SECONDS_PER_DAY)
 // Charge latching.
-#define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   600
+#define TKFX_CHARGE_TOGGLE_PERIOD_SECONDS                   (10 * MATH_SECONDS_PER_MINUTE)
 // Sigfox TX output power range.
 #define TKFX_SIGFOX_TX_POWER_DBM_EIRP_MIN                   14
 #define TKFX_SIGFOX_TX_POWER_DBM_EIRP_MAX                   22
@@ -74,22 +74,22 @@
 // Stop detection.
 #define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MIN           1
 #define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_DEFAULT       5
-#define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MAX           240
+#define TKFX_STOP_DETECTION_THRESHOLD_MINUTES_MAX           (4 * MATH_MINUTES_PER_HOUR)
 // Geolocation periods.
 #define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MIN               5
 #define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_DEFAULT           5
-#define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX               240
+#define TKFX_GEOLOC_PERIOD_MOVING_MINUTES_MAX               (4 * MATH_MINUTES_PER_HOUR)
 #define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MIN                1
-#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT            MATH_HOURS_PER_DAY
-#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX                MATH_HOURS_PER_WEEK
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_DEFAULT            (1 * MATH_HOURS_PER_DAY)
+#define TKFX_GEOLOC_PERIOD_STOPPED_HOURS_MAX                (1 * MATH_HOURS_PER_WEEK)
 // Adaptative flags.
 #define TKFX_FLAG_MIN                                       0
 #define TKFX_FLAG_MAX                                       1
 #define TKFX_FLAG_NVM_OFFSET                                0x55
 // GPS settings.
 #define TKFX_GPS_TIMEOUT_SECONDS_MIN                        30
-#define TKFX_GPS_TIMEOUT_SECONDS_DEFAULT                    180
-#define TKFX_GPS_TIMEOUT_SECONDS_MAX                        180
+#define TKFX_GPS_TIMEOUT_SECONDS_DEFAULT                    (3 * MATH_SECONDS_PER_MINUTE)
+#define TKFX_GPS_TIMEOUT_SECONDS_MAX                        (3 * MATH_SECONDS_PER_MINUTE)
 #define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MIN              0
 #define TKFX_GPS_ALTITUDE_STABILITY_FILTER_MOVING_DEFAULT   2
 #define TKFX_GPS_ALTITUDE_STABILITY_FILTER_STOPPED_DEFAULT  5
@@ -1337,7 +1337,7 @@ int main(void) {
             // Read uptime.
             generic_u32_1 = RTC_get_uptime_seconds();
             // Periodic monitoring.
-            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + (tkfx_ctx.configuration.monitoring_period_minutes * 60))) {
+            if (generic_u32_1 >= (tkfx_ctx.monitoring_last_time_seconds + (tkfx_ctx.configuration.monitoring_period_minutes * MATH_SECONDS_PER_MINUTE))) {
                 // Set request and update last time.
                 tkfx_ctx.flags.monitoring_request = 1;
                 tkfx_ctx.status.alarm_flag = 0;
@@ -1350,7 +1350,7 @@ int main(void) {
             }
 #endif
             // Get current geolocation period.
-            generic_u32_2 = ((tkfx_ctx.status.moving_flag == 0) ? (tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours * 3600) : (tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes * 60));
+            generic_u32_2 = ((tkfx_ctx.status.moving_flag == 0) ? (tkfx_ctx.configuration.tracking_parameters.geoloc_period_stopped_hours * MATH_SECONDS_PER_HOUR) : (tkfx_ctx.configuration.tracking_parameters.geoloc_period_moving_minutes * MATH_SECONDS_PER_MINUTE));
             // Periodic geolocation.
             if (generic_u32_1 >= (tkfx_ctx.geoloc_last_time_seconds + generic_u32_2)) {
                 // Check mode.
@@ -1381,7 +1381,7 @@ int main(void) {
             }
             else {
                 // Stop detection.
-                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + (tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes * 60)))) {
+                if ((tkfx_ctx.status.moving_flag != 0) && (generic_u32_1 >= (tkfx_ctx.motion_irq_last_time_seconds + (tkfx_ctx.configuration.tracking_parameters.stop_detection_threshold_minutes * MATH_SECONDS_PER_MINUTE)))) {
                     // Set request and update last time.
                     tkfx_ctx.flags.monitoring_request = 1;
                     tkfx_ctx.flags.geoloc_request = 1;
